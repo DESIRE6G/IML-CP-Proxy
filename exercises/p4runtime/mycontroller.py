@@ -155,12 +155,12 @@ def main(p4info_file_path, bmv2_file_path):
         # Also, dump all P4Runtime messages sent to switch to given txt files.
         s1 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name='s1',
-            address='127.0.0.1:50051',
+            address='127.0.0.1:60051',
             device_id=0,
             proto_dump_file='logs/s1-p4runtime-requests.txt')
         s2 = p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name='s2',
-            address='127.0.0.1:50052',
+            address='127.0.0.1:60052',
             device_id=1,
             proto_dump_file='logs/s2-p4runtime-requests.txt')
 
