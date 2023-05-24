@@ -79,20 +79,11 @@ def main():
     try:
         s1 = SwitchConnection(0,'fwd')
         s2 = SwitchConnection(1,'fwd')
+        s3 = SwitchConnection(2,'basic_part1')
+        s4 = SwitchConnection(3,'basic_part2')
 
         print('writeTunnelRules')
-        table_entry = s1.p4info_helper.buildTableEntry(
-            table_name="MyIngress.ipv4_lpm",
-            match_fields={
-                "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
-            },
-            action_name="MyIngress.ipv4_forward",
-            action_params={
-                "dstAddr": '08:00:00:00:02:22',
-                "port": 2
-            })
-        s1.connection.WriteTableEntry(table_entry)
-        s2.connection.WriteTableEntry(table_entry)
+        # PING response can come on this line (s1 and s2 has same p4info)
         table_entry = s1.p4info_helper.buildTableEntry(
             table_name="MyIngress.ipv4_lpm",
             match_fields={
@@ -105,6 +96,58 @@ def main():
             })
         s1.connection.WriteTableEntry(table_entry)
         s2.connection.WriteTableEntry(table_entry)
+
+        # s2 forwards packet to h2 if arrives
+        table_entry = s2.p4info_helper.buildTableEntry(
+            table_name="MyIngress.ipv4_lpm",
+            match_fields={
+                "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+            },
+            action_name="MyIngress.ipv4_forward",
+            action_params={
+                "dstAddr": '08:00:00:00:02:22',
+                "port": 2
+            })
+        s2.connection.WriteTableEntry(table_entry)
+
+
+        # s1 forwards packet to the experimental track
+        table_entry = s1.p4info_helper.buildTableEntry(
+            table_name="MyIngress.ipv4_lpm",
+            match_fields={
+                "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+            },
+            action_name="MyIngress.ipv4_forward",
+            action_params={
+                "dstAddr": '08:00:00:00:02:22',
+                "port": 3
+            })
+        s1.connection.WriteTableEntry(table_entry)
+
+        table_entry = s3.p4info_helper.buildTableEntry(
+            table_name="MyIngress.ipv4_lpm1",
+            match_fields={
+                "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+            },
+            action_name="MyIngress.chg_addr",
+            action_params={
+                "dstAddr": '08:00:00:00:02:22',
+                "port": 2
+            })
+        s3.connection.WriteTableEntry(table_entry)
+
+
+        table_entry = s4.p4info_helper.buildTableEntry(
+            table_name="MyIngress.ipv4_lpm2",
+            match_fields={
+                "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+            },
+            action_name="MyIngress.set_port",
+            )
+        s4.connection.WriteTableEntry(table_entry)
+
+
+
 
         readTableRules(s1.p4info_helper, s1.connection)
         readTableRules(s1.p4info_helper, s1.connection)

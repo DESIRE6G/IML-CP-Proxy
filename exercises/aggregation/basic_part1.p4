@@ -92,6 +92,7 @@ control MyIngress(inout headers hdr,
     action chg_addr(egressSpec_t port, macAddr_t dstAddr) {
         hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
         hdr.ethernet.dstAddr = dstAddr;
+        standard_metadata.egress_spec = 2;
         meta.port = port;
     }
     
