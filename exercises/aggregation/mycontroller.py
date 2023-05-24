@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-import argparse
 import os
 import sys
-from time import sleep
 
 import grpc
+
+from high_level_switch_connection import HighLevelSwitchConnection
 
 # Import P4Runtime lib from parent utils dir
 # Probably there's a better way of doing this.
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)),
                  '../../utils/'))
-import p4runtime_lib.bmv2
-import p4runtime_lib.helper
 from p4runtime_lib.error_utils import printGrpcError
 from p4runtime_lib.switch import ShutdownAllSwitchConnections
 
@@ -56,104 +54,111 @@ def printCounter(p4info_helper, sw, counter_name, index):
                 counter.data.packet_count, counter.data.byte_count
             ))
 
-class SwitchConnection():
-    def __init__(self, device_id, filename, port=None):
-        self.device_id = device_id
-        self.filename = filename
-        self.p4info_path = f'./build/{self.filename}.p4.p4info.txt'
-        self.bmv2_file_path = f'./build/{self.filename}.json'
-        self.p4info_helper = p4runtime_lib.helper.P4InfoHelper(self.p4info_path)
 
-        self.port = f'5005{device_id+1}' if port is None else port
+def config_response_simple_forward():
+    s1 = HighLevelSwitchConnection(0, 'fwd')
+    s2 = HighLevelSwitchConnection(1, 'fwd')
+    # PING response can come on this line (s1 and s2 has same p4info)
+    table_entry = s1.p4info_helper.buildTableEntry(
+        table_name="MyIngress.ipv4_lpm",
+        match_fields={
+            "hdr.ipv4.dstAddr": ('10.0.1.1', 32)
+        },
+        action_name="MyIngress.ipv4_forward",
+        action_params={
+            "dstAddr": '08:00:00:00:01:11',
+            "port": 1
+        })
+    s1.connection.WriteTableEntry(table_entry)
+    s2.connection.WriteTableEntry(table_entry)
 
-        self.connection = p4runtime_lib.bmv2.Bmv2SwitchConnection(
-            name=f's{device_id+1}',
-            address=f'127.0.0.1:{self.port}',
-            device_id=device_id,
-            proto_dump_file=f'logs/s{device_id+1}-p4runtime-requests.txt')
+    # s2 forwards packet to h2 if arrives
+    table_entry = s2.p4info_helper.buildTableEntry(
+        table_name="MyIngress.ipv4_lpm",
+        match_fields={
+            "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+        },
+        action_name="MyIngress.ipv4_forward",
+        action_params={
+            "dstAddr": '08:00:00:00:02:22',
+            "port": 2
+        })
+    s2.connection.WriteTableEntry(table_entry)
 
-        self.connection.MasterArbitrationUpdate()
 
-        self.connection.SetForwardingPipelineConfig(p4info=self.p4info_helper.p4info,
-                                       bmv2_json_file_path=self.bmv2_file_path)
+    # s1 forwards packet to the experimental track
+    table_entry = s1.p4info_helper.buildTableEntry(
+        table_name="MyIngress.ipv4_lpm",
+        match_fields={
+            "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+        },
+        action_name="MyIngress.ipv4_forward",
+        action_params={
+            "dstAddr": '08:00:00:00:02:22',
+            "port": 3
+        })
+    s1.connection.WriteTableEntry(table_entry)
 
-def main():
+def config_not_aggregated_controller(aggregated_dataplane = False):
+
+    s3 = HighLevelSwitchConnection(2, 'basic_part1', '60053' if aggregated_dataplane else None)
+    s4 = HighLevelSwitchConnection(3, 'basic_part2', '60054' if aggregated_dataplane else None)
+
+    table_entry = s3.p4info_helper.buildTableEntry(
+        table_name="MyIngress.ipv4_lpm1",
+        match_fields={
+            "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+        },
+        action_name="MyIngress.chg_addr",
+        action_params={
+            "dstAddr": '08:00:00:00:02:22',
+            "port": 2
+        })
+    s3.connection.WriteTableEntry(table_entry)
+
+
+    table_entry = s4.p4info_helper.buildTableEntry(
+        table_name="MyIngress.ipv4_lpm2",
+        match_fields={
+            "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+        },
+        action_name="MyIngress.set_port",
+        )
+    s4.connection.WriteTableEntry(table_entry)
+
+
+def config_aggregated_controller():
+    s3 = HighLevelSwitchConnection(2, 'basic')
+
+    table_entry = s3.p4info_helper.buildTableEntry(
+        table_name="MyIngress.NF1_ipv4_lpm1",
+        match_fields={
+            "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+        },
+        action_name="MyIngress.NF1_chg_addr",
+        action_params={
+            "dstAddr": '08:00:00:00:02:22',
+            "port": 2
+        })
+    s3.connection.WriteTableEntry(table_entry)
+
+
+    table_entry = s3.p4info_helper.buildTableEntry(
+        table_name="MyIngress.NF2_ipv4_lpm2",
+        match_fields={
+            "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+        },
+        action_name="MyIngress.NF2_set_port",
+        )
+    s3.connection.WriteTableEntry(table_entry)
+
+
+
+def main(aggregated = False):
     try:
-        s1 = SwitchConnection(0,'fwd')
-        s2 = SwitchConnection(1,'fwd')
-        s3 = SwitchConnection(2,'basic_part1')
-        s4 = SwitchConnection(3,'basic_part2')
-
-        print('writeTunnelRules')
-        # PING response can come on this line (s1 and s2 has same p4info)
-        table_entry = s1.p4info_helper.buildTableEntry(
-            table_name="MyIngress.ipv4_lpm",
-            match_fields={
-                "hdr.ipv4.dstAddr": ('10.0.1.1', 32)
-            },
-            action_name="MyIngress.ipv4_forward",
-            action_params={
-                "dstAddr": '08:00:00:00:01:11',
-                "port": 1
-            })
-        s1.connection.WriteTableEntry(table_entry)
-        s2.connection.WriteTableEntry(table_entry)
-
-        # s2 forwards packet to h2 if arrives
-        table_entry = s2.p4info_helper.buildTableEntry(
-            table_name="MyIngress.ipv4_lpm",
-            match_fields={
-                "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
-            },
-            action_name="MyIngress.ipv4_forward",
-            action_params={
-                "dstAddr": '08:00:00:00:02:22',
-                "port": 2
-            })
-        s2.connection.WriteTableEntry(table_entry)
-
-
-        # s1 forwards packet to the experimental track
-        table_entry = s1.p4info_helper.buildTableEntry(
-            table_name="MyIngress.ipv4_lpm",
-            match_fields={
-                "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
-            },
-            action_name="MyIngress.ipv4_forward",
-            action_params={
-                "dstAddr": '08:00:00:00:02:22',
-                "port": 3
-            })
-        s1.connection.WriteTableEntry(table_entry)
-
-        table_entry = s3.p4info_helper.buildTableEntry(
-            table_name="MyIngress.ipv4_lpm1",
-            match_fields={
-                "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
-            },
-            action_name="MyIngress.chg_addr",
-            action_params={
-                "dstAddr": '08:00:00:00:02:22',
-                "port": 2
-            })
-        s3.connection.WriteTableEntry(table_entry)
-
-
-        table_entry = s4.p4info_helper.buildTableEntry(
-            table_name="MyIngress.ipv4_lpm2",
-            match_fields={
-                "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
-            },
-            action_name="MyIngress.set_port",
-            )
-        s4.connection.WriteTableEntry(table_entry)
-
-
-
-
-        readTableRules(s1.p4info_helper, s1.connection)
-        readTableRules(s1.p4info_helper, s1.connection)
-
+        config_response_simple_forward()
+        config_not_aggregated_controller(aggregated_dataplane=True)
+        #config_aggregated_controller()
     except KeyboardInterrupt:
         print(" Shutting down.")
     except grpc.RpcError as e:
@@ -162,4 +167,4 @@ def main():
     ShutdownAllSwitchConnections()
 
 if __name__ == '__main__':
-    main()
+    main(aggregated=True)

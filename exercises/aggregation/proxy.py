@@ -9,43 +9,64 @@ from p4.v1.p4runtime_pb2 import StreamMessageRequest, StreamMessageResponse, Set
     Update, WriteResponse, ReadResponse
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 
+import p4runtime_lib
+import p4runtime_lib.helper
+from mycontroller import readTableRules
 from p4runtime_lib.switch import IterableQueue
+from high_level_switch_connection import HighLevelSwitchConnection
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
 
-class ProxyP4RuntimeServicer(P4RuntimeServicer):
+target_switch = HighLevelSwitchConnection(2, 'basic', '50053', send_p4info=True)
+readTableRules(target_switch.p4info_helper,target_switch.connection)
 
-    def __init__(self, client_port):
+
+def prefix_p4_action_or_table(original_table_name, prefix):
+    namespace,table_name = original_table_name.split('.')
+
+    return f'{namespace}.{prefix}{table_name}'
+
+class ProxyP4RuntimeServicer(P4RuntimeServicer):
+    def __init__(self, prefix, from_p4info_path):
         self.table_entries = []
-        self.client_port = client_port
-        self.channel = grpc.insecure_channel(f'127.0.0.1:{client_port}')
-        self.client_stub = p4runtime_pb2_grpc.P4RuntimeStub(self.channel)
+        self.prefix = prefix
+        self.from_p4info_helper = p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
-        self.stream_msg_resp = self.client_stub.StreamChannel(iter(self.requests_stream))
 
 
     def Write(self, request, context):
-        """Update one or more P4 entities on the target.
-        """
-
-        request_copy = p4runtime_pb2.WriteRequest()
-        request_copy.CopyFrom(request)
-        self.client_stub.Write(request)
-
-        '''
         print('Write')
         for update in request.updates:
             if update.type == Update.INSERT:
                 if update.entity.WhichOneof('entity') == 'table_entry':
                     self.table_entries.append(update.entity.table_entry)
+
+                    table_name = self.from_p4info_helper.get_tables_name(update.entity.table_entry.table_id)
+                    print(table_name)
                     print(update.entity.table_entry)
+
+                    new_table_id = target_switch.p4info_helper.get_tables_id(prefix_p4_action_or_table(table_name, self.prefix))
+                    update.entity.table_entry.table_id = new_table_id
+
+                    if update.entity.table_entry.action.WhichOneof('type') == 'action':
+                        received_action_id = update.entity.table_entry.action.action.action_id
+                        received_action_name = self.from_p4info_helper.get_actions_name(received_action_id)
+                        new_action_name = prefix_p4_action_or_table(received_action_name, self.prefix)
+                        new_action_id = target_switch.p4info_helper.get_actions_id(new_action_name)
+                        update.entity.table_entry.action.action.action_id = new_action_id
+                    else:
+                        raise Exception(f'Unhandled action type {update.entity.table_entry.action.type}')
+
+                    print(update.entity.table_entry)
+
                 else:
                     raise Exception(f'Unhandled update type {update.type}')
             else:
                 raise Exception(f'Unhandled update type {update.type}')
 
-        '''
+            request.device_id = target_switch.device_id
+            target_switch.connection.client_stub.Write(request)
         return WriteResponse()
 
 
@@ -68,14 +89,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         '''
 
     def SetForwardingPipelineConfig(self, request, context):
-        """Sets the P4 forwarding-pipeline config.
-        """
-
-        request_copy = p4runtime_pb2.SetForwardingPipelineConfigRequest()
-        request_copy.CopyFrom(request)
-        self.client_stub.SetForwardingPipelineConfig(request)
-
-        print('SetForwardingPipelineConfig')
+        # Do not forward p4info
         return SetForwardingPipelineConfigResponse()
 
     def GetForwardingPipelineConfig(self, request, context):
@@ -89,6 +103,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         raise NotImplementedError('Method not implemented!')
 
     def StreamChannel(self, request_iterator, context):
+        return
 
         for request in request_iterator:
             request_copy = p4runtime_pb2.StreamMessageRequest()
@@ -121,13 +136,14 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         raise NotImplementedError('Method not implemented!')
 
 class ProxyServer():
-    def __init__(self, port, client_port):
+    def __init__(self, port, prefix, from_p4info_path):
         self.port = port
-        self.client_port = client_port
+        self.prefix = prefix
+        self.from_p4info_path = from_p4info_path
 
     def start(self):
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        self.servicer = ProxyP4RuntimeServicer(self.client_port)
+        self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path)
         add_P4RuntimeServicer_to_server(self.servicer, self.server)
         self.server.add_insecure_port(f'[::]:{self.port}')
         self.server.start()
@@ -136,14 +152,14 @@ class ProxyServer():
         self.server.stop(*args)
 
 servers = []
-def serve(port, client_port):
+def serve(port, prefix, p4info_path):
     global servers
-    server = ProxyServer(port, client_port)
+    server = ProxyServer(port, prefix, p4info_path)
     server.start()
     servers.append(server)
 
-serve('60051', '50051')
-serve('60052', '50052')
+serve('60053', prefix='NF1_', p4info_path='build/basic_part1.p4.p4info.txt')
+serve('60054', prefix='NF2_', p4info_path='build/basic_part2.p4.p4info.txt')
 
 try:
     while True:

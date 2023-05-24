@@ -76,9 +76,11 @@ def printGrpcError(grpc_error):
     print("gRPC Error", grpc_error.details(), end=' ')
     status_code = grpc_error.code()
     print("({})".format(status_code.name), end=' ')
-    traceback = sys.exc_info()[2]
-    print("[{}:{}]".format(
-        traceback.tb_frame.f_code.co_filename, traceback.tb_lineno))
+    for traceback in sys.exc_info()[2:]:
+        print("[{}:{}]".format(
+            traceback.tb_frame.f_code.co_filename, traceback.tb_lineno), end= ' ')
+    print('')
+
     if status_code != grpc.StatusCode.UNKNOWN:
         return
     p4_errors = parseGrpcErrorBinaryDetails(grpc_error)

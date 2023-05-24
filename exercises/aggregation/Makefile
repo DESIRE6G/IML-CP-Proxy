@@ -1,3 +1,4 @@
 BMV2_SWITCH_EXE = simple_switch_grpc
-NO_P4=1
+DEFAULT_PROG = basic.p4
+#NO_P4=1
 include ../../utils/Makefile
