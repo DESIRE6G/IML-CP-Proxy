@@ -22,11 +22,19 @@ from .convert import encode
 
 
 class P4InfoHelper(object):
-    def __init__(self, p4_info_filepath):
+    def __init__(self, p4_info_filepath = None, raw_p4info = None):
+        if p4_info_filepath is None and raw_p4info is None:
+            raise Exception('For P4InfoHelper constructor p4_info_filepath and p4_info parameters cannot be None in the same time')
+
         p4info = p4info_pb2.P4Info()
         # Load the p4info file into a skeleton P4Info object
-        with open(p4_info_filepath) as p4info_f:
-            google.protobuf.text_format.Merge(p4info_f.read(), p4info)
+        if p4_info_filepath is not None:
+            with open(p4_info_filepath) as p4info_f:
+                google.protobuf.text_format.Merge(p4info_f.read(), p4info)
+
+        if raw_p4info is not None:
+            google.protobuf.text_format.Merge(raw_p4info, p4info)
+
         self.p4info = p4info
 
     def get(self, entity_type, name=None, id=None):
