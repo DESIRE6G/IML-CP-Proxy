@@ -26,14 +26,27 @@ readTableRules(target_switch.p4info_helper,target_switch.connection)
 
 redis = redis.Redis()
 
-def prefix_p4_action_or_table(original_table_name, prefix):
+def prefix_p4_action_or_table(original_table_name : str, prefix : str) -> str:
     namespace,table_name = original_table_name.split('.')
 
     return f'{namespace}.{prefix}{table_name}'
 
+def remove_prefix_p4_action_or_talbe(prefixed_table_name : str, prefix : str) -> str:
+    namespace,table_name = prefixed_table_name.split('.')
+
+    return f'{namespace}.{table_name.lstrip(prefix)}'
+
+
+def get_pure_table_name(original_table_name : str) -> str:
+    namespace,table_name = original_table_name.split('.')
+
+    return f'{table_name}'
+
+
 class RedisKeys(TypedDict):
     TABLE_ENTRIES: str
     P4INFO: str
+
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, prefix, from_p4info_path):
@@ -46,6 +59,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.requests_stream = IterableQueue()
 
 
+
+
     def Write(self, request, context, from_p4info_helper = None, save_to_redis = True):
         print('------------------- Write')
         if from_p4info_helper is None:
@@ -56,22 +71,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 if update.entity.WhichOneof('entity') == 'table_entry':
                     if save_to_redis:
                         redis.rpush(self.redis_keys['TABLE_ENTRIES'], MessageToJson(request))
-
-                    table_name = from_p4info_helper.get_tables_name(update.entity.table_entry.table_id)
-                    print(table_name)
-                    print(update.entity.table_entry)
-
-                    new_table_id = target_switch.p4info_helper.get_tables_id(prefix_p4_action_or_table(table_name, self.prefix))
-                    update.entity.table_entry.table_id = new_table_id
-
-                    if update.entity.table_entry.action.WhichOneof('type') == 'action':
-                        received_action_id = update.entity.table_entry.action.action.action_id
-                        received_action_name = from_p4info_helper.get_actions_name(received_action_id)
-                        new_action_name = prefix_p4_action_or_table(received_action_name, self.prefix)
-                        new_action_id = target_switch.p4info_helper.get_actions_id(new_action_name)
-                        update.entity.table_entry.action.action.action_id = new_action_id
-                    else:
-                        raise Exception(f'Unhandled action type {update.entity.table_entry.action.type}')
+                    entity = update.entity
+                    self.convert_table_entry(from_p4info_helper, target_switch.p4info_helper, entity)
 
                     print(update.entity.table_entry)
 
@@ -86,24 +87,46 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         target_switch.connection.client_stub.Write(request)
         return WriteResponse()
 
+    def convert_table_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False):
+        table_name = from_p4info_helper.get_tables_name(entity.table_entry.table_id)
+        if reverse:
+            new_table_name = remove_prefix_p4_action_or_talbe(table_name, self.prefix)
+        else:
+            new_table_name = prefix_p4_action_or_table(table_name, self.prefix)
+
+        new_table_id = target_p4info_helper.get_tables_id(new_table_name)
+        entity.table_entry.table_id = new_table_id
+        if entity.table_entry.action.WhichOneof('type') == 'action':
+            received_action_id = entity.table_entry.action.action.action_id
+            received_action_name = from_p4info_helper.get_actions_name(received_action_id)
+
+            if reverse:
+                new_action_name = remove_prefix_p4_action_or_talbe(received_action_name, self.prefix)
+            else:
+                new_action_name = prefix_p4_action_or_table(received_action_name, self.prefix)
+
+            new_action_id = target_p4info_helper.get_actions_id(new_action_name)
+            entity.table_entry.action.action.action_id = new_action_id
+        else:
+            raise Exception(f'Unhandled action type {entity.table_entry.action.type}')
 
     def Read(self, request, context):
         """Read one or more P4 entities from the target.
         """
-        request_copy = p4runtime_pb2.ReadRequest()
-        request_copy.CopyFrom(request)
-        for result in self.client_stub.Read(request):
-            yield result
-        '''
-        ret = ReadResponse()
+        if len(request.entities) == 1:
+            ret = ReadResponse()
 
-        for stored_entity in self.table_entries:
-            entity = ret.entities.add()
-            print(dir(stored_entity))
-            entity.table_entry.CopyFrom(stored_entity)
+            for result in target_switch.connection.client_stub.Read(request):
+                for entity in result.entities:
+                    table_name = target_switch.p4info_helper.get_tables_name(entity.table_entry.table_id)
+                    if get_pure_table_name(table_name).startswith(self.prefix):
+                        self.convert_table_entry(target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
+                        ret_entity = ret.entities.add()
+                        ret_entity.CopyFrom(entity)
 
-        yield ret
-        '''
+            yield ret
+        else:
+            raise Exception(f"Read only handles when requested everything")
 
     def SetForwardingPipelineConfig(self, request, context):
         # Do not forward p4info just save it
