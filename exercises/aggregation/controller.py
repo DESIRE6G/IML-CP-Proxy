@@ -158,7 +158,7 @@ def main(aggregated = False):
     try:
         s3 = HighLevelSwitchConnection(2, 'basic_part1', '60053',send_p4info=False)
         config_response_simple_forward()
-        #config_not_aggregated_controller(aggregated_dataplane=True)
+        config_not_aggregated_controller(aggregated_dataplane=True)
         readTableRules(s3.p4info_helper, s3.connection)
         #config_aggregated_controller()
     except KeyboardInterrupt:

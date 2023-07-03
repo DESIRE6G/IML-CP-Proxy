@@ -14,7 +14,6 @@ import redis
 
 import p4runtime_lib
 import p4runtime_lib.helper
-from controller import readTableRules
 from p4runtime_lib.switch import IterableQueue
 from high_level_switch_connection import HighLevelSwitchConnection
 
@@ -22,7 +21,13 @@ logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
 
 target_switch = HighLevelSwitchConnection(2, 'basic', '50053', send_p4info=True)
-readTableRules(target_switch.p4info_helper,target_switch.connection)
+print('On startup the rules on the target are the following')
+for response in target_switch.connection.ReadTableEntries():
+    for entity in response.entities:
+        entry = entity.table_entry
+        print(target_switch.p4info_helper.get_tables_name(entry.table_id))
+        print(entry)
+        print('-----')
 
 redis = redis.Redis()
 
@@ -203,7 +208,7 @@ class ProxyServer:
     def start(self):
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path)
-        self.servicer.fill_from_redis()
+        # self.servicer.fill_from_redis()
         add_P4RuntimeServicer_to_server(self.servicer, self.server)
         self.server.add_insecure_port(f'[::]:{self.port}')
         self.server.start()
