@@ -14,7 +14,7 @@ import redis
 
 import p4runtime_lib
 import p4runtime_lib.helper
-from mycontroller import readTableRules
+from controller import readTableRules
 from p4runtime_lib.switch import IterableQueue
 from high_level_switch_connection import HighLevelSwitchConnection
 
