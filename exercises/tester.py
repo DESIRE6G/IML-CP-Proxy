@@ -8,7 +8,8 @@ from os import system
 import subprocess
 
 test_cases = ['aggregation']
-TEST_FOLDER_NAME = '__temporary_test_folder'
+TARGET_TEST_FOLDER = '__temporary_test_folder'
+TESTCASE_FOLDER = 'testcases'
 TMUX_WINDOW_NAME = 'proxy_tester'
 necessary_files = ['*.p4', '*.py', 'topology.json', 'Makefile']
 
@@ -50,18 +51,18 @@ controller_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
 
 def prepare_test_folder(test_case):
-    shutil.rmtree(TEST_FOLDER_NAME, ignore_errors=True)
+    shutil.rmtree(TARGET_TEST_FOLDER, ignore_errors=True)
     #os.mkdir(TEST_FOLDER_NAME)
-    shutil.copytree('base', TEST_FOLDER_NAME)
+    shutil.copytree('base', TARGET_TEST_FOLDER)
     for necessary_file_pattern in necessary_files:
-        for filepath in glob.glob(f'{test_case}/{necessary_file_pattern}'):
+        for filepath in glob.glob(f'{TESTCASE_FOLDER}/{test_case}/{necessary_file_pattern}'):
             print(f'Copying {filepath}')
             if os.path.islink(filepath):
                 linkto = os.readlink(filepath)
                 filename = os.path.basename(filepath)
-                os.symlink(f'../{filepath}', f'{TEST_FOLDER_NAME}/{filename}')
+                os.symlink(f'../{filepath}', f'{TARGET_TEST_FOLDER}/{filename}')
             else:
-                shutil.copy(filepath, TEST_FOLDER_NAME)
+                shutil.copy(filepath, TARGET_TEST_FOLDER)
 
 if len(sys.argv) == 1:
     for test_case in test_cases:
@@ -73,7 +74,7 @@ if len(sys.argv) == 1:
             tmux(f'new -d -s {TMUX_WINDOW_NAME}')
 
             tmux(f'select-window -t {TMUX_WINDOW_NAME}')
-            tmux_shell(f'cd {TEST_FOLDER_NAME}')
+            tmux_shell(f'cd {TARGET_TEST_FOLDER}')
             tmux_shell(f'make run')
             tmux_shell(f'h1 ping h2')
 
@@ -82,13 +83,13 @@ if len(sys.argv) == 1:
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
 
             # Start Proxy
-            tmux_shell(f'cd {TEST_FOLDER_NAME}',proxy_pane_name)
+            tmux_shell(f'cd {TARGET_TEST_FOLDER}', proxy_pane_name)
             tmux_shell('python3 proxy.py',proxy_pane_name)
 
             # TODO: PROXY HAS TO WRITE SOME MESSAGE IF READY
             time.sleep(1)
             # Start Controller
-            tmux_shell(f'cd {TEST_FOLDER_NAME}',controller_pane_name)
+            tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
             tmux_shell('python3 controller.py',controller_pane_name)
 
             wait_for_output('^64 bytes from', mininet_pane_name, max_time=40)
@@ -96,7 +97,7 @@ if len(sys.argv) == 1:
             print(f'{test_case} test successfully finished!')
             print('')
 
-            shutil.rmtree(TEST_FOLDER_NAME, ignore_errors = True)
+            shutil.rmtree(TARGET_TEST_FOLDER, ignore_errors = True)
 
         finally:
             tmux_shell(f'C-c',proxy_pane_name)
