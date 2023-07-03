@@ -10,7 +10,7 @@ import subprocess
 test_cases = ['aggregation']
 TEST_FOLDER_NAME = '__temporary_test_folder'
 TMUX_WINDOW_NAME = 'proxy_tester'
-necessary_files = ['*.p4', '*.py', 'topology.json', 'Makefile','p4runtime_lib']
+necessary_files = ['*.p4', '*.py', 'topology.json', 'Makefile']
 
 def tmux(command):
     system('tmux %s' % command)
@@ -51,7 +51,8 @@ controller_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
 def prepare_test_folder(test_case):
     shutil.rmtree(TEST_FOLDER_NAME, ignore_errors=True)
-    shutil.copytree('common', TEST_FOLDER_NAME)
+    #os.mkdir(TEST_FOLDER_NAME)
+    shutil.copytree('base', TEST_FOLDER_NAME)
     for necessary_file_pattern in necessary_files:
         for filepath in glob.glob(f'{test_case}/{necessary_file_pattern}'):
             print(f'Copying {filepath}')
@@ -90,10 +91,12 @@ if len(sys.argv) == 1:
             tmux_shell(f'cd {TEST_FOLDER_NAME}',controller_pane_name)
             tmux_shell('python3 controller.py',controller_pane_name)
 
-            wait_for_output('^64 bytes from', mininet_pane_name, max_time=10)
+            wait_for_output('^64 bytes from', mininet_pane_name, max_time=40)
 
             print(f'{test_case} test successfully finished!')
             print('')
+
+            shutil.rmtree(TEST_FOLDER_NAME, ignore_errors = True)
 
         finally:
             tmux_shell(f'C-c',proxy_pane_name)
@@ -103,7 +106,6 @@ if len(sys.argv) == 1:
             tmux_shell(f'make stop',mininet_pane_name)
             wait_for_output('^mininet@mininet-vm',mininet_pane_name)
             tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
-            shutil.rmtree(TEST_FOLDER_NAME, ignore_errors = True)
 
 else:
     prepare_test_folder(sys.argv[1])

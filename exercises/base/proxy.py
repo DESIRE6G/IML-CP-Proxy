@@ -12,10 +12,10 @@ from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to
 from google.protobuf.json_format import MessageToJson, Parse
 import redis
 
-import p4runtime_lib
-import p4runtime_lib.helper
-from p4runtime_lib.switch import IterableQueue
-from high_level_switch_connection import HighLevelSwitchConnection
+import common.p4runtime_lib
+import common.p4runtime_lib.helper
+from common.p4runtime_lib.switch import IterableQueue
+from common.high_level_switch_connection import HighLevelSwitchConnection
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
@@ -60,7 +60,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             'TABLE_ENTRIES': f'{self.prefix}TABLE_ENTRIES',
             'P4INFO': f'{prefix}P4INFO'
         }
-        self.from_p4info_helper = p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
+        self.from_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
 
 
@@ -188,7 +188,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         raw_p4info = redis.get(self.redis_keys['P4INFO'])
         if raw_p4info is None:
             return
-        redis_p4info_helper = p4runtime_lib.helper.P4InfoHelper(raw_p4info=raw_p4info)
+        redis_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(raw_p4info=raw_p4info)
         print('FILLING FROM REDIS')
         for protobuf_message_json_object in redis.lrange(self.redis_keys['TABLE_ENTRIES'],0,-1):
             parsed_write_request = Parse(protobuf_message_json_object, p4runtime_pb2.WriteRequest())

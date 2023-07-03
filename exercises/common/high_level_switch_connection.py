@@ -1,5 +1,5 @@
-import p4runtime_lib.bmv2
-import p4runtime_lib.helper
+import common.p4runtime_lib.bmv2
+import common.p4runtime_lib.helper
 
 
 class HighLevelSwitchConnection():
@@ -8,11 +8,11 @@ class HighLevelSwitchConnection():
         self.filename = filename
         self.p4info_path = f'./build/{self.filename}.p4.p4info.txt'
         self.bmv2_file_path = f'./build/{self.filename}.json'
-        self.p4info_helper = p4runtime_lib.helper.P4InfoHelper(self.p4info_path)
+        self.p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(self.p4info_path)
 
         self.port = f'5005{device_id+1}' if port is None else port
 
-        self.connection = p4runtime_lib.bmv2.Bmv2SwitchConnection(
+        self.connection = common.p4runtime_lib.bmv2.Bmv2SwitchConnection(
             name=f's{device_id+1}',
             address=f'127.0.0.1:{self.port}',
             device_id=device_id,
