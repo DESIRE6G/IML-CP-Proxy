@@ -185,11 +185,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
     def fill_from_redis(self):
+        print('FILLING FROM REDIS')
         raw_p4info = redis.get(self.redis_keys['P4INFO'])
         if raw_p4info is None:
             return
         redis_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(raw_p4info=raw_p4info)
-        print('FILLING FROM REDIS')
         for protobuf_message_json_object in redis.lrange(self.redis_keys['TABLE_ENTRIES'],0,-1):
             parsed_write_request = Parse(protobuf_message_json_object, p4runtime_pb2.WriteRequest())
             print(parsed_write_request)
@@ -208,7 +208,7 @@ class ProxyServer:
     def start(self):
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path)
-        # self.servicer.fill_from_redis()
+        self.servicer.fill_from_redis()
         add_P4RuntimeServicer_to_server(self.servicer, self.server)
         self.server.add_insecure_port(f'[::]:{self.port}')
         self.server.start()

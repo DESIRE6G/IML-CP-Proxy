@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import shutil
 import re
@@ -6,8 +7,22 @@ import sys
 import time
 from os import system
 import subprocess
+from typing import TypedDict, List, Optional
+import redis
 
-test_cases = ['aggregation']
+
+
+redis = redis.Redis()
+class TestCase(TypedDict):
+    name: str
+    subtest: Optional[str]
+
+test_cases : List[TestCase] = [
+    {'name': 'aggregation','subtest': None},
+    #{'name': 'aggregation','subtest': 'redis'},
+]
+
+#test_cases = ['mate-example-not-aggregated']
 TARGET_TEST_FOLDER = '__temporary_test_folder'
 TESTCASE_FOLDER = 'testcases'
 TMUX_WINDOW_NAME = 'proxy_tester'
@@ -50,7 +65,7 @@ proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
 controller_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
 
-def prepare_test_folder(test_case):
+def prepare_test_folder(test_case, subtest=None):
     shutil.rmtree(TARGET_TEST_FOLDER, ignore_errors=True)
     #os.mkdir(TEST_FOLDER_NAME)
     shutil.copytree('base', TARGET_TEST_FOLDER)
@@ -64,11 +79,51 @@ def prepare_test_folder(test_case):
             else:
                 shutil.copy(filepath, TARGET_TEST_FOLDER)
 
+    if subtest is not None:
+        shutil.copytree(f'{TESTCASE_FOLDER}/{test_case}/subtests/{subtest}', TARGET_TEST_FOLDER, dirs_exist_ok=True)
+
+
+def prepare_enviroment():
+    redis_file_path = f"{TARGET_TEST_FOLDER}/redis.json"
+    redis.flushdb()
+    if os.path.isfile(redis_file_path):
+        with open(redis_file_path) as f:
+            redis_data = json.load(f)
+            for table_obj in redis_data:
+                redis_key = table_obj['key']
+                if "list" in table_obj:
+                    for data_one_record in table_obj["list"]:
+                       redis.rpush(redis_key, data_one_record)
+                if "string" in table_obj:
+                    redis.set(redis_key, table_obj['string'])
+
+
+class Config():
+    def __init__(self, config_file, ignore_missing_file = False):
+        self.config = {}
+        try:
+            with open(config_file) as f:
+                self.config = json.load(f)
+        except FileNotFoundError as e:
+            if not ignore_missing_file:
+                raise e
+
+    def get(self, key, default = None):
+        if key in self.config:
+            return self.config[key]
+
+        return default
+
 if len(sys.argv) == 1:
-    for test_case in test_cases:
+    for test_case_object in test_cases:
+        test_case = test_case_object['name']
+        subtest = test_case_object['subtest']
         try:
             # Copy test case files
-            prepare_test_folder(test_case)
+            prepare_test_folder(test_case, subtest)
+            prepare_enviroment()
+
+            config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file = True)
 
             # Initialize mininet
             tmux(f'new -d -s {TMUX_WINDOW_NAME}')
@@ -82,6 +137,9 @@ if len(sys.argv) == 1:
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
 
+
+
+
             # Start Proxy
             tmux_shell(f'cd {TARGET_TEST_FOLDER}', proxy_pane_name)
             tmux_shell('python3 proxy.py',proxy_pane_name)
@@ -89,12 +147,17 @@ if len(sys.argv) == 1:
             # TODO: PROXY HAS TO WRITE SOME MESSAGE IF READY
             time.sleep(1)
             # Start Controller
-            tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
-            tmux_shell('python3 controller.py',controller_pane_name)
+            if config.get('start_controller', default = True):
+                tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
+                tmux_shell('python3 controller.py',controller_pane_name)
 
             wait_for_output('^64 bytes from', mininet_pane_name, max_time=40)
 
-            print(f'{test_case} test successfully finished!')
+            test_case_printable_name = test_case
+            if subtest is not None:
+                test_case_printable_name += f' / {subtest}'
+
+            print(f'\033[92m{test_case_printable_name} test successfully finished!\033[0m')
             print('')
 
             shutil.rmtree(TARGET_TEST_FOLDER, ignore_errors = True)
