@@ -130,6 +130,7 @@ if len(sys.argv) == 1:
 
             tmux(f'select-window -t {TMUX_WINDOW_NAME}')
             tmux_shell(f'cd {TARGET_TEST_FOLDER}')
+            tmux_shell(f'mkdir -p logs')
             tmux_shell(f'make run')
             tmux_shell(f'h1 ping h2')
 
@@ -163,6 +164,10 @@ if len(sys.argv) == 1:
             shutil.rmtree(TARGET_TEST_FOLDER, ignore_errors = True)
 
         finally:
+            tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
+            tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
+            tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
+            tmux_shell(f'C-c',proxy_pane_name)
             tmux_shell(f'C-c',proxy_pane_name)
             tmux_shell(f'C-c',controller_pane_name)
             tmux_shell(f'C-c', mininet_pane_name)
