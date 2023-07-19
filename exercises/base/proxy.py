@@ -5,9 +5,8 @@ from typing import TypedDict
 
 import grpc
 from google.protobuf.text_format import MessageToString
-from p4.v1 import p4runtime_pb2_grpc, p4runtime_pb2
-from p4.v1.p4runtime_pb2 import StreamMessageRequest, StreamMessageResponse, SetForwardingPipelineConfigResponse, \
-    Update, WriteResponse, ReadResponse
+from p4.v1 import p4runtime_pb2
+from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, Update, WriteResponse, ReadResponse
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 from google.protobuf.json_format import MessageToJson, Parse
 import redis
@@ -23,8 +22,8 @@ logging.basicConfig(level=logging.DEBUG)
 target_switch = HighLevelSwitchConnection(2, 'basic', '50053', send_p4info=True)
 print('On startup the rules on the target are the following')
 for response in target_switch.connection.ReadTableEntries():
-    for entity in response.entities:
-        entry = entity.table_entry
+    for starter_entity in response.entities:
+        entry = starter_entity.table_entry
         print(target_switch.p4info_helper.get_tables_name(entry.table_id))
         print(entry)
         print('-----')
@@ -36,7 +35,7 @@ def prefix_p4_action_or_table(original_table_name : str, prefix : str) -> str:
 
     return f'{namespace}.{prefix}{table_name}'
 
-def remove_prefix_p4_action_or_talbe(prefixed_table_name : str, prefix : str) -> str:
+def remove_prefix_p4_action_or_table(prefixed_table_name : str, prefix : str) -> str:
     namespace,table_name = prefixed_table_name.split('.')
 
     return f'{namespace}.{table_name.lstrip(prefix)}'
@@ -95,7 +94,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def convert_table_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False):
         table_name = from_p4info_helper.get_tables_name(entity.table_entry.table_id)
         if reverse:
-            new_table_name = remove_prefix_p4_action_or_talbe(table_name, self.prefix)
+            new_table_name = remove_prefix_p4_action_or_table(table_name, self.prefix)
         else:
             new_table_name = prefix_p4_action_or_table(table_name, self.prefix)
 
@@ -106,7 +105,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             received_action_name = from_p4info_helper.get_actions_name(received_action_id)
 
             if reverse:
-                new_action_name = remove_prefix_p4_action_or_talbe(received_action_name, self.prefix)
+                new_action_name = remove_prefix_p4_action_or_table(received_action_name, self.prefix)
             else:
                 new_action_name = prefix_p4_action_or_table(received_action_name, self.prefix)
 
@@ -150,28 +149,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         raise NotImplementedError('Method not implemented!')
 
     def StreamChannel(self, request_iterator, context):
-        return
+        return iter([])
 
-        for request in request_iterator:
-            request_copy = p4runtime_pb2.StreamMessageRequest()
-            request_copy.CopyFrom(request)
-            self.requests_stream.put(request_copy)
-            for item in self.stream_msg_resp:
-                yield item
-        '''
-        for request in request_iterator:
-            logger.info('StreamChannel message arrived')
-            logger.info(request)
-            which_one = request.WhichOneof('update')
-            if which_one == 'arbitration':
-                response = StreamMessageResponse()
-                response.arbitration.device_id = request.arbitration.device_id
-                response.arbitration.election_id.high = 0
-                response.arbitration.election_id.low = 1
-                yield response
-            else:
-                raise Exception(f'Unhandled Stream field type {request.WhichOneof}')
-        '''
 
     def Capabilities(self, request, context):
         # missing associated documentation comment in .proto file
@@ -203,6 +182,8 @@ class ProxyServer:
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
+        self.server = None
+        self.servicer = None
 
 
     def start(self):
@@ -221,9 +202,9 @@ class ProxyServer:
 servers = []
 def serve(port, prefix, p4info_path):
     global servers
-    server = ProxyServer(port, prefix, p4info_path)
-    server.start()
-    servers.append(server)
+    proxy_server = ProxyServer(port, prefix, p4info_path)
+    proxy_server.start()
+    servers.append(proxy_server)
 
 serve('60053', prefix='NF1_', p4info_path='build/basic_part1.p4.p4info.txt')
 serve('60054', prefix='NF2_', p4info_path='build/basic_part2.p4.p4info.txt')
