@@ -19,7 +19,7 @@ class TestCase(TypedDict):
 
 test_cases : List[TestCase] = [
     {'name': 'aggregation','subtest': None},
-    #{'name': 'aggregation','subtest': 'redis'},
+    {'name': 'aggregation','subtest': 'redis'},
 ]
 
 #test_cases = ['mate-example-not-aggregated']
@@ -114,7 +114,9 @@ class Config():
 
         return default
 
+MAX_TIME = 10
 if len(sys.argv) == 1:
+    success_counter = 0
     for test_case_object in test_cases:
         test_case = test_case_object['name']
         subtest = test_case_object['subtest']
@@ -131,15 +133,13 @@ if len(sys.argv) == 1:
             tmux(f'select-window -t {TMUX_WINDOW_NAME}')
             tmux_shell(f'cd {TARGET_TEST_FOLDER}')
             tmux_shell(f'mkdir -p logs')
+            tmux_shell(f'make stop')
             tmux_shell(f'make run')
             tmux_shell(f'h1 ping h2')
 
-            wait_for_output('^PING', mininet_pane_name)
+            wait_for_output('^PING', mininet_pane_name, max_time=MAX_TIME)
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
-
-
-
 
             # Start Proxy
             tmux_shell(f'cd {TARGET_TEST_FOLDER}', proxy_pane_name)
@@ -152,7 +152,7 @@ if len(sys.argv) == 1:
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
                 tmux_shell('python3 controller.py',controller_pane_name)
 
-            wait_for_output('^64 bytes from', mininet_pane_name, max_time=40)
+            wait_for_output('^64 bytes from', mininet_pane_name, max_time=MAX_TIME)
 
             test_case_printable_name = test_case
             if subtest is not None:
@@ -162,7 +162,7 @@ if len(sys.argv) == 1:
             print('')
 
             shutil.rmtree(TARGET_TEST_FOLDER, ignore_errors = True)
-
+            success_counter += 1
         finally:
             tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
             tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
@@ -173,8 +173,14 @@ if len(sys.argv) == 1:
             tmux_shell(f'C-c', mininet_pane_name)
             tmux_shell(f'quit',mininet_pane_name)
             tmux_shell(f'make stop',mininet_pane_name)
-            wait_for_output('^mininet@mininet-vm',mininet_pane_name)
+            wait_for_output('^mininet@mininet-vm',mininet_pane_name, max_time=MAX_TIME)
             tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
+
+    if success_counter == len(test_cases):
+        print(f'\033[92m----------------------------------\033[0m')
+        print(f'\033[92mAll tests were passed successfully\033[0m')
+        print(f'\033[92m----------------------------------\033[0m')
+
 
 else:
     prepare_test_folder(sys.argv[1])
