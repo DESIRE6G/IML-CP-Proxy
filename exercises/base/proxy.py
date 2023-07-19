@@ -18,16 +18,6 @@ from common.high_level_switch_connection import HighLevelSwitchConnection
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
-
-target_switch = HighLevelSwitchConnection(2, 'basic', '50053', send_p4info=True)
-print('On startup the rules on the target are the following')
-for response in target_switch.connection.ReadTableEntries():
-    for starter_entity in response.entities:
-        entry = starter_entity.table_entry
-        print(target_switch.p4info_helper.get_tables_name(entry.table_id))
-        print(entry)
-        print('-----')
-
 redis = redis.Redis()
 
 def prefix_p4_action_or_table(original_table_name : str, prefix : str) -> str:
@@ -53,7 +43,7 @@ class RedisKeys(TypedDict):
 
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
-    def __init__(self, prefix, from_p4info_path):
+    def __init__(self, prefix, from_p4info_path, target_switch):
         self.prefix = prefix
         self.redis_keys : RedisKeys = {
             'TABLE_ENTRIES': f'{self.prefix}TABLE_ENTRIES',
@@ -61,6 +51,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         }
         self.from_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
+        self.target_switch = target_switch
 
 
 
@@ -76,7 +67,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     if save_to_redis:
                         redis.rpush(self.redis_keys['TABLE_ENTRIES'], MessageToJson(request))
                     entity = update.entity
-                    self.convert_table_entry(from_p4info_helper, target_switch.p4info_helper, entity)
+                    self.convert_table_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
 
                     print(update.entity.table_entry)
 
@@ -87,8 +78,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         print('== SENDING')
         print(request)
-        request.device_id = target_switch.device_id
-        target_switch.connection.client_stub.Write(request)
+        request.device_id = self.target_switch.device_id
+        self.target_switch.connection.client_stub.Write(request)
         return WriteResponse()
 
     def convert_table_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False):
@@ -120,11 +111,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         if len(request.entities) == 1:
             ret = ReadResponse()
 
-            for result in target_switch.connection.client_stub.Read(request):
+            for result in self.target_switch.connection.client_stub.Read(request):
                 for entity in result.entities:
-                    table_name = target_switch.p4info_helper.get_tables_name(entity.table_entry.table_id)
+                    table_name = self.target_switch.p4info_helper.get_tables_name(entity.table_entry.table_id)
                     if get_pure_table_name(table_name).startswith(self.prefix):
-                        self.convert_table_entry(target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
+                        self.convert_table_entry(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
                         ret_entity = ret.entities.add()
                         ret_entity.CopyFrom(entity)
 
@@ -178,17 +169,18 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         redis.delete(self.redis_keys['TABLE_ENTRIES'])
 
 class ProxyServer:
-    def __init__(self, port, prefix, from_p4info_path):
+    def __init__(self, port, prefix, from_p4info_path, target_switch):
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
+        self.target_switch = target_switch
         self.server = None
         self.servicer = None
 
 
     def start(self):
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path)
+        self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switch)
         self.servicer.fill_from_redis()
         add_P4RuntimeServicer_to_server(self.servicer, self.server)
         self.server.add_insecure_port(f'[::]:{self.port}')
@@ -198,16 +190,25 @@ class ProxyServer:
         self.server.stop(*args)
 
 
+mapping_target_switch = HighLevelSwitchConnection(2, 'basic', '50053', send_p4info=True)
+print('On startup the rules on the target are the following')
+for response in mapping_target_switch.connection.ReadTableEntries():
+    for starter_entity in response.entities:
+        entry = starter_entity.table_entry
+        print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
+        print(entry)
+        print('-----')
+
 
 servers = []
-def serve(port, prefix, p4info_path):
+def serve(port, prefix, p4info_path, target_switch):
     global servers
-    proxy_server = ProxyServer(port, prefix, p4info_path)
+    proxy_server = ProxyServer(port, prefix, p4info_path, target_switch)
     proxy_server.start()
     servers.append(proxy_server)
 
-serve('60053', prefix='NF1_', p4info_path='build/basic_part1.p4.p4info.txt')
-serve('60054', prefix='NF2_', p4info_path='build/basic_part2.p4.p4info.txt')
+serve('60053', prefix='NF1_', p4info_path='build/basic_part1.p4.p4info.txt', target_switch=mapping_target_switch)
+serve('60054', prefix='NF2_', p4info_path='build/basic_part2.p4.p4info.txt', target_switch=mapping_target_switch)
 
 try:
     while True:
