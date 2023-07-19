@@ -1,6 +1,8 @@
+import json
 import logging
 import time
 from concurrent import futures
+from enum import Enum
 from typing import TypedDict
 
 import grpc
@@ -189,26 +191,56 @@ class ProxyServer:
     def stop(self, *args):
         self.server.stop(*args)
 
+class RedisMode(Enum):
+    READWRITE = 'READWRITE'
+    ONLY_WRITE = 'ONLY_WRITE'
+    ONLY_READ = 'ONLY_READ'
 
-mapping_target_switch = HighLevelSwitchConnection(2, 'basic', '50053', send_p4info=True)
-print('On startup the rules on the target are the following')
-for response in mapping_target_switch.connection.ReadTableEntries():
-    for starter_entity in response.entities:
-        entry = starter_entity.table_entry
-        print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
-        print(entry)
-        print('-----')
+    @classmethod
+    def is_reading(cls, redis_mode: 'RedisMode') -> bool:
+        return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_READ
 
+    @classmethod
+    def is_writing(cls, redis_mode: 'RedisMode') -> bool:
+        return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_WRITE
 
+class ProxyConfig:
+    def __init__(self, filename = 'proxy_config.json'):
+        with open(filename) as f:
+            self.proxy_config = json.load(f)
+
+    def get_redis_mode(self) -> RedisMode:
+        return RedisMode(self.proxy_config['redis'])
+
+    def get_mappings(self):
+        return self.proxy_config['mappings']
+
+proxy_config = ProxyConfig()
+mappings = proxy_config.get_mappings()
 servers = []
+
 def serve(port, prefix, p4info_path, target_switch):
     global servers
     proxy_server = ProxyServer(port, prefix, p4info_path, target_switch)
     proxy_server.start()
     servers.append(proxy_server)
 
-serve('60053', prefix='NF1_', p4info_path='build/basic_part1.p4.p4info.txt', target_switch=mapping_target_switch)
-serve('60054', prefix='NF2_', p4info_path='build/basic_part2.p4.p4info.txt', target_switch=mapping_target_switch)
+for mapping in mappings:
+    target_config = mapping['target']
+    mapping_target_switch = HighLevelSwitchConnection(target_config['device_id'], target_config['program_name'], target_config['port'], send_p4info=True)
+    print('On startup the rules on the target are the following')
+    for response in mapping_target_switch.connection.ReadTableEntries():
+        for starter_entity in response.entities:
+            entry = starter_entity.table_entry
+            print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
+            print(entry)
+            print('-----')
+
+
+    sources = mapping['sources']
+    for source in sources:
+        p4_info_path = f"build/{source['program_name']}.p4.p4info.txt"
+        serve(source['controller_port'], prefix=source['prefix'], p4info_path=p4_info_path, target_switch=mapping_target_switch)
 
 try:
     while True:

@@ -26,7 +26,7 @@ test_cases : List[TestCase] = [
 TARGET_TEST_FOLDER = '__temporary_test_folder'
 TESTCASE_FOLDER = 'testcases'
 TMUX_WINDOW_NAME = 'proxy_tester'
-necessary_files = ['*.p4', '*.py', 'topology.json', 'Makefile']
+necessary_files = ['*.p4', '*.py', '*.json', 'topology.json', 'Makefile']
 
 def tmux(command):
     system('tmux %s' % command)
