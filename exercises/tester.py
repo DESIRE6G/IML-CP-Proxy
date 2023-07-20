@@ -20,6 +20,7 @@ class TestCase(TypedDict):
 test_cases : List[TestCase] = [
     {'name': 'aggregation','subtest': None},
     {'name': 'aggregation','subtest': 'redis'},
+    {'name': 'only_forward_proxy','subtest': None},
 ]
 
 #test_cases = ['mate-example-not-aggregated']

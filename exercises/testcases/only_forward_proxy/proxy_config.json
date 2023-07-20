@@ -1,0 +1,33 @@
+{
+  "redis": "READWRITE",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "basic_part1",
+        "port": 50053,
+        "device_id": 2
+      },
+      "sources": [
+        {
+          "program_name": "basic_part1",
+          "prefix": "",
+          "controller_port": 60053
+        }
+      ]
+    },
+    {
+      "target": {
+        "program_name": "basic_part2",
+        "port": 50054,
+        "device_id": 3
+      },
+      "sources": [
+        {
+          "program_name": "basic_part2",
+          "prefix": "",
+          "controller_port": 60054
+        }
+      ]
+    }
+  ]
+}
