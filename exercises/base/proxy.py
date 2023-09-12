@@ -39,13 +39,28 @@ def get_pure_table_name(original_table_name : str) -> str:
     return f'{table_name}'
 
 
+class RedisMode(Enum):
+    READWRITE = 'READWRITE'
+    ONLY_WRITE = 'ONLY_WRITE'
+    ONLY_READ = 'ONLY_READ'
+    OFF = 'OFF'
+
+    @classmethod
+    def is_reading(cls, redis_mode: 'RedisMode') -> bool:
+        return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_READ
+
+    @classmethod
+    def is_writing(cls, redis_mode: 'RedisMode') -> bool:
+        return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_WRITE
+
+
 class RedisKeys(TypedDict):
     TABLE_ENTRIES: str
     P4INFO: str
 
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
-    def __init__(self, prefix, from_p4info_path, target_switch):
+    def __init__(self, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
         self.prefix = prefix
         self.redis_keys : RedisKeys = {
             'TABLE_ENTRIES': f'{self.prefix}TABLE_ENTRIES',
@@ -54,6 +69,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.from_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
         self.target_switch = target_switch
+        self.redis_mode = redis_mode
 
 
 
@@ -66,7 +82,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for update in request.updates:
             if update.type == Update.INSERT:
                 if update.entity.WhichOneof('entity') == 'table_entry':
-                    if save_to_redis:
+                    if save_to_redis and RedisMode.is_writing(self.redis_mode):
                         redis.rpush(self.redis_keys['TABLE_ENTRIES'], MessageToJson(request))
                     entity = update.entity
                     self.convert_table_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
@@ -171,38 +187,27 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         redis.delete(self.redis_keys['TABLE_ENTRIES'])
 
 class ProxyServer:
-    def __init__(self, port, prefix, from_p4info_path, target_switch):
+    def __init__(self, port, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
         self.target_switch = target_switch
         self.server = None
         self.servicer = None
+        self.redis_mode = redis_mode
 
 
     def start(self):
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switch)
-        self.servicer.fill_from_redis()
+        self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switch, self.redis_mode)
+        if RedisMode.is_reading(self.redis_mode):
+            self.servicer.fill_from_redis()
         add_P4RuntimeServicer_to_server(self.servicer, self.server)
         self.server.add_insecure_port(f'[::]:{self.port}')
         self.server.start()
 
     def stop(self, *args):
         self.server.stop(*args)
-
-class RedisMode(Enum):
-    READWRITE = 'READWRITE'
-    ONLY_WRITE = 'ONLY_WRITE'
-    ONLY_READ = 'ONLY_READ'
-
-    @classmethod
-    def is_reading(cls, redis_mode: 'RedisMode') -> bool:
-        return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_READ
-
-    @classmethod
-    def is_writing(cls, redis_mode: 'RedisMode') -> bool:
-        return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_WRITE
 
 class ProxyConfig:
     def __init__(self, filename = 'proxy_config.json'):
@@ -219,9 +224,9 @@ proxy_config = ProxyConfig()
 mappings = proxy_config.get_mappings()
 servers = []
 
-def serve(port, prefix, p4info_path, target_switch):
+def serve(port, prefix, p4info_path, target_switch, redis_mode: RedisMode):
     global servers
-    proxy_server = ProxyServer(port, prefix, p4info_path, target_switch)
+    proxy_server = ProxyServer(port, prefix, p4info_path, target_switch, redis_mode)
     proxy_server.start()
     servers.append(proxy_server)
 
@@ -240,7 +245,7 @@ for mapping in mappings:
     sources = mapping['sources']
     for source in sources:
         p4_info_path = f"build/{source['program_name']}.p4.p4info.txt"
-        serve(source['controller_port'], prefix=source['prefix'], p4info_path=p4_info_path, target_switch=mapping_target_switch)
+        serve(source['controller_port'], prefix=source['prefix'], p4info_path=p4_info_path, target_switch=mapping_target_switch, redis_mode=proxy_config.get_redis_mode())
 
 try:
     while True:
