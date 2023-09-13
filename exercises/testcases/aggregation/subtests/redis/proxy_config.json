@@ -1,0 +1,24 @@
+{
+  "redis": "ONLY_READ",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "basic",
+        "port": 50053,
+        "device_id": 2
+      },
+      "sources": [
+        {
+          "program_name": "basic_part1",
+          "prefix": "NF1_",
+          "controller_port": 60053
+        },
+        {
+          "program_name": "basic_part2",
+          "prefix": "NF2_",
+          "controller_port": 60054
+        }
+      ]
+    }
+  ]
+}
