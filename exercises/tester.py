@@ -21,6 +21,7 @@ test_cases : List[TestCase] = [
     {'name': 'aggregation','subtest': None},
     {'name': 'aggregation','subtest': 'redis'},
     {'name': 'only_forward_proxy','subtest': None},
+    {'name': 'basic_counter','subtest': None},
 ]
 
 #test_cases = ['mate-example-not-aggregated']
@@ -68,7 +69,6 @@ controller_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
 def prepare_test_folder(test_case, subtest=None):
     shutil.rmtree(TARGET_TEST_FOLDER, ignore_errors=True)
-    #os.mkdir(TEST_FOLDER_NAME)
     shutil.copytree('base', TARGET_TEST_FOLDER)
     for necessary_file_pattern in necessary_files:
         for filepath in glob.glob(f'{TESTCASE_FOLDER}/{test_case}/{necessary_file_pattern}'):

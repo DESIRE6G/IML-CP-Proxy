@@ -3,7 +3,6 @@
 #include <v1model.p4>
 
 const bit<16> TYPE_IPV4 = 0x800;
-const bit<32> MAX_TUNNEL_ID = 1 << 16;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -76,8 +75,7 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-    counter(MAX_TUNNEL_ID, CounterType.packets_and_bytes) packetCounter;
-    counter(MAX_TUNNEL_ID, CounterType.packets_and_bytes) packetCounter2;
+    counter(1, CounterType.packets_and_bytes) packetCounter;
 
     action drop() {
         mark_to_drop(standard_metadata);
