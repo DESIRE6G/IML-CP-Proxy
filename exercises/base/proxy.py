@@ -22,12 +22,12 @@ logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
 redis = redis.Redis()
 
-def prefix_p4_action_or_table(original_table_name : str, prefix : str) -> str:
+def prefix_p4_name(original_table_name : str, prefix : str) -> str:
     namespace,table_name = original_table_name.split('.')
 
     return f'{namespace}.{prefix}{table_name}'
 
-def remove_prefix_p4_action_or_table(prefixed_table_name : str, prefix : str) -> str:
+def remove_prefix_p4_name(prefixed_table_name : str, prefix : str) -> str:
     namespace,table_name = prefixed_table_name.split('.')
 
     return f'{namespace}.{table_name.lstrip(prefix)}'
@@ -100,30 +100,46 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.target_switch.connection.client_stub.Write(request)
         return WriteResponse()
 
-    def convert_table_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
-        table_name = from_p4info_helper.get_tables_name(entity.table_entry.table_id)
-        if verbose:
-            print(f'table_name={table_name}')
-        if reverse:
-            new_table_name = remove_prefix_p4_action_or_table(table_name, self.prefix)
+
+
+    def convert_id(self, from_p4info_helper, target_p4info_helper, id_type:str, original_id: int, reverse = False, verbose=True) -> int:
+        if id_type == 'table':
+            name = from_p4info_helper.get_tables_name(original_id)
+        elif id_type == 'action':
+            name = from_p4info_helper.get_actions_name(original_id)
+        elif id_type == 'counter':
+            name = from_p4info_helper.get_counters_name(original_id)
         else:
-            new_table_name = prefix_p4_action_or_table(table_name, self.prefix)
+            raise Exception(f'convert_id cannot handle "{id_type}" id_type')
+
         if verbose:
-            print(f'new_table_name={new_table_name}')
+            print(f'name={name}')
+        if reverse:
+            new_name = remove_prefix_p4_name(name, self.prefix)
+        else:
+            new_name = prefix_p4_name(name, self.prefix)
+        if verbose:
+            print(f'new_name={new_name}')
 
-        new_table_id = target_p4info_helper.get_tables_id(new_table_name)
-        entity.table_entry.table_id = new_table_id
+        if id_type == 'table':
+            return target_p4info_helper.get_tables_id(new_name)
+        elif id_type == 'action':
+            return target_p4info_helper.get_actions_id(new_name)
+        elif id_type == 'counter':
+            return target_p4info_helper.get_counters_id(new_name)
+        else:
+            raise Exception(f'convert_id cannot handle "{id_type}" id_type')
+
+
+
+    def convert_table_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+        entity.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+                                                      'table', entity.table_entry.table_id,
+                                                      reverse, verbose)
         if entity.table_entry.action.WhichOneof('type') == 'action':
-            received_action_id = entity.table_entry.action.action.action_id
-            received_action_name = from_p4info_helper.get_actions_name(received_action_id)
-
-            if reverse:
-                new_action_name = remove_prefix_p4_action_or_table(received_action_name, self.prefix)
-            else:
-                new_action_name = prefix_p4_action_or_table(received_action_name, self.prefix)
-
-            new_action_id = target_p4info_helper.get_actions_id(new_action_name)
-            entity.table_entry.action.action.action_id = new_action_id
+            entity.table_entry.action.action.action_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+                                              'action', entity.table_entry.action.action.action_id,
+                                              reverse, verbose)
         else:
             raise Exception(f'Unhandled action type {entity.table_entry.action.type}')
 
