@@ -44,7 +44,9 @@ def printCounter(p4info_helper, sw, counter_name, index):
     :param counter_name: the name of the counter from the P4 program
     :param index: the counter index (in our case, the tunnel ID)
     """
-    for response in sw.ReadCounters(p4info_helper.get_counters_id(counter_name), index):
+    counters_id = p4info_helper.get_counters_id(counter_name)
+    for response in sw.ReadCounters(counters_id, index):
+        print(response.entities)
         for entity in response.entities:
             counter = entity.counter_entry
             print("%s %s %d: %d packets (%d bytes)" % (
@@ -54,8 +56,8 @@ def printCounter(p4info_helper, sw, counter_name, index):
 
 def main(aggregated = False):
     try:
-        s1 = HighLevelSwitchConnection(0, 'fwd', '60051')
-        s2 = HighLevelSwitchConnection(1, 'fwd', '60052')
+        s1 = HighLevelSwitchConnection(0, 'fwd_with_counting', '60051')
+        s2 = HighLevelSwitchConnection(1, 'fwd_with_counting2', '60052')
         # PING response can come on this line (s1 and s2 has same p4info)
         table_entry = s1.p4info_helper.buildTableEntry(
             table_name="MyIngress.ipv4_lpm",
@@ -87,8 +89,10 @@ def main(aggregated = False):
         while True:
             time.sleep(2)
             print('\n----- Reading tunnel counters -----')
-            printCounter(s1.p4info_helper, s1.connection, "MyIngress.packetCounter", 0)
-            printCounter(s2.p4info_helper, s2.connection, "MyIngress.packetCounter", 0)
+            printCounter(s1.p4info_helper, s1.connection, "MyIngress.packetCounter", 1)
+            printCounter(s1.p4info_helper, s1.connection, "MyIngress.packetCounter2", 1)
+            printCounter(s2.p4info_helper, s2.connection, "MyIngress.packetCounter", 1)
+            printCounter(s2.p4info_helper, s2.connection, "MyIngress.packetCounter2", 1)
 
     except KeyboardInterrupt:
         print(" Shutting down.")

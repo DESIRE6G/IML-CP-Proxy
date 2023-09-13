@@ -17,13 +17,13 @@
     },
     {
       "target": {
-        "program_name": "fwd_with_counting",
+        "program_name": "fwd_with_counting2",
         "port": 50052,
         "device_id": 1
       },
       "sources": [
         {
-          "program_name": "fwd_with_counting",
+          "program_name": "fwd_with_counting2",
           "prefix": "",
           "controller_port": 60052
         }

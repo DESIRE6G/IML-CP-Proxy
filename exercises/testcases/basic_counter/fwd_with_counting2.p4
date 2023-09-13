@@ -77,6 +77,7 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
     counter(MAX_TUNNEL_ID, CounterType.packets_and_bytes) packetCounter;
+    counter(MAX_TUNNEL_ID, CounterType.packets_and_bytes) packetCounter2;
 
     action drop() {
         mark_to_drop(standard_metadata);
