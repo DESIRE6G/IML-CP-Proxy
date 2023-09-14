@@ -24,11 +24,10 @@ test_cases : List[TestCase] = [
     {'name': 'basic_counter','subtest': None},
 ]
 
-#test_cases = ['mate-example-not-aggregated']
 TARGET_TEST_FOLDER = '__temporary_test_folder'
 TESTCASE_FOLDER = 'testcases'
 TMUX_WINDOW_NAME = 'proxy_tester'
-necessary_files = ['*.p4', '*.py', '*.json', 'topology.json', 'Makefile']
+necessary_files = ['*.p4', '*.py', '*.json', 'Makefile']
 
 def tmux(command):
     system('tmux %s' % command)
@@ -67,33 +66,42 @@ proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
 controller_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
 
+
 def clear_folder(folder_path):
     if not os.path.isdir(folder_path):
         os.mkdir(folder_path)
 
     for entry in os.scandir(folder_path):
-        if entry.is_file():
+        if entry.is_file() or entry.is_symlink():
             os.unlink(entry.path)
         else:
             shutil.rmtree(entry.path, ignore_errors = True)
 
+def link_all_files_from_folder(from_path, to_path):
+    for entry in os.scandir(from_path):
+        target_path = f'{to_path}/{os.path.basename(entry.path)}'
+        if os.path.isfile(target_path) or os.path.islink(target_path):
+            os.unlink(target_path)
+        else:
+            shutil.rmtree(target_path, ignore_errors=True)
+
+        os.link(f'{entry.path}', f'{target_path}')
 
 
 def prepare_test_folder(test_case, subtest=None):
     clear_folder(TARGET_TEST_FOLDER)
-    shutil.copytree('base', TARGET_TEST_FOLDER, dirs_exist_ok=True)
+    link_all_files_from_folder('base', TARGET_TEST_FOLDER)
     for necessary_file_pattern in necessary_files:
         for filepath in glob.glob(f'{TESTCASE_FOLDER}/{test_case}/{necessary_file_pattern}'):
-            print(f'Copying {filepath}')
+            print('Copying ',filepath)
             if os.path.islink(filepath):
-                linkto = os.readlink(filepath)
                 filename = os.path.basename(filepath)
-                os.symlink(f'../{filepath}', f'{TARGET_TEST_FOLDER}/{filename}')
+                os.link(f'{filepath}', f'{TARGET_TEST_FOLDER}/{filename}')
             else:
-                shutil.copy(filepath, TARGET_TEST_FOLDER)
+                os.link(f'{filepath}', f'{TARGET_TEST_FOLDER}/{os.path.basename(filepath)}')
 
     if subtest is not None:
-        shutil.copytree(f'{TESTCASE_FOLDER}/{test_case}/subtests/{subtest}', TARGET_TEST_FOLDER, dirs_exist_ok=True)
+        link_all_files_from_folder(f'{TESTCASE_FOLDER}/{test_case}/subtests/{subtest}', TARGET_TEST_FOLDER)
 
 
 def prepare_enviroment():
@@ -131,6 +139,9 @@ MAX_TIME = 10
 if len(sys.argv) == 1:
     success_counter = 0
     for test_case_object in test_cases:
+        print('============================================================================')
+        print(f'Run test {test_case_object}')
+        print('============================================================================')
         test_case = test_case_object['name']
         subtest = test_case_object['subtest']
         try:
