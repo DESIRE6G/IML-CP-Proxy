@@ -67,9 +67,21 @@ proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
 controller_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
 
+def clear_folder(folder_path):
+    if not os.path.isdir(folder_path):
+        os.mkdir(folder_path)
+
+    for entry in os.scandir(folder_path):
+        if entry.is_file():
+            os.unlink(entry.path)
+        else:
+            shutil.rmtree(entry.path, ignore_errors = True)
+
+
+
 def prepare_test_folder(test_case, subtest=None):
-    shutil.rmtree(TARGET_TEST_FOLDER, ignore_errors=True)
-    shutil.copytree('base', TARGET_TEST_FOLDER)
+    clear_folder(TARGET_TEST_FOLDER)
+    shutil.copytree('base', TARGET_TEST_FOLDER, dirs_exist_ok=True)
     for necessary_file_pattern in necessary_files:
         for filepath in glob.glob(f'{TESTCASE_FOLDER}/{test_case}/{necessary_file_pattern}'):
             print(f'Copying {filepath}')
@@ -162,7 +174,7 @@ if len(sys.argv) == 1:
             print(f'\033[92m{test_case_printable_name} test successfully finished!\033[0m')
             print('')
 
-            shutil.rmtree(TARGET_TEST_FOLDER, ignore_errors = True)
+            clear_folder(TARGET_TEST_FOLDER)
             success_counter += 1
         finally:
             tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
