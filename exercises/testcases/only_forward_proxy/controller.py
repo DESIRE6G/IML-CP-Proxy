@@ -85,8 +85,7 @@ def config_not_aggregated_controller():
         )
     s4.connection.WriteTableEntry(table_entry)
 
-
-def main():
+if __name__ == '__main__':
     try:
         config_response_simple_forward()
         config_not_aggregated_controller()
@@ -97,5 +96,3 @@ def main():
 
     ShutdownAllSwitchConnections()
 
-if __name__ == '__main__':
-    main()

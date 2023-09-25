@@ -15,28 +15,7 @@ sys.path.append(
 from common.p4runtime_lib.error_utils import printGrpcError
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 
-def printCounter(p4info_helper, sw, counter_name, index):
-    """
-    Reads the specified counter at the specified index from the switch. In our
-    program, the index is the tunnel ID. If the index is 0, it will return all
-    values from the counter.
-
-    :param p4info_helper: the P4Info helper
-    :param sw:  the switch connection
-    :param counter_name: the name of the counter from the P4 program
-    :param index: the counter index (in our case, the tunnel ID)
-    """
-    counters_id = p4info_helper.get_counters_id(counter_name)
-    for response in sw.ReadCounters(counters_id, index):
-        print(response.entities)
-        for entity in response.entities:
-            counter = entity.counter_entry
-            print("%s %s %d: %d packets (%d bytes)" % (
-                sw.name, counter_name, index,
-                counter.data.packet_count, counter.data.byte_count
-            ))
-
-def main(aggregated = False):
+if __name__ == '__main__':
     try:
         s1 = HighLevelSwitchConnection(0, 'fwd_with_counting', '60051')
         s2 = HighLevelSwitchConnection(1, 'fwd_with_counting2', '60052')
@@ -74,6 +53,3 @@ def main(aggregated = False):
         printGrpcError(e)
 
     ShutdownAllSwitchConnections()
-
-if __name__ == '__main__':
-    main(aggregated=True)

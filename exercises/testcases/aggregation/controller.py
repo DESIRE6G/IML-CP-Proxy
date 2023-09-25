@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import sys
-
 import grpc
 
 from common.high_level_switch_connection import HighLevelSwitchConnection
@@ -13,10 +12,6 @@ sys.path.append(
                  '../../utils/'))
 from common.p4runtime_lib.error_utils import printGrpcError
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
-
-SWITCH_TO_HOST_PORT = 1
-SWITCH_TO_SWITCH_PORT = 2
-
 
 def readTableRules(p4info_helper, sw):
     """
@@ -33,26 +28,6 @@ def readTableRules(p4info_helper, sw):
             print(entry)
 
             print('-----')
-
-
-def printCounter(p4info_helper, sw, counter_name, index):
-    """
-    Reads the specified counter at the specified index from the switch. In our
-    program, the index is the tunnel ID. If the index is 0, it will return all
-    values from the counter.
-
-    :param p4info_helper: the P4Info helper
-    :param sw:  the switch connection
-    :param counter_name: the name of the counter from the P4 program
-    :param index: the counter index (in our case, the tunnel ID)
-    """
-    for response in sw.ReadCounters(p4info_helper.get_counters_id(counter_name), index):
-        for entity in response.entities:
-            counter = entity.counter_entry
-            print("%s %s %d: %d packets (%d bytes)" % (
-                sw.name, counter_name, index,
-                counter.data.packet_count, counter.data.byte_count
-            ))
 
 
 def config_response_simple_forward():
@@ -99,10 +74,10 @@ def config_response_simple_forward():
         })
     s1.connection.WriteTableEntry(table_entry)
 
-def config_not_aggregated_controller(aggregated_dataplane = False):
+def config_not_aggregated_controller():
 
-    s3 = HighLevelSwitchConnection(2, 'basic_part1', '60053' if aggregated_dataplane else None)
-    s4 = HighLevelSwitchConnection(3, 'basic_part2', '60054' if aggregated_dataplane else None)
+    s3 = HighLevelSwitchConnection(2, 'basic_part1', '60053')
+    s4 = HighLevelSwitchConnection(3, 'basic_part2', '60054')
 
     table_entry = s3.p4info_helper.buildTableEntry(
         table_name="MyIngress.ipv4_lpm1",
@@ -127,46 +102,15 @@ def config_not_aggregated_controller(aggregated_dataplane = False):
     s4.connection.WriteTableEntry(table_entry)
 
 
-def config_aggregated_controller():
-    s3 = HighLevelSwitchConnection(2, 'basic')
-
-    table_entry = s3.p4info_helper.buildTableEntry(
-        table_name="MyIngress.NF1_ipv4_lpm1",
-        match_fields={
-            "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
-        },
-        action_name="MyIngress.NF1_chg_addr",
-        action_params={
-            "dstAddr": '08:00:00:00:02:22',
-            "port": 2
-        })
-    s3.connection.WriteTableEntry(table_entry)
-
-
-    table_entry = s3.p4info_helper.buildTableEntry(
-        table_name="MyIngress.NF2_ipv4_lpm2",
-        match_fields={
-            "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
-        },
-        action_name="MyIngress.NF2_set_port",
-        )
-    s3.connection.WriteTableEntry(table_entry)
-
-
-
-def main(aggregated = False):
+if __name__ == '__main__':
     try:
         s3 = HighLevelSwitchConnection(2, 'basic_part1', '60053',send_p4info=False)
         config_response_simple_forward()
-        config_not_aggregated_controller(aggregated_dataplane=True)
+        config_not_aggregated_controller()
         readTableRules(s3.p4info_helper, s3.connection)
-        #config_aggregated_controller()
     except KeyboardInterrupt:
         print(" Shutting down.")
     except grpc.RpcError as e:
         printGrpcError(e)
 
     ShutdownAllSwitchConnections()
-
-if __name__ == '__main__':
-    main(aggregated=True)

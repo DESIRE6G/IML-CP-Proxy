@@ -56,17 +56,12 @@ def config_response_simple_forward():
         })
     s1.connection.WriteTableEntry(table_entry)
 
-
-def main(aggregated = False):
+if __name__ == '__main__':
     try:
         config_response_simple_forward()
-        #config_aggregated_controller()
     except KeyboardInterrupt:
         print(" Shutting down.")
     except grpc.RpcError as e:
         printGrpcError(e)
 
     ShutdownAllSwitchConnections()
-
-if __name__ == '__main__':
-    main(aggregated=True)
