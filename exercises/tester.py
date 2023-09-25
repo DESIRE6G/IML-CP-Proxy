@@ -91,6 +91,8 @@ def link_all_files_from_folder(from_path, to_path):
 def prepare_test_folder(test_case, subtest=None):
     clear_folder(TARGET_TEST_FOLDER)
     link_all_files_from_folder('base', TARGET_TEST_FOLDER)
+    os.symlink(os.path.realpath('common'), os.path.realpath(f'{TARGET_TEST_FOLDER}/common'))
+
     for necessary_file_pattern in necessary_files:
         for filepath in glob.glob(f'{TESTCASE_FOLDER}/{test_case}/{necessary_file_pattern}'):
             print('Copying ',filepath)
