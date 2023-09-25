@@ -20,7 +20,7 @@ class TestCase(TypedDict):
 test_cases : List[TestCase] = [
     {'name': 'aggregation','subtest': None},
     {'name': 'aggregation','subtest': 'redis'},
-    {'name': 'only_forward_proxy','subtest': None},
+    {'name': 'aggregation','subtest': 'simple_forward'},
     {'name': 'basic_counter','subtest': None},
 ]
 
@@ -158,7 +158,7 @@ if len(sys.argv) == 1:
             tmux_shell(f'mkdir -p logs')
             tmux_shell(f'make stop')
             tmux_shell(f'make run')
-            wait_for_output('^mininet>', mininet_pane_name)
+            wait_for_output('^mininet>', mininet_pane_name, max_time=30)
 
             active_test_modes = {
                 'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
@@ -183,7 +183,6 @@ if len(sys.argv) == 1:
 
             if active_test_modes['ping']:
                 tmux_shell(f'h1 ping h2', mininet_pane_name)
-                wait_for_output('^PING', mininet_pane_name)
                 wait_for_output('^64 bytes from', mininet_pane_name)
 
             if active_test_modes['pcap']:
@@ -198,7 +197,6 @@ if len(sys.argv) == 1:
 
             if active_test_modes['validator']:
                 tmux_shell(f'h1 ping h2', mininet_pane_name)
-                wait_for_output('^PING', mininet_pane_name)
                 wait_for_output('^64 bytes from', mininet_pane_name)
 
                 print('------------- RUN VALIDATION -----------')
