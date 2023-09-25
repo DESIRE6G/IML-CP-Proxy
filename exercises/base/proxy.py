@@ -282,6 +282,8 @@ for mapping in mappings:
         serve(source['controller_port'], prefix=source['prefix'], p4info_path=p4_info_path, target_switch=mapping_target_switch, redis_mode=proxy_config.get_redis_mode())
 
 try:
+    # Important message for the testing system, do not remove :)
+    print('Proxy is ready')
     while True:
         time.sleep(60 * 60)
 except KeyboardInterrupt:

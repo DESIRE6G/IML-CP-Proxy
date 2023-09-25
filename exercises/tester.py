@@ -174,8 +174,7 @@ if len(sys.argv) == 1:
             tmux_shell(f'cd {TARGET_TEST_FOLDER}', proxy_pane_name)
             tmux_shell('python3 proxy.py',proxy_pane_name)
 
-            # TODO: PROXY HAS TO WRITE SOME MESSAGE IF READY
-            time.sleep(1)
+            wait_for_output('^Proxy is ready', proxy_pane_name)
             # Start Controller
             if config.get('start_controller', default = True):
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
