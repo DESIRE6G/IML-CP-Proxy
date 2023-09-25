@@ -50,7 +50,7 @@ def get_last_pane_row(pane_name) -> str:
     output = get_pane_output(pane_name)
     return [row for row in output.split('\n') if len(row.strip('\n \t')) > 0][-1]
 
-def wait_for_output(regexp_to_wait_for: str, pane_name: str, try_interval=1, max_time=30) -> None:
+def wait_for_output(regexp_to_wait_for: str, pane_name: str, try_interval=1, max_time=10) -> None:
     print(f'Waiting for {regexp_to_wait_for} on {pane_name}')
     start_time = time.time()
     while time.time() - start_time < max_time:
@@ -135,7 +135,6 @@ class Config():
 
         return default
 
-MAX_TIME = 10
 if len(sys.argv) == 1:
     success_counter = 0
     for test_case_object in test_cases:
@@ -159,9 +158,13 @@ if len(sys.argv) == 1:
             tmux_shell(f'mkdir -p logs')
             tmux_shell(f'make stop')
             tmux_shell(f'make run')
-            wait_for_output('^mininet>', mininet_pane_name, max_time=MAX_TIME)
+            wait_for_output('^mininet>', mininet_pane_name)
 
-            test_mode = 'pcap' if os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap') else 'ping'
+            active_test_modes = {
+                'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
+                'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py')
+            }
+            active_test_modes['ping'] = not any([active_test_modes[test_mode] for test_mode in active_test_modes])
 
 
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
@@ -178,11 +181,12 @@ if len(sys.argv) == 1:
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
                 tmux_shell('python3 controller.py',controller_pane_name)
 
-            if test_mode == 'ping':
+            if active_test_modes['ping']:
                 tmux_shell(f'h1 ping h2', mininet_pane_name)
-                wait_for_output('^PING', mininet_pane_name, max_time=MAX_TIME)
-                wait_for_output('^64 bytes from', mininet_pane_name, max_time=MAX_TIME)
-            elif test_mode == 'pcap':
+                wait_for_output('^PING', mininet_pane_name)
+                wait_for_output('^64 bytes from', mininet_pane_name)
+
+            if active_test_modes['pcap']:
                 time.sleep(5)
                 tmux_shell('h2 python receive.py test_h2_expected.pcap &', mininet_pane_name)
                 tmux_shell('h1 python send.py test_h1_input.pcap', mininet_pane_name)
@@ -191,9 +195,19 @@ if len(sys.argv) == 1:
                     test_output = json.load(f)
                     if not test_output['success']:
                         raise Exception(f'Pcap test failed, check test_output.json for more details')
-            else:
-                raise Exception(f'Unknown test_mode "{test_mode}"')
 
+            if active_test_modes['validator']:
+                tmux_shell(f'h1 ping h2', mininet_pane_name)
+                wait_for_output('^PING', mininet_pane_name)
+                wait_for_output('^64 bytes from', mininet_pane_name)
+
+                print('------------- RUN VALIDATION -----------')
+                exit_code = subprocess.call(f'{os.path.realpath(TARGET_TEST_FOLDER)}/validator.py', shell=True,
+                                            cwd=os.path.realpath(TARGET_TEST_FOLDER))
+                print('------------- VALIDATION FINISHED -----------')
+
+                if exit_code != 0:
+                    raise Exception(f'Validation failed')
 
             test_case_printable_name = test_case
             if subtest is not None:
@@ -205,6 +219,7 @@ if len(sys.argv) == 1:
             clear_folder(TARGET_TEST_FOLDER)
             success_counter += 1
         finally:
+            time.sleep(4)
             tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
             tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
             tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
@@ -214,7 +229,7 @@ if len(sys.argv) == 1:
             tmux_shell(f'C-c', mininet_pane_name)
             tmux_shell(f'quit',mininet_pane_name)
             tmux_shell(f'make stop',mininet_pane_name)
-            wait_for_output('^mininet@mininet-vm',mininet_pane_name, max_time=MAX_TIME)
+            wait_for_output('^mininet@mininet-vm',mininet_pane_name)
             tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
 
     if success_counter == len(test_cases):

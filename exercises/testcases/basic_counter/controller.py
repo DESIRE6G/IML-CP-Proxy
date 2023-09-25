@@ -15,24 +15,6 @@ sys.path.append(
 from common.p4runtime_lib.error_utils import printGrpcError
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 
-
-def readTableRules(p4info_helper, sw):
-    """
-    Reads the table entries from all tables on the switch.
-
-    :param p4info_helper: the P4Info helper
-    :param sw: the switch connection
-    """
-    print('\n----- Reading tables rules for %s -----' % sw.name)
-    for response in sw.ReadTableEntries():
-        for entity in response.entities:
-            entry = entity.table_entry
-            print(p4info_helper.get_tables_name(entry.table_id))
-            print(entry)
-
-            print('-----')
-
-
 def printCounter(p4info_helper, sw, counter_name, index):
     """
     Reads the specified counter at the specified index from the switch. In our
@@ -85,12 +67,6 @@ def main(aggregated = False):
             })
         s1.connection.WriteTableEntry(table_entry)
         s2.connection.WriteTableEntry(table_entry)
-
-        while True:
-            time.sleep(2)
-            print('\n----- Reading tunnel counters -----')
-            printCounter(s1.p4info_helper, s1.connection, "MyIngress.packetCounter", 0)
-            printCounter(s2.p4info_helper, s2.connection, "MyIngress.packetCounter", 0)
 
     except KeyboardInterrupt:
         print(" Shutting down.")
