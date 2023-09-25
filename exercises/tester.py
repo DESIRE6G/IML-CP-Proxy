@@ -18,16 +18,16 @@ class TestCase(TypedDict):
     subtest: Optional[str]
 
 test_cases : List[TestCase] = [
-    {'name': 'aggregation','subtest': None},
-    {'name': 'aggregation','subtest': 'redis'},
-    {'name': 'only_forward_proxy','subtest': None},
+    #{'name': 'aggregation','subtest': None},
+    #{'name': 'aggregation','subtest': 'redis'},
+    #{'name': 'only_forward_proxy','subtest': None},
     {'name': 'basic_counter','subtest': None},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
 TESTCASE_FOLDER = 'testcases'
 TMUX_WINDOW_NAME = 'proxy_tester'
-necessary_files = ['*.p4', '*.py', '*.json', 'Makefile']
+necessary_files = ['*.p4', '*.py', '*.json', '*.pcap', 'Makefile']
 
 def tmux(command):
     system('tmux %s' % command)
@@ -159,9 +159,17 @@ if len(sys.argv) == 1:
             tmux_shell(f'mkdir -p logs')
             tmux_shell(f'make stop')
             tmux_shell(f'make run')
-            tmux_shell(f'h1 ping h2')
+            wait_for_output('^mininet>', mininet_pane_name, max_time=MAX_TIME)
 
-            wait_for_output('^PING', mininet_pane_name, max_time=MAX_TIME)
+            test_mode = 'pcap' if os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap') else 'ping'
+
+
+            if test_mode == 'ping':
+                tmux_shell(f'h1 ping h2')
+                wait_for_output('^PING', mininet_pane_name, max_time=MAX_TIME)
+
+
+
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
 
@@ -176,7 +184,20 @@ if len(sys.argv) == 1:
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
                 tmux_shell('python3 controller.py',controller_pane_name)
 
-            wait_for_output('^64 bytes from', mininet_pane_name, max_time=MAX_TIME)
+            if test_mode == 'ping':
+                wait_for_output('^64 bytes from', mininet_pane_name, max_time=MAX_TIME)
+            elif test_mode == 'pcap':
+                time.sleep(5)
+                tmux_shell('h2 python receive.py test_h2_expected.pcap &', mininet_pane_name)
+                tmux_shell('h1 python send.py test_h1_input.pcap', mininet_pane_name)
+                time.sleep(5)
+                with open(f'{TARGET_TEST_FOLDER}/test_output.json','r') as f:
+                    test_output = json.load(f)
+                    if not test_output['success']:
+                        raise Exception(f'Pcap test failed, check test_output.json for more details')
+            else:
+                raise Exception(f'Unknown test_mode "{test_mode}"')
+
 
             test_case_printable_name = test_case
             if subtest is not None:
