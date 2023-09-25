@@ -86,7 +86,7 @@ control MyIngress(inout headers hdr,
         hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
         hdr.ethernet.dstAddr = dstAddr;
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
-        packetCounter.count((bit<32>) 1);
+        packetCounter.count((bit<32>) 0);
     }
 
     table ipv4_lpm {

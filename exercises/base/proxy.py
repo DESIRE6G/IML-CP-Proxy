@@ -149,8 +149,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         print('------------------- Read')
         if len(request.entities) == 1:
             ret = ReadResponse()
+            print('request:')
             print(request)
             for result in self.target_switch.connection.client_stub.Read(request):
+                print('result:')
                 print(result)
                 for entity in result.entities:
                     if entity.WhichOneof('entity') == 'table_entry':

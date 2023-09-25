@@ -89,10 +89,8 @@ def main(aggregated = False):
         while True:
             time.sleep(2)
             print('\n----- Reading tunnel counters -----')
-            printCounter(s1.p4info_helper, s1.connection, "MyIngress.packetCounter", 1)
-            printCounter(s1.p4info_helper, s1.connection, "MyIngress.packetCounter2", 1)
-            printCounter(s2.p4info_helper, s2.connection, "MyIngress.packetCounter", 1)
-            printCounter(s2.p4info_helper, s2.connection, "MyIngress.packetCounter2", 1)
+            printCounter(s1.p4info_helper, s1.connection, "MyIngress.packetCounter", 0)
+            printCounter(s2.p4info_helper, s2.connection, "MyIngress.packetCounter", 0)
 
     except KeyboardInterrupt:
         print(" Shutting down.")
