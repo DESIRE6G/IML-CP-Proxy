@@ -3,20 +3,19 @@ import json
 import os
 import sys
 import pprint
+import time
 
 from scapy.all import (
+    IP,
     TCP,
-    FieldLenField,
-    FieldListField,
-    IntField,
+    Ether,
     IPOption,
     ShortField,
     get_if_list,
     sniff,
-    rdpcap
+    rdpcap,
+    wrpcap
 )
-from scapy.layers.inet import _IPOption_HDR
-
 
 def get_if():
     ifs=get_if_list()
@@ -30,21 +29,11 @@ def get_if():
         exit(1)
     return iface
 
-class IPOption_MRI(IPOption):
-    name = "MRI"
-    option = 31
-    fields_desc = [ _IPOption_HDR,
-                    FieldLenField("length", None, fmt="B",
-                                  length_of="swids",
-                                  adjust=lambda pkt,l:l+4),
-                    ShortField("count", 0),
-                    FieldListField("swids",
-                                   [],
-                                   IntField("", 0),
-                                   length_from=lambda pkt:pkt.count*4) ]
+packets_arrived = []
 def handle_pkt(pkt):
     if TCP in pkt and pkt[TCP].dport == 1234:
         print("got a packet")
+        packets_arrived.append(pkt)
         packet_readable = pkt.show2(dump=True)
         with open("output.txt", "a") as f:
             f.write(packet_readable)
@@ -52,29 +41,32 @@ def handle_pkt(pkt):
         sys.stdout.flush()
 
 
-def main():
-    ifaces = [i for i in os.listdir('/sys/class/net/') if 'eth' in i]
-    iface = ifaces[0]
-    print("sniffing on %s" % iface)
-    sys.stdout.flush()
-    sniff(iface = iface,
-          prn = lambda x: handle_pkt(x))
-
 def convert_packet_to_dump_object(pkt):
     return {'raw':str(pkt), 'dump':pkt.__repr__()}
 
-if __name__ == '__main__':
-    #main()
+
+def are_packets_equal(packet1, packet2) -> bool:
+    packet1[IP].ttl = 64
+    packet2[IP].ttl = 64
+    packet1[IP].chksum = 0
+    packet2[IP].chksum = 0
+
+    return packet1.payload == packet2.payload
+
+
+def is_packet_in(packet_to_find, packet_list) -> bool:
+    return any([are_packets_equal(packet, packet_to_find) for packet in packet_list])
+
+
+def compare_packet_lists(packets_arrived, packets_expected):
     output_object = {'success':None,'extra_packets':[], 'missing_packets':[]}
-    packets_arrived = rdpcap(sys.argv[1])
-    packets_expected = rdpcap(sys.argv[2])
     for pkt_arrived in packets_arrived:
-        if pkt_arrived not in packets_expected:
+        if not is_packet_in(pkt_arrived, packets_expected):
             output_object['extra_packets'].append(convert_packet_to_dump_object(pkt_arrived))
             print(f'Extra packet arrived {pkt_arrived}')
 
     for pkt_expected in packets_expected:
-        if pkt_expected not in packets_arrived:
+        if not is_packet_in(pkt_expected, packets_arrived):
             output_object['missing_packets'].append(convert_packet_to_dump_object(pkt_expected))
             print(f'Missing packet {pkt_expected}')
 
@@ -82,3 +74,25 @@ if __name__ == '__main__':
 
     with open('test_output.json','w') as f:
         json.dump(output_object, f, indent = 4)
+
+
+if __name__ == '__main__':
+    ifaces = [i for i in os.listdir('/sys/class/net/') if 'eth' in i]
+    iface = ifaces[0]
+    print("sniffing on %s" % iface)
+    sys.stdout.flush()
+    sniff(iface = iface,
+          prn = lambda x: handle_pkt(x), timeout=3)
+
+    print('SNIFFING FINISHED')
+    print('SNIFFING FINISHED')
+    print('SNIFFING FINISHED')
+    packets_expected = rdpcap(sys.argv[1])
+    wrpcap('test_arrived.pcap', packets_arrived)
+
+    compare_packet_lists(packets_arrived, packets_expected)
+    '''
+    packets_arrived = rdpcap('test_arrived.pcap')
+    packets_expected = rdpcap('test_h2_expected.pcap')
+    compare_packet_lists(packets_arrived, packets_expected)
+    '''
