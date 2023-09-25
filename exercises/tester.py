@@ -18,10 +18,10 @@ class TestCase(TypedDict):
     subtest: Optional[str]
 
 test_cases : List[TestCase] = [
-    {'name': 'aggregation','subtest': None},
-    {'name': 'aggregation','subtest': 'redis'},
-    {'name': 'aggregation','subtest': 'simple_forward'},
-    {'name': 'basic_counter','subtest': None},
+    {'name': 'l2fwd','subtest': None},
+    {'name': 'l2fwd','subtest': 'redis'},
+    {'name': 'l2fwd','subtest': 'simple_forward'},
+    {'name': 'counter','subtest': None},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
