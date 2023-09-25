@@ -6,9 +6,6 @@ import grpc
 
 from common.controller_helper import create_experimental_model_forwards
 
-sys.path.append(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                 '../../utils/'))
 from common.p4runtime_lib.error_utils import printGrpcError
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 
