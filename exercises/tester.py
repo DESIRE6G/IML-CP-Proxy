@@ -18,9 +18,9 @@ class TestCase(TypedDict):
     subtest: Optional[str]
 
 test_cases : List[TestCase] = [
-    #{'name': 'aggregation','subtest': None},
-    #{'name': 'aggregation','subtest': 'redis'},
-    #{'name': 'only_forward_proxy','subtest': None},
+    {'name': 'aggregation','subtest': None},
+    {'name': 'aggregation','subtest': 'redis'},
+    {'name': 'only_forward_proxy','subtest': None},
     {'name': 'basic_counter','subtest': None},
 ]
 
@@ -164,12 +164,6 @@ if len(sys.argv) == 1:
             test_mode = 'pcap' if os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap') else 'ping'
 
 
-            if test_mode == 'ping':
-                tmux_shell(f'h1 ping h2')
-                wait_for_output('^PING', mininet_pane_name, max_time=MAX_TIME)
-
-
-
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
 
@@ -185,6 +179,8 @@ if len(sys.argv) == 1:
                 tmux_shell('python3 controller.py',controller_pane_name)
 
             if test_mode == 'ping':
+                tmux_shell(f'h1 ping h2', mininet_pane_name)
+                wait_for_output('^PING', mininet_pane_name, max_time=MAX_TIME)
                 wait_for_output('^64 bytes from', mininet_pane_name, max_time=MAX_TIME)
             elif test_mode == 'pcap':
                 time.sleep(5)
