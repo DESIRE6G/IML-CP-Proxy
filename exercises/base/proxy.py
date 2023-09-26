@@ -143,6 +143,27 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         else:
             raise Exception(f'Unhandled action type {entity.table_entry.action.type}')
 
+
+    def convert_counter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+        entity.counter_entry.counter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+                                                      'counter', entity.counter_entry.counter_id,
+                                                      reverse, verbose)
+
+    def convert_entity(self,  from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+        if entity.WhichOneof('entity') == 'table_entry':
+            self.convert_table_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+        elif entity.WhichOneof('entity') == 'counter_entry':
+            self.convert_counter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+        else:
+            raise Exception(f"Not implemented type for read")
+
+    def convert_read_request(self,  from_p4info_helper, target_p4info_helper, request, verbose=True):
+        for entity in request.entities:
+            self.convert_entity(from_p4info_helper, target_p4info_helper, entity, reverse=False,verbose=verbose)
+
+
+
+
     def Read(self, request, context):
         """Read one or more P4 entities from the target.
         """
@@ -150,6 +171,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         if len(request.entities) == 1:
             ret = ReadResponse()
             print('request:')
+            print(request)
+            self.convert_read_request(self.from_p4info_helper,self.target_switch.p4info_helper,request)
+            request.device_id = self.target_switch.device_id
+            print('converted_request:')
             print(request)
             for result in self.target_switch.connection.client_stub.Read(request):
                 print('result:')
@@ -176,7 +201,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             raise Exception(f"Read only handles when requested everything")
 
     def SetForwardingPipelineConfig(self, request, context):
-        # Do not forward p4info just save it
+        # Do not forward p4info just save it, on init we loads the p4info
         self.clear_redis()
         redis.set(self.redis_keys['P4INFO'],MessageToString(request.config.p4info))
         return SetForwardingPipelineConfigResponse()
@@ -219,6 +244,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def clear_redis(self):
         redis.delete(self.redis_keys['TABLE_ENTRIES'])
+
+
 
 class ProxyServer:
     def __init__(self, port, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):

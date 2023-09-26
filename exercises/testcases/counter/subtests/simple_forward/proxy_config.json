@@ -3,19 +3,28 @@
   "mappings": [
     {
       "target": {
-        "program_name": "fwd_with_counting_aggregated",
+        "program_name": "fwd_with_counting",
         "port": 50051,
         "device_id": 0
       },
       "sources": [
         {
           "program_name": "fwd_with_counting",
-          "prefix": "NF1_",
+          "prefix": "",
           "controller_port": 60051
-        },
+        }
+      ]
+    },
+    {
+      "target": {
+        "program_name": "fwd_with_counting2",
+        "port": 50052,
+        "device_id": 1
+      },
+      "sources": [
         {
           "program_name": "fwd_with_counting2",
-          "prefix": "NF2_",
+          "prefix": "",
           "controller_port": 60052
         }
       ]
