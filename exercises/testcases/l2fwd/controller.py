@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import grpc
 
-from common.controller_helper import dump_table_rules, create_experimental_model_forwards
+from common.controller_helper import create_experimental_model_forwards
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.error_utils import printGrpcError
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
@@ -35,10 +35,8 @@ def config_not_aggregated_controller():
 
 if __name__ == '__main__':
     try:
-        s3 = HighLevelSwitchConnection(2, 'basic_part1', '60053',send_p4info=False)
         create_experimental_model_forwards()
         config_not_aggregated_controller()
-        dump_table_rules(s3.p4info_helper, s3.connection)
     except KeyboardInterrupt:
         print(" Shutting down.")
     except grpc.RpcError as e:

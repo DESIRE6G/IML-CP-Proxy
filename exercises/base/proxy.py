@@ -130,15 +130,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
     def convert_table_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
-        entity.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
-                                                      'table', entity.table_entry.table_id,
-                                                      reverse, verbose)
-        if entity.table_entry.action.WhichOneof('type') == 'action':
-            entity.table_entry.action.action.action_id = self.convert_id(from_p4info_helper, target_p4info_helper,
-                                              'action', entity.table_entry.action.action.action_id,
-                                              reverse, verbose)
-        else:
-            raise Exception(f'Unhandled action type {entity.table_entry.action.type}')
+        if entity.table_entry.table_id != 0:
+            entity.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+                                                          'table', entity.table_entry.table_id,
+                                                          reverse, verbose)
+        if entity.table_entry.HasField('action'):
+            if entity.table_entry.action.WhichOneof('type') == 'action':
+                entity.table_entry.action.action.action_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+                                                  'action', entity.table_entry.action.action.action_id,
+                                                  reverse, verbose)
+            else:
+                raise Exception(f'Unhandled action type {entity.table_entry.action.type}')
 
 
     def convert_counter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):

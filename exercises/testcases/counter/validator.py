@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
-import os
 import sys
 
 from common.high_level_switch_connection import HighLevelSwitchConnection
-
-# Import P4Runtime lib from parent utils dir
-# Probably there's a better way of doing this.
-sys.path.append(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                 '../../utils/'))
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 
 
