@@ -159,7 +159,13 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             self.convert_entity(from_p4info_helper, target_p4info_helper, entity, reverse=False,verbose=verbose)
 
 
-
+    def get_entity_name(self, p4info_helper, entity):
+        if entity.WhichOneof('entity') == 'table_entry':
+            return p4info_helper.get_tables_name(entity.table_entry.table_id)
+        elif entity.WhichOneof('entity') == 'counter_entry':
+            return p4info_helper.get_counters_name(entity.counter_entry.counter_id)
+        else:
+            raise Exception(f"Not implemented type for read")
 
     def Read(self, request, context):
         """Read one or more P4 entities from the target.
@@ -177,20 +183,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 print('result:')
                 print(result)
                 for entity in result.entities:
-                    if entity.WhichOneof('entity') == 'table_entry':
-                        table_name = self.target_switch.p4info_helper.get_tables_name(entity.table_entry.table_id)
-                        if get_pure_table_name(table_name).startswith(self.prefix):
-                            self.convert_table_entry(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
-                            ret_entity = ret.entities.add()
-                            ret_entity.CopyFrom(entity)
-                    elif entity.WhichOneof('entity') == 'counter_entry':
-                        counter_name = self.target_switch.p4info_helper.get_counters_name(entity.counter_entry.counter_id)
-                        if get_pure_table_name(counter_name).startswith(self.prefix):
-                            # self.convert_table_entry(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
-                            ret_entity = ret.entities.add()
-                            ret_entity.CopyFrom(entity)
-                    else:
-                        raise Exception(f"Not implemented type for read")
+                    entity_name = self.get_entity_name(self.target_switch.p4info_helper,entity)
+                    if get_pure_table_name(entity_name).startswith(self.prefix):
+                        self.convert_entity(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
+                        ret_entity = ret.entities.add()
+                        ret_entity.CopyFrom(entity)
 
 
             yield ret
