@@ -71,11 +71,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.target_switch = target_switch
         self.redis_mode = redis_mode
 
-
-
-
     def Write(self, request, context, from_p4info_helper = None, save_to_redis = True):
-        print('------------------- Write')
+        print('------------------- Write -------------------')
         if from_p4info_helper is None:
             from_p4info_helper = self.from_p4info_helper
 
@@ -167,7 +164,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def Read(self, request, context):
         """Read one or more P4 entities from the target.
         """
-        print('------------------- Read')
+        print('------------------- Read -------------------')
         if len(request.entities) == 1:
             ret = ReadResponse()
             print('request:')
@@ -219,7 +216,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def StreamChannel(self, request_iterator, context):
         return iter([])
 
-
     def Capabilities(self, request, context):
         # missing associated documentation comment in .proto file
         print('Capabilities')
@@ -228,8 +224,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
-
-
 
     def fill_from_redis(self):
         print('FILLING FROM REDIS')
@@ -245,8 +239,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def clear_redis(self):
         redis.delete(self.redis_keys['TABLE_ENTRIES'])
 
-
-
 class ProxyServer:
     def __init__(self, port, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
         self.port = port
@@ -256,7 +248,6 @@ class ProxyServer:
         self.server = None
         self.servicer = None
         self.redis_mode = redis_mode
-
 
     def start(self):
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
