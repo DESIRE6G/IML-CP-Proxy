@@ -9,6 +9,14 @@ import subprocess
 from typing import TypedDict, List, Optional
 import redis
 
+COLOR_YELLOW = '\033[33m'
+COLOR_RED = '\033[91m'
+COLOR_GREEN = '\033[92m'
+COLOR_ORANGE = '\033[93m'
+COLOR_BLUE = '\033[94m'
+COLOR_CYAN = '\033[96m'
+COLOR_END = '\033[0m'
+
 redis = redis.Redis()
 class TestCase(TypedDict):
     name: str
@@ -30,7 +38,7 @@ TMUX_WINDOW_NAME = 'proxy_tester'
 necessary_files = ['*.p4', '*.py', '*.json', '*.pcap', 'Makefile']
 
 def tmux(command):
-    print(f'COMMAND: {command}')
+    print(f'{COLOR_YELLOW}COMMAND{COLOR_END}: {command}')
     return subprocess.call(f'tmux {command}', shell=True)
 
 def tmux_shell(command, pane_name = None):
@@ -148,9 +156,9 @@ class Config():
 def run_test_cases(test_cases_to_run):
     success_counter = 0
     for test_case_object in test_cases_to_run:
-        print('============================================================================')
+        print(f'{COLOR_CYAN}============================================================================')
         print(f'Run test {test_case_object}')
-        print('============================================================================')
+        print(f'============================================================================{COLOR_END}')
         test_case = test_case_object['name']
         subtest = test_case_object['subtest']
         try:
@@ -221,8 +229,7 @@ def run_test_cases(test_cases_to_run):
             test_case_printable_name = test_case
             if subtest is not None:
                 test_case_printable_name += f' / {subtest}'
-
-            print(f'\033[92m{test_case_printable_name} test successfully finished!\033[0m')
+            print(f'{COLOR_GREEN}{test_case_printable_name} test successfully finished!{COLOR_END}')
             print('')
 
             clear_folder(TARGET_TEST_FOLDER)
@@ -242,9 +249,9 @@ def run_test_cases(test_cases_to_run):
             wait_for_output('^mininet@mininet-vm', mininet_pane_name)
             tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
     if success_counter == len(test_cases_to_run):
-        print(f'\033[92m----------------------------------\033[0m')
-        print(f'\033[92mAll tests were passed successfully\033[0m')
-        print(f'\033[92m----------------------------------\033[0m')
+        print(f'{COLOR_GREEN}----------------------------------')
+        print('All tests were passed successfully')
+        print(f'----------------------------------{COLOR_END}')
 
 
 def process_cmdline_testcase_name(cmdline_input):
@@ -253,7 +260,6 @@ def process_cmdline_testcase_name(cmdline_input):
         'name': splitted_testcase[0],
         'subtest': splitted_testcase[1] if len(splitted_testcase) > 1 else None
     }
-
 
 if len(sys.argv) == 1:
     run_test_cases(test_cases)
