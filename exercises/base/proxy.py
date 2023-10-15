@@ -5,7 +5,6 @@ from concurrent import futures
 from dataclasses import dataclass
 from enum import Enum
 from threading import Thread, Event
-from typing import TypedDict
 
 import grpc
 from google.protobuf.text_format import MessageToString
@@ -89,6 +88,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.target_switch = target_switch
         self.redis_mode = redis_mode
 
+        self.save_counters_to_redis()
         self.worker_thread = ProxyP4ServicerWorkerThread(self)
         self.worker_thread.start()
 
@@ -221,7 +221,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             raise Exception(f"Read only handles when requested everything")
 
     def SetForwardingPipelineConfig(self, request, context):
-        # Do not forward p4info just save it, on init we loads the p4info
+        # Do not forward p4info just save it, on init we load the p4info
         self.clear_redis()
         redis.set(self.redis_keys.P4INFO,MessageToString(request.config.p4info))
         return SetForwardingPipelineConfigResponse()
@@ -265,19 +265,24 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def save_counters_to_redis(self):
         for counter_entry in self.from_p4info_helper.p4info.counters:
             counter_id_at_target = self.convert_id(self.from_p4info_helper, self.target_switch.p4info_helper, 'counter', counter_entry.preamble.id)
-            counter_object = get_counter_object_by_id(self.target_switch.connection, counter_id_at_target, 0)
-            print(counter_entry.preamble.name)
-            print(counter_object)
+            with redis.pipeline() as pipe:
+                redis_key = f'{self.redis_keys.COUNTER_PREFIX}.{counter_entry.preamble.id}'
+                pipe.multi()
+                pipe.delete(redis_key)
+                for counter_index in range(counter_entry.size):
+                    counter_object = get_counter_object_by_id(self.target_switch.connection, counter_id_at_target, counter_index)
+                    print(counter_entry)
+                    print(counter_entry.preamble.name)
 
-            redis_key = f'{self.redis_keys.COUNTER_PREFIX}.{counter_entry.preamble.id}'
-            redis_value = json.dumps({
-                'counter_id': counter_entry.preamble.id,
-                'packet_count': counter_object.packet_count,
-                'byte_count': counter_object.byte_count,
-            })
+                    redis_value = json.dumps({
+                        'counter_id': counter_entry.preamble.id,
+                        'packet_count': counter_object.packet_count,
+                        'byte_count': counter_object.byte_count,
+                    })
 
-            redis.set(redis_key, redis_value)
+                    pipe.rpush(redis_key, redis_value)
 
+                pipe.execute()
 
 
 
