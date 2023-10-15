@@ -4,6 +4,7 @@ import time
 from concurrent import futures
 from dataclasses import dataclass
 from enum import Enum
+from threading import Thread, Event
 from typing import TypedDict
 
 import grpc
@@ -61,6 +62,19 @@ class RedisKeys:
     P4INFO: str
     COUNTER_PREFIX: str
 
+class ProxyP4ServicerWorkerThread(Thread):
+    def __init__(self, servicer):
+        Thread.__init__(self)
+        self.stopped = Event()
+        self.servicer = servicer
+
+    def run(self):
+        while not self.stopped.wait(2):
+            print(f'Heartbeat... {self.servicer.prefix}')
+            self.servicer.save_counters_to_redis()
+
+    def stop(self):
+        self.stopped.set()
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
@@ -74,6 +88,13 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.requests_stream = IterableQueue()
         self.target_switch = target_switch
         self.redis_mode = redis_mode
+
+        self.worker_thread = ProxyP4ServicerWorkerThread(self)
+        self.worker_thread.start()
+
+    def stop(self):
+        self.worker_thread.stop()
+
 
     def Write(self, request, context, from_p4info_helper = None, save_to_redis = True):
         print('------------------- Write -------------------')
@@ -250,6 +271,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
             redis_key = f'{self.redis_keys.COUNTER_PREFIX}.{counter_entry.preamble.id}'
             redis_value = json.dumps({
+                'counter_id': counter_entry.preamble.id,
                 'packet_count': counter_object.packet_count,
                 'byte_count': counter_object.byte_count,
             })
@@ -279,6 +301,7 @@ class ProxyServer:
         self.server.start()
 
     def stop(self, *args):
+        self.servicer.stop()
         self.server.stop(*args)
 
 class ProxyConfig:
