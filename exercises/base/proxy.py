@@ -70,7 +70,8 @@ class ProxyP4ServicerWorkerThread(Thread):
     def run(self):
         while not self.stopped.wait(2):
             print(f'Heartbeat... {self.servicer.prefix}')
-            self.servicer.save_counters_to_redis()
+            if RedisMode.is_writing(self.servicer.redis_mode):
+                self.servicer.save_counters_to_redis()
 
     def stop(self):
         self.stopped.set()

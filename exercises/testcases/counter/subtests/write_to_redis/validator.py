@@ -18,6 +18,7 @@ if __name__ == '__main__':
     counter1_id = s1.p4info_helper.get_counters_id('MyIngress.packetCounter')
     counter2_id = s2.p4info_helper.get_counters_id('MyIngress.packetCounter')
 
+    time.sleep(2)
     counter1_raw_object = json.loads(redis.lindex(f'NF1_COUNTER.{counter1_id}', 0))
     counter1_object = CounterObject(**counter1_raw_object)
     counter2_raw_object = json.loads(redis.lindex(f'NF2_COUNTER.{counter2_id}', 0))
@@ -26,7 +27,6 @@ if __name__ == '__main__':
     print('Read from redis the actual counters:')
     print(counter1_object)
     print(counter2_object)
-    time.sleep(5)
     success = True
     if counter1_object.packet_count == 0:
         print('Counter is zero!')
