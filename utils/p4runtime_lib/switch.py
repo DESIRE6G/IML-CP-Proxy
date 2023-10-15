@@ -20,8 +20,6 @@ import grpc
 from p4.tmp import p4config_pb2
 from p4.v1 import p4runtime_pb2, p4runtime_pb2_grpc
 
-MSG_LOG_MAX_LEN = 1024
-
 # List of all active connections
 connections = []
 
@@ -159,10 +157,7 @@ class GrpcRequestLogger(grpc.UnaryUnaryClientInterceptor,
             ts = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
             msg = str(body)
             f.write("\n[%s] %s\n---\n" % (ts, method_name))
-            if len(msg) < MSG_LOG_MAX_LEN:
-                f.write(str(body))
-            else:
-                f.write("Message too long (%d bytes)! Skipping log...\n" % len(msg))
+            f.write(str(body))
             f.write('---\n')
 
     def intercept_unary_unary(self, continuation, client_call_details, request):
