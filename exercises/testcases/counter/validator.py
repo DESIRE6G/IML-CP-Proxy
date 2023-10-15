@@ -21,19 +21,19 @@ if __name__ == '__main__':
     counters_id2 = s2.p4info_helper.get_counters_id('MyIngress.packetCounter')
 
     success = True
-    if counter1_object['packet_count'] == 0:
+    if counter1_object.packet_count == 0:
         print('Counter is zero!')
         success = False
 
-    if counter1_object['packet_count'] * 2 != counter2_object['packet_count']:
+    if counter1_object.packet_count * 2 != counter2_object.packet_count:
         print('Counter 1 has to be twice as counter 2')
         success = False
 
-    if counters_id1 != counter1_object['counter_id'] :
+    if counters_id1 != counter1_object.counter_id :
         print(f'counters_id1 should be {counters_id1}')
         success = False
 
-    if counters_id2 != counter2_object['counter_id']:
+    if counters_id2 != counter2_object.counter_id:
         print(f'counters_id2 should be {counters_id2}')
         success = False
 
