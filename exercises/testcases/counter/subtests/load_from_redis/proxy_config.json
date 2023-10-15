@@ -1,0 +1,25 @@
+{
+  "redis": "ONLY_READ",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "fwd_with_counting_aggregated",
+        "port": 50051,
+        "device_id": 0,
+        "reset_dataplane": false
+      },
+      "sources": [
+        {
+          "program_name": "fwd_with_counting",
+          "prefix": "NF1_",
+          "controller_port": 60051
+        },
+        {
+          "program_name": "fwd_with_counting2",
+          "prefix": "NF2_",
+          "controller_port": 60052
+        }
+      ]
+    }
+  ]
+}

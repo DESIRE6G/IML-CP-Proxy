@@ -16,7 +16,7 @@ import redis
 
 import common.p4runtime_lib
 import common.p4runtime_lib.helper
-from common.controller_helper import get_counter_object_by_id
+from common.controller_helper import get_counter_object_by_id, CounterObject
 from common.p4runtime_lib.switch import IterableQueue
 from common.high_level_switch_connection import HighLevelSwitchConnection
 
@@ -84,12 +84,13 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             P4INFO= f'{prefix}P4INFO',
             COUNTER_PREFIX= f'{prefix}COUNTER'
         )
+        self.counters = {}
+
         self.from_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
         self.target_switch = target_switch
         self.redis_mode = redis_mode
 
-        self.save_counters_to_redis()
         self.worker_thread = ProxyP4ServicerWorkerThread(self)
         self.worker_thread.start()
 
@@ -173,6 +174,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                                                       'counter', entity.counter_entry.counter_id,
                                                       reverse, verbose)
 
+        if reverse:
+            stored_counter_object = self.get_stored_counter_object(entity.counter_entry.counter_id, entity.counter_entry.index.index)
+            entity.counter_entry.data.byte_count += stored_counter_object.byte_count
+            entity.counter_entry.data.packet_count += stored_counter_object.packet_count
+
     def convert_entity(self,  from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
         if entity.WhichOneof('entity') == 'table_entry':
             self.convert_table_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
@@ -253,15 +259,29 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         print('FILLING FROM REDIS')
         raw_p4info = redis.get(self.redis_keys.P4INFO)
         if raw_p4info is None:
+            print('Fillig from redis failed, because p4info cannot be found in redis')
             return
+
         redis_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(raw_p4info=raw_p4info)
         for protobuf_message_json_object in redis.lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
             parsed_write_request = Parse(protobuf_message_json_object, p4runtime_pb2.WriteRequest())
             print(parsed_write_request)
             self.Write(parsed_write_request, None, redis_p4info_helper, save_to_redis = False)
 
+        for counter_entry in self.from_p4info_helper.p4info.counters:
+            redis_key = f'{self.redis_keys.COUNTER_PREFIX}.{counter_entry.preamble.id}'
+            raw_list = redis.lrange(redis_key,0,-1)
+
+            self.counters[counter_entry.preamble.id] = list(map(json.loads, raw_list))
+
     def delete_redis_entries_for_this_service(self):
         redis.delete(self.redis_keys.TABLE_ENTRIES)
+
+    def get_stored_counter_object(self, counter_id, index) -> CounterObject:
+        if counter_id not in self.counters or index >= len(self.counters[counter_id]):
+            return CounterObject(counter_id=0, byte_count=0, packet_count=0)
+
+        return CounterObject(**self.counters[counter_id][index])
 
     def save_counters_to_redis(self):
         for counter_entry in self.from_p4info_helper.p4info.counters:
