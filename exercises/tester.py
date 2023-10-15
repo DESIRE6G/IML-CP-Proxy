@@ -91,10 +91,16 @@ def link_all_files_from_folder(from_path, to_path):
         os.link(f'{entry.path}', f'{target_path}')
 
 
+def assert_folder_existence(path):
+    if not os.path.exists(path):
+        raise Exception(f'{path} has to exist')
+
 def prepare_test_folder(test_case, subtest=None):
     clear_folder(TARGET_TEST_FOLDER)
     link_all_files_from_folder('base', TARGET_TEST_FOLDER)
     os.symlink(os.path.realpath('common'), os.path.realpath(f'{TARGET_TEST_FOLDER}/common'))
+
+    assert_folder_existence(f'{TESTCASE_FOLDER}/{test_case}')
 
     for necessary_file_pattern in necessary_files:
         for filepath in glob.glob(f'{TESTCASE_FOLDER}/{test_case}/{necessary_file_pattern}'):
@@ -106,7 +112,9 @@ def prepare_test_folder(test_case, subtest=None):
                 os.link(f'{filepath}', f'{TARGET_TEST_FOLDER}/{os.path.basename(filepath)}')
 
     if subtest is not None:
-        link_all_files_from_folder(f'{TESTCASE_FOLDER}/{test_case}/subtests/{subtest}', TARGET_TEST_FOLDER)
+        subtest_folder_path = f'{TESTCASE_FOLDER}/{test_case}/subtests/{subtest}'
+        assert_folder_existence(subtest_folder_path)
+        link_all_files_from_folder(subtest_folder_path, TARGET_TEST_FOLDER)
 
 
 def prepare_enviroment():
@@ -140,9 +148,10 @@ class Config():
 
         return default
 
-if len(sys.argv) == 1:
+
+def run_test_cases(test_cases_to_run):
     success_counter = 0
-    for test_case_object in test_cases:
+    for test_case_object in test_cases_to_run:
         print('============================================================================')
         print(f'Run test {test_case_object}')
         print('============================================================================')
@@ -153,7 +162,7 @@ if len(sys.argv) == 1:
             prepare_test_folder(test_case, subtest)
             prepare_enviroment()
 
-            config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file = True)
+            config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
 
             # Initialize mininet
             tmux(f'new -d -s {TMUX_WINDOW_NAME}')
@@ -165,25 +174,21 @@ if len(sys.argv) == 1:
             tmux_shell(f'make run')
             wait_for_output('^mininet>', mininet_pane_name, max_time=30)
 
-            active_test_modes = {
-                'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
-                'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py')
-            }
+            active_test_modes = {'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'), 'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py')}
             active_test_modes['ping'] = not any([active_test_modes[test_mode] for test_mode in active_test_modes])
-
 
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
 
             # Start Proxy
             tmux_shell(f'cd {TARGET_TEST_FOLDER}', proxy_pane_name)
-            tmux_shell('python3 proxy.py',proxy_pane_name)
+            tmux_shell('python3 proxy.py', proxy_pane_name)
 
             wait_for_output('^Proxy is ready', proxy_pane_name)
             # Start Controller
-            if config.get('start_controller', default = True):
+            if config.get('start_controller', default=True):
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
-                tmux_shell('python3 controller.py',controller_pane_name)
+                tmux_shell('python3 controller.py', controller_pane_name)
 
             if active_test_modes['ping']:
                 tmux_shell(f'h1 ping h2', mininet_pane_name)
@@ -194,7 +199,7 @@ if len(sys.argv) == 1:
                 tmux_shell('h2 python receive.py test_h2_expected.pcap &', mininet_pane_name)
                 tmux_shell('h1 python send.py test_h1_input.pcap', mininet_pane_name)
                 time.sleep(5)
-                with open(f'{TARGET_TEST_FOLDER}/test_output.json','r') as f:
+                with open(f'{TARGET_TEST_FOLDER}/test_output.json', 'r') as f:
                     test_output = json.load(f)
                     if not test_output['success']:
                         raise Exception(f'Pcap test failed, check test_output.json for more details')
@@ -204,8 +209,7 @@ if len(sys.argv) == 1:
                 wait_for_output('^64 bytes from', mininet_pane_name)
 
                 print('------------- RUN VALIDATION -----------')
-                exit_code = subprocess.call(f'{os.path.realpath(TARGET_TEST_FOLDER)}/validator.py', shell=True,
-                                            cwd=os.path.realpath(TARGET_TEST_FOLDER))
+                exit_code = subprocess.call(f'{os.path.realpath(TARGET_TEST_FOLDER)}/validator.py', shell=True, cwd=os.path.realpath(TARGET_TEST_FOLDER))
                 print('------------- VALIDATION FINISHED -----------')
 
                 if exit_code != 0:
@@ -225,20 +229,40 @@ if len(sys.argv) == 1:
             tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
             tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
             tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
-            tmux_shell(f'C-c',proxy_pane_name)
-            tmux_shell(f'C-c',proxy_pane_name)
-            tmux_shell(f'C-c',controller_pane_name)
+            tmux_shell(f'C-c', proxy_pane_name)
+            tmux_shell(f'C-c', proxy_pane_name)
+            tmux_shell(f'C-c', controller_pane_name)
             tmux_shell(f'C-c', mininet_pane_name)
-            tmux_shell(f'quit',mininet_pane_name)
-            tmux_shell(f'make stop',mininet_pane_name)
-            wait_for_output('^mininet@mininet-vm',mininet_pane_name)
+            tmux_shell(f'quit', mininet_pane_name)
+            tmux_shell(f'make stop', mininet_pane_name)
+            wait_for_output('^mininet@mininet-vm', mininet_pane_name)
             tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
-
-    if success_counter == len(test_cases):
+    if success_counter == len(test_cases_to_run):
         print(f'\033[92m----------------------------------\033[0m')
         print(f'\033[92mAll tests were passed successfully\033[0m')
         print(f'\033[92m----------------------------------\033[0m')
 
 
+def process_cmdline_testcase_name(cmdline_input):
+    splitted_testcase = cmdline_input.split('/')
+    return {
+        'name': splitted_testcase[0],
+        'subtest': splitted_testcase[1] if len(splitted_testcase) > 1 else None
+    }
+
+
+if len(sys.argv) == 1:
+    run_test_cases(test_cases)
 else:
-    prepare_test_folder(sys.argv[1])
+    if sys.argv[1] == 'help':
+        print('python tester.py - run all the test cases')
+        print('python tester.py [testcase] - run one test case ([test_name] or [test_name]/[subtest] form, e.g. l2fwd/simple_forward)')
+        print('python tester.py build [testcase] - prepares the test folder with a testcase')
+    elif sys.argv[1] == 'build':
+        if len(sys.argv) < 3:
+            print('For build a testcase you need to add 3 parameters')
+        splitted_testcase = process_cmdline_testcase_name(sys.argv[2])
+        prepare_test_folder(splitted_testcase['name'], splitted_testcase['subtest'])
+    else:
+        run_test_cases([process_cmdline_testcase_name(sys.argv[1])])
+
