@@ -17,8 +17,8 @@ if __name__ == '__main__':
     print('Counter2 object:')
     print(counter2_object)
 
-    counters_id1 = s1.p4info_helper.get_counters_id('MyIngress.packetCounter')
-    counters_id2 = s2.p4info_helper.get_counters_id('MyIngress.packetCounter')
+    counter1_id = s1.p4info_helper.get_counters_id('MyIngress.packetCounter')
+    counter2_id = s2.p4info_helper.get_counters_id('MyIngress.packetCounter')
 
     success = True
     if counter1_object.packet_count == 0:
@@ -29,12 +29,12 @@ if __name__ == '__main__':
         print('Counter 1 has to be twice as counter 2')
         success = False
 
-    if counters_id1 != counter1_object.counter_id :
-        print(f'counters_id1 should be {counters_id1}')
+    if counter1_id != counter1_object.counter_id :
+        print(f'counters_id1 should be {counter1_id}')
         success = False
 
-    if counters_id2 != counter2_object.counter_id:
-        print(f'counters_id2 should be {counters_id2}')
+    if counter2_id != counter2_object.counter_id:
+        print(f'counters_id2 should be {counter2_id}')
         success = False
 
     ShutdownAllSwitchConnections()
