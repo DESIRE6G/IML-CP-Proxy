@@ -27,14 +27,17 @@ class HighLevelSwitchConnection():
 
         if send_p4info:
             send_p4info_second_level = True
-            if not reset_dataplane:
-                request = p4runtime_pb2.GetForwardingPipelineConfigRequest()
-                request.device_id = self.device_id
-                actual_p4info_raw = self.connection.client_stub.GetForwardingPipelineConfig(request)
-                actual_p4info = MessageToString(actual_p4info_raw.config.p4info)
+            try:
+                if not reset_dataplane:
+                    request = p4runtime_pb2.GetForwardingPipelineConfigRequest()
+                    request.device_id = self.device_id
+                    actual_p4info_raw = self.connection.client_stub.GetForwardingPipelineConfig(request)
+                    actual_p4info = MessageToString(actual_p4info_raw.config.p4info)
 
-                if actual_p4info == MessageToString(self.p4info_helper.p4info):
-                    send_p4info_second_level = False
+                    if actual_p4info == MessageToString(self.p4info_helper.p4info):
+                        send_p4info_second_level = False
+            except:
+                pass
 
             if send_p4info_second_level:
                 self.connection.SetForwardingPipelineConfig(p4info=self.p4info_helper.p4info,
