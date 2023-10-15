@@ -5,7 +5,8 @@
       "target": {
         "program_name": "fwd_with_counting_aggregated",
         "port": 50051,
-        "device_id": 0
+        "device_id": 0,
+        "reset_dataplane": false
       },
       "sources": [
         {

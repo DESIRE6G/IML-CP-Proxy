@@ -222,7 +222,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def SetForwardingPipelineConfig(self, request, context):
         # Do not forward p4info just save it, on init we load the p4info
-        self.clear_redis()
+        self.delete_redis_entries_for_this_service()
         redis.set(self.redis_keys.P4INFO,MessageToString(request.config.p4info))
         return SetForwardingPipelineConfigResponse()
 
@@ -259,7 +259,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print(parsed_write_request)
             self.Write(parsed_write_request, None, redis_p4info_helper, save_to_redis = False)
 
-    def clear_redis(self):
+    def delete_redis_entries_for_this_service(self):
         redis.delete(self.redis_keys.TABLE_ENTRIES)
 
     def save_counters_to_redis(self):
@@ -271,8 +271,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 pipe.delete(redis_key)
                 for counter_index in range(counter_entry.size):
                     counter_object = get_counter_object_by_id(self.target_switch.connection, counter_id_at_target, counter_index)
-                    print(counter_entry)
-                    print(counter_entry.preamble.name)
 
                     redis_value = json.dumps({
                         'counter_id': counter_entry.preamble.id,
@@ -332,7 +330,8 @@ def serve(port, prefix, p4info_path, target_switch, redis_mode: RedisMode):
 
 for mapping in mappings:
     target_config = mapping['target']
-    mapping_target_switch = HighLevelSwitchConnection(target_config['device_id'], target_config['program_name'], target_config['port'], send_p4info=True)
+    reset_dataplane = 'reset_dataplane' in target_config and target_config['reset_dataplane']
+    mapping_target_switch = HighLevelSwitchConnection(target_config['device_id'], target_config['program_name'], target_config['port'], send_p4info=True, reset_dataplane=reset_dataplane)
     print('On startup the rules on the target are the following')
     for response in mapping_target_switch.connection.ReadTableEntries():
         for starter_entity in response.entities:
