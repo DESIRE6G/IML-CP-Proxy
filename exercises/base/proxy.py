@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from concurrent import futures
+from dataclasses import dataclass
 from enum import Enum
 from typing import TypedDict
 
@@ -53,19 +54,21 @@ class RedisMode(Enum):
     def is_writing(cls, redis_mode: 'RedisMode') -> bool:
         return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_WRITE
 
-
-class RedisKeys(TypedDict):
+@dataclass
+class RedisKeys:
     TABLE_ENTRIES: str
     P4INFO: str
+    COUNTER_PREFIX: str
 
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
         self.prefix = prefix
-        self.redis_keys : RedisKeys = {
-            'TABLE_ENTRIES': f'{self.prefix}TABLE_ENTRIES',
-            'P4INFO': f'{prefix}P4INFO'
-        }
+        self.redis_keys = RedisKeys(
+            TABLE_ENTRIES=f'{prefix}TABLE_ENTRIES',
+            P4INFO= f'{prefix}P4INFO',
+            COUNTER_PREFIX= f'{prefix}COUNTER'
+        )
         self.from_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
         self.target_switch = target_switch
@@ -80,7 +83,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             if update.type == Update.INSERT:
                 if update.entity.WhichOneof('entity') == 'table_entry':
                     if save_to_redis and RedisMode.is_writing(self.redis_mode):
-                        redis.rpush(self.redis_keys['TABLE_ENTRIES'], MessageToJson(request))
+                        redis.rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(request))
                     entity = update.entity
                     self.convert_table_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
 
@@ -198,7 +201,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def SetForwardingPipelineConfig(self, request, context):
         # Do not forward p4info just save it, on init we loads the p4info
         self.clear_redis()
-        redis.set(self.redis_keys['P4INFO'],MessageToString(request.config.p4info))
+        redis.set(self.redis_keys.P4INFO,MessageToString(request.config.p4info))
         return SetForwardingPipelineConfigResponse()
 
     def GetForwardingPipelineConfig(self, request, context):
@@ -225,17 +228,21 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def fill_from_redis(self):
         print('FILLING FROM REDIS')
-        raw_p4info = redis.get(self.redis_keys['P4INFO'])
+        raw_p4info = redis.get(self.redis_keys.P4INFO)
         if raw_p4info is None:
             return
         redis_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(raw_p4info=raw_p4info)
-        for protobuf_message_json_object in redis.lrange(self.redis_keys['TABLE_ENTRIES'],0,-1):
+        for protobuf_message_json_object in redis.lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
             parsed_write_request = Parse(protobuf_message_json_object, p4runtime_pb2.WriteRequest())
             print(parsed_write_request)
             self.Write(parsed_write_request, None, redis_p4info_helper, save_to_redis = False)
 
     def clear_redis(self):
-        redis.delete(self.redis_keys['TABLE_ENTRIES'])
+        redis.delete(self.redis_keys.TABLE_ENTRIES)
+
+
+
+
 
 class ProxyServer:
     def __init__(self, port, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
