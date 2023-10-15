@@ -16,6 +16,7 @@ import redis
 
 import common.p4runtime_lib
 import common.p4runtime_lib.helper
+from common.controller_helper import get_counter_object_by_id
 from common.p4runtime_lib.switch import IterableQueue
 from common.high_level_switch_connection import HighLevelSwitchConnection
 
@@ -240,6 +241,20 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def clear_redis(self):
         redis.delete(self.redis_keys.TABLE_ENTRIES)
 
+    def save_counters_to_redis(self):
+        for counter_entry in self.from_p4info_helper.p4info.counters:
+            counter_id_at_target = self.convert_id(self.from_p4info_helper, self.target_switch.p4info_helper, 'counter', counter_entry.preamble.id)
+            counter_object = get_counter_object_by_id(self.target_switch.connection, counter_id_at_target, 0)
+            print(counter_entry.preamble.name)
+            print(counter_object)
+
+            redis_key = f'{self.redis_keys.COUNTER_PREFIX}.{counter_entry.preamble.id}'
+            redis_value = json.dumps({
+                'packet_count': counter_object.packet_count,
+                'byte_count': counter_object.byte_count,
+            })
+
+            redis.set(redis_key, redis_value)
 
 
 
