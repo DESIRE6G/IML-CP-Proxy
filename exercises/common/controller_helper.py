@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from common.high_level_switch_connection import HighLevelSwitchConnection
 
 
@@ -55,3 +57,33 @@ def create_experimental_model_forwards():
             "port": 3
         })
     s1.connection.WriteTableEntry(table_entry)
+
+@dataclass
+class CounterObject:
+    counter_id: int
+    packet_count: int
+    byte_count: int
+
+def get_counter_object_by_id(sw, counters_id, index) -> CounterObject:
+    results = []
+    for response in sw.ReadCounters(counters_id, index):
+        for entity in response.entities:
+            new_obj = CounterObject(
+                counter_id=entity.counter_entry.counter_id,
+                packet_count=entity.counter_entry.data.packet_count,
+                byte_count=entity.counter_entry.data.byte_count,
+            )
+            results.append(new_obj)
+
+    if len(results) > 1:
+        raise Exception(f'More than one result arrived for counter read!')
+
+    return results[0]
+
+def get_counter_object(p4info_helper, sw, counter_name, index) -> CounterObject:
+    counters_id = p4info_helper.get_counters_id(counter_name)
+    return get_counter_object_by_id(sw, counters_id, index)
+
+
+def get_counter(p4info_helper, sw, counter_name, index):
+    return get_counter_object(p4info_helper, sw, counter_name, index)['packet_count']

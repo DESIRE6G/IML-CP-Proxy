@@ -1,29 +1,9 @@
 #!/usr/bin/env python3
 import sys
 
+from common.controller_helper import get_counter_object
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
-
-
-def get_counter_object(p4info_helper, sw, counter_name, index):
-    counters_id = p4info_helper.get_counters_id(counter_name)
-    results = []
-    for response in sw.ReadCounters(counters_id, index):
-        for entity in response.entities:
-            results.append({
-                'counter_id':entity.counter_entry.counter_id,
-                'packet_count':entity.counter_entry.data.packet_count,
-                'byte_count':entity.counter_entry.data.byte_count,
-            })
-
-    if len(results) > 1:
-        raise Exception(f'More than one result arrived for counter read!')
-
-    return results[0]
-
-def get_counter(p4info_helper, sw, counter_name, index):
-    return get_counter_object(p4info_helper, sw, counter_name, index)['packet_count']
-
 
 if __name__ == '__main__':
     s1 = HighLevelSwitchConnection(0, 'fwd_with_counting', '60051', send_p4info=False)
