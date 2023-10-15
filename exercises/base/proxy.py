@@ -85,11 +85,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     self.convert_table_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
 
                     print(update.entity.table_entry)
-
                 else:
-                    raise Exception(f'Unhandled update type {update.type}')
+                    raise Exception(f'Unhandled {update.Type.Name(update.type)} for {update.entity.WhichOneof("entity")}')
             else:
-                raise Exception(f'Unhandled update type {update.type}')
+                raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
 
         print('== SENDING')
         print(request)
