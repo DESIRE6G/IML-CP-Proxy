@@ -24,6 +24,7 @@ test_cases : List[TestCase] = [
     {'name': 'l2fwd','subtest': 'simple_forward'},
     {'name': 'counter','subtest': None},
     {'name': 'counter','subtest': 'simple_forward'},
+    {'name': 'counter','subtest': 'write_to_redis'},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
