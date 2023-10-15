@@ -5,12 +5,9 @@ import shutil
 import re
 import sys
 import time
-from os import system
 import subprocess
 from typing import TypedDict, List, Optional
 import redis
-
-
 
 redis = redis.Redis()
 class TestCase(TypedDict):
@@ -33,7 +30,8 @@ TMUX_WINDOW_NAME = 'proxy_tester'
 necessary_files = ['*.p4', '*.py', '*.json', '*.pcap', 'Makefile']
 
 def tmux(command):
-    system('tmux %s' % command)
+    print(f'COMMAND: {command}')
+    return subprocess.call(f'tmux {command}', shell=True)
 
 def tmux_shell(command, pane_name = None):
     cmd = f'send-keys'
@@ -41,9 +39,7 @@ def tmux_shell(command, pane_name = None):
        cmd += f' -t {pane_name}'
 
     cmd += f' "{command}" "C-m"'
-
-    print(f'COMMAND: {cmd}')
-    tmux(cmd)
+    return tmux(cmd)
 
 def get_pane_output(pane_name) -> str:
     output = subprocess.check_output(f'tmux capture-pane -pt {pane_name}', shell=True)
@@ -165,9 +161,16 @@ def run_test_cases(test_cases_to_run):
             config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
 
             # Initialize mininet
-            tmux(f'new -d -s {TMUX_WINDOW_NAME}')
+            for _ in range(2):
+                exit_code1 = tmux(f'new -d -s {TMUX_WINDOW_NAME}')
+                if exit_code1 == 0:
+                    exit_code2 = tmux(f'select-window -t {TMUX_WINDOW_NAME}')
+                    if exit_code2 == 0:
+                        break
 
-            tmux(f'select-window -t {TMUX_WINDOW_NAME}')
+                time.sleep(1)
+                break
+
             tmux_shell(f'cd {TARGET_TEST_FOLDER}')
             tmux_shell(f'mkdir -p logs')
             tmux_shell(f'make stop')
@@ -226,9 +229,10 @@ def run_test_cases(test_cases_to_run):
             success_counter += 1
         finally:
             time.sleep(4)
-            tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
-            tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
-            tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
+            if(os.path.exists(f'{TARGET_TEST_FOLDER}/logs')):
+                tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
+                tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
+                tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
             tmux_shell(f'C-c', proxy_pane_name)
             tmux_shell(f'C-c', proxy_pane_name)
             tmux_shell(f'C-c', controller_pane_name)
