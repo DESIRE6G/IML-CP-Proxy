@@ -169,14 +169,18 @@ def run_test_cases(test_cases_to_run):
             config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
 
             # Initialize mininet
-            for _ in range(2):
+            for _ in range(3):
                 exit_code1 = tmux(f'new -d -s {TMUX_WINDOW_NAME}')
+                print(f'exit_code1={exit_code1}')
                 if exit_code1 == 0:
                     exit_code2 = tmux(f'select-window -t {TMUX_WINDOW_NAME}')
+                    print(f'exit_code2={exit_code2}')
                     if exit_code2 == 0:
                         break
 
-                time.sleep(1)
+                print('Waiting for retry 2 sec')
+                time.sleep(2)
+                print(f'{COLOR_ORANGE} Retry server init {COLOR_END}')
                 break
 
             tmux_shell(f'cd {TARGET_TEST_FOLDER}')
