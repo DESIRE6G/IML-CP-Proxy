@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import re
+import signal
 import sys
 import time
 import subprocess
@@ -240,22 +241,26 @@ def run_test_cases(test_cases_to_run):
             success_counter += 1
         finally:
             time.sleep(4)
-            if(os.path.exists(f'{TARGET_TEST_FOLDER}/logs')):
-                tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
-                tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
-                tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
-            tmux_shell(f'C-c', proxy_pane_name)
-            tmux_shell(f'C-c', proxy_pane_name)
-            tmux_shell(f'C-c', controller_pane_name)
-            tmux_shell(f'C-c', mininet_pane_name)
-            tmux_shell(f'quit', mininet_pane_name)
-            tmux_shell(f'make stop', mininet_pane_name)
-            wait_for_output('^mininet@mininet-vm', mininet_pane_name)
-            tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
+            close_everything_and_save_logs()
     if success_counter == len(test_cases_to_run):
         print(f'{COLOR_GREEN}----------------------------------')
         print('All tests were passed successfully')
         print(f'----------------------------------{COLOR_END}')
+
+
+def close_everything_and_save_logs():
+    if (os.path.exists(f'{TARGET_TEST_FOLDER}/logs')):
+        tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
+        tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
+        tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
+    tmux_shell(f'C-c', proxy_pane_name)
+    tmux_shell(f'C-c', proxy_pane_name)
+    tmux_shell(f'C-c', controller_pane_name)
+    tmux_shell(f'C-c', mininet_pane_name)
+    tmux_shell(f'quit', mininet_pane_name)
+    tmux_shell(f'make stop', mininet_pane_name)
+    wait_for_output('^mininet@mininet-vm', mininet_pane_name)
+    tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
 
 
 def process_cmdline_testcase_name(cmdline_input):
@@ -264,6 +269,13 @@ def process_cmdline_testcase_name(cmdline_input):
         'name': splitted_testcase[0],
         'subtest': splitted_testcase[1] if len(splitted_testcase) > 1 else None
     }
+
+
+def sigint_handler(signum, frame):
+    print(f'{COLOR_ORANGE}Ctrl-c was pressed! Cleaning up...{COLOR_END}')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, sigint_handler)
 
 if len(sys.argv) == 1:
     run_test_cases(test_cases)
