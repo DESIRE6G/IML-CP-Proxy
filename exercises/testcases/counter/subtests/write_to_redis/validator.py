@@ -8,6 +8,7 @@ import json
 from common.controller_helper import CounterObject
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
+from common.validator_tools import Validator
 
 redis = redis.Redis()
 
@@ -24,29 +25,19 @@ if __name__ == '__main__':
 
     time.sleep(2)
     counter1_object_index0 = get_redis_counter_object_by_id('NF1_', counter1_id, 0)
-    counter2_object_index1 = get_redis_counter_object_by_id('NF2_', counter2_id, 0)
+    counter2_object_index0 = get_redis_counter_object_by_id('NF2_', counter2_id, 0)
 
     print('Read from redis the actual counters:')
     print(counter1_object_index0)
-    print(counter2_object_index1)
-    success = True
-    if counter1_object_index0.packet_count == 0:
-        print('Counter is zero!')
-        success = False
-
-    if counter1_object_index0.packet_count * 2 != counter2_object_index1.packet_count:
-        print('Counter 1 has to be twice as counter 2')
-        success = False
-
-    if counter1_id != counter1_object_index0.counter_id :
-        print(f'counters_id1 should be {counter1_id}')
-        success = False
-
-    if counter2_id != counter2_object_index1.counter_id:
-        print(f'counters_id2 should be {counter2_id}')
-        success = False
+    print(counter2_object_index0)
 
 
+    validator = Validator()
+    validator.should_be_not_equal(counter1_object_index0.packet_count, 0)
+    validator.should_be_equal(counter1_object_index0.packet_count * 2, counter2_object_index0.packet_count)
+
+    validator.should_be_equal(counter1_id, counter1_object_index0.counter_id)
+    validator.should_be_equal(counter2_id, counter2_object_index0.counter_id)
 
     counter1_object_index1 = get_redis_counter_object_by_id('NF1_', counter1_id, 1)
     counter2_object_index1 = get_redis_counter_object_by_id('NF2_', counter2_id, 1)
@@ -56,14 +47,8 @@ if __name__ == '__main__':
     print('counter1_object_index1 object:')
     print(counter2_object_index1)
 
-    if counter1_object_index1.packet_count != 0:
-        print('counter1_object_index1 packet_count should be zero!')
-        success = False
-
-    if counter2_object_index1.packet_count != counter1_object_index0.packet_count:
-        print('counter2_object_index1 should be equal to counter1_object_index0')
-        success = False
-
+    validator.should_be_equal(counter1_object_index1.packet_count, 0)
+    validator.should_be_equal(counter2_object_index1.packet_count, counter1_object_index0.packet_count)
 
 
     counter1_object_index2 = get_redis_counter_object_by_id('NF1_', counter2_id, 2)
@@ -74,17 +59,12 @@ if __name__ == '__main__':
     print('counter1_object_index2 object:')
     print(counter2_object_index2)
 
-    if counter2_object_index2.packet_count != 0:
-        print('counter2_object_index1 packet_count should be zero!')
-        success = False
-
-    if counter1_object_index2.packet_count != counter1_object_index0.packet_count * 2:
-        print('counter1_object_index2 should be double to counter1_object_index1')
-        success = False
+    validator.should_be_equal(counter2_object_index2.packet_count, 0)
+    validator.should_be_equal(counter1_object_index2.packet_count, counter1_object_index0.packet_count * 2)
 
     ShutdownAllSwitchConnections()
 
-    if success:
+    if validator.was_successful():
         print('Validation succeed')
     else:
         print('Validation failed')
