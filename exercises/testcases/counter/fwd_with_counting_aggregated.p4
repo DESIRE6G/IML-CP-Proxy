@@ -75,8 +75,8 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-    counter(1, CounterType.packets_and_bytes) NF1_packetCounter;
-    counter(1, CounterType.packets_and_bytes) NF2_packetCounter;
+    counter(3, CounterType.packets_and_bytes) NF1_packetCounter;
+    counter(3, CounterType.packets_and_bytes) NF2_packetCounter;
 
     action NF1_drop() {
         mark_to_drop(standard_metadata);
@@ -88,8 +88,11 @@ control MyIngress(inout headers hdr,
         hdr.ethernet.dstAddr = dstAddr;
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
         NF1_packetCounter.count((bit<32>) 0);
+        NF1_packetCounter.count((bit<32>) 2);
+        NF1_packetCounter.count((bit<32>) 2);
         NF2_packetCounter.count((bit<32>) 0);
         NF2_packetCounter.count((bit<32>) 0);
+        NF2_packetCounter.count((bit<32>) 1);
     }
 
     action NF2_drop() {

@@ -75,7 +75,7 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-    counter(1, CounterType.packets_and_bytes) packetCounter;
+    counter(3, CounterType.packets_and_bytes) packetCounter;
 
     action drop() {
         mark_to_drop(standard_metadata);
@@ -88,6 +88,7 @@ control MyIngress(inout headers hdr,
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
         packetCounter.count((bit<32>) 0);
         packetCounter.count((bit<32>) 0);
+        packetCounter.count((bit<32>) 1);
     }
 
     table ipv4_lpm {

@@ -8,6 +8,8 @@
   {
     "key": "NF2_COUNTER.318616944",
     "list": [
+      "{\"counter_id\": 318616944, \"packet_count\": 200000, \"byte_count\": 19600000}",
+      "{\"counter_id\": 318616944, \"packet_count\": 200000, \"byte_count\": 19600000}",
       "{\"counter_id\": 318616944, \"packet_count\": 200000, \"byte_count\": 19600000}"
     ]
   },
