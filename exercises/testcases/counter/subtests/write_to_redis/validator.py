@@ -34,7 +34,6 @@ if __name__ == '__main__':
     print('counter2_objects object:')
     pprint(counter2_objects)
 
-
     validator = Validator()
     validator.should_be_not_equal(counter1_objects[0].packet_count, 0)
     validator.should_be_equal(counter1_objects[0].packet_count * 2, counter2_objects[0].packet_count)
@@ -42,25 +41,8 @@ if __name__ == '__main__':
     validator.should_be_equal(counter1_id, counter1_objects[0].counter_id)
     validator.should_be_equal(counter2_id, counter2_objects[0].counter_id)
 
-    counter1_objects[1] = get_redis_counter_object_by_id('NF1_', counter1_id, 1)
-    counter2_objects[1] = get_redis_counter_object_by_id('NF2_', counter2_id, 1)
-    print('counter1_objects[1] object:')
-    print(counter1_objects[1])
-
-    print('counter1_objects[1] object:')
-    print(counter2_objects[1])
-
     validator.should_be_equal(counter1_objects[1].packet_count, 0)
     validator.should_be_equal(counter2_objects[1].packet_count, counter1_objects[0].packet_count)
-
-
-    counter1_objects[2] = get_redis_counter_object_by_id('NF1_', counter2_id, 2)
-    counter2_objects[2] = get_redis_counter_object_by_id('NF2_', counter2_id, 2)
-    print('counter1_objects[2] object:')
-    print(counter1_objects[2])
-
-    print('counter1_objects[2] object:')
-    print(counter2_objects[2])
 
     validator.should_be_equal(counter2_objects[2].packet_count, 0)
     validator.should_be_equal(counter1_objects[2].packet_count, counter1_objects[0].packet_count * 2)
