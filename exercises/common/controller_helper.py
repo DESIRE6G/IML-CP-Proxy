@@ -2,9 +2,11 @@ from dataclasses import dataclass
 from typing import List
 
 from common.high_level_switch_connection import HighLevelSwitchConnection
+from common.p4runtime_lib.helper import P4InfoHelper
+from common.p4runtime_lib.switch import SwitchConnection
 
 
-def dump_table_rules(p4info_helper, sw):
+def dump_table_rules(p4info_helper: P4InfoHelper, sw: SwitchConnection) -> None:
     print('\n----- Reading tables rules for %s -----' % sw.name)
     for response in sw.ReadTableEntries():
         for entity in response.entities:
@@ -15,7 +17,7 @@ def dump_table_rules(p4info_helper, sw):
             print('-----')
 
 
-def create_experimental_model_forwards():
+def create_experimental_model_forwards() -> None:
     s1 = HighLevelSwitchConnection(0, 'fwd')
     s2 = HighLevelSwitchConnection(1, 'fwd')
     # PING response can come on this line (s1 and s2 has same p4info)
@@ -66,7 +68,7 @@ class CounterObject:
     byte_count: int
 
 
-def get_counter_objects_by_id(sw, counters_id, index=None) -> List[CounterObject]:
+def get_counter_objects_by_id(sw: SwitchConnection, counters_id: int, index=None) -> List[CounterObject]:
     results = []
     for response in sw.ReadCounters(counters_id, index):
         for entity in response.entities:
@@ -79,7 +81,7 @@ def get_counter_objects_by_id(sw, counters_id, index=None) -> List[CounterObject
 
     return results
 
-def get_counter_object_by_id(sw, counters_id, index) -> CounterObject:
+def get_counter_object_by_id(sw: SwitchConnection, counters_id: int, index: int) -> CounterObject:
     results = get_counter_objects_by_id(sw, counters_id, index)
 
     if len(results) > 1:
@@ -87,14 +89,14 @@ def get_counter_object_by_id(sw, counters_id, index) -> CounterObject:
 
     return results[0]
 
-def get_counter_object(p4info_helper, sw, counter_name, index) -> CounterObject:
+def get_counter_object(p4info_helper: P4InfoHelper, sw: SwitchConnection, counter_name: str, index: int) -> CounterObject:
     counters_id = p4info_helper.get_counters_id(counter_name)
     return get_counter_object_by_id(sw, counters_id, index)
 
-def get_counter_objects(p4info_helper, sw, counter_name) -> List[CounterObject]:
+def get_counter_objects(p4info_helper: P4InfoHelper, sw: SwitchConnection, counter_name: str) -> List[CounterObject]:
     counters_id = p4info_helper.get_counters_id(counter_name)
     return get_counter_objects_by_id(sw, counters_id)
 
 
-def get_counter(p4info_helper, sw, counter_name, index):
+def get_counter(p4info_helper: P4InfoHelper, sw: SwitchConnection, counter_name: str, index: int):
     return get_counter_object(p4info_helper, sw, counter_name, index)['packet_count']
