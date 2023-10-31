@@ -190,7 +190,10 @@ def run_test_cases(test_cases_to_run):
             tmux_shell(f'make run')
             wait_for_output('^mininet>', mininet_pane_name, max_time=30)
 
-            active_test_modes = {'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'), 'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py')}
+            active_test_modes = {
+                'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
+                'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py')
+            }
             active_test_modes['ping'] = not any([active_test_modes[test_mode] for test_mode in active_test_modes])
 
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')

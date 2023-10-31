@@ -1,0 +1,68 @@
+# P4 Runtime Proxy 
+
+The goal of the P4Runtime Proxy is to create a layer between the data and control plane levels.
+Its primary purpose is to be able to rearrange and merge executive units hidden to the control plane without having to modify the control plane.
+Its second purpose is that even if the data plane is rearranged, the control plane does not have to upload the various data again.
+
+The combination of these two goals gives us the opportunity to break down the network functionalities into small elements and instead of having to maintain a larger P4 individual program, we create smaller functions and corresponding controllers and combine them.
+Since the Proxy also stores the entries, when a rearrangement takes place, almost nothing is sensible from the control plane and the user side.
+
+## Usage
+
+The proxy can be configured via a JSON file. 
+In this file, you can specify mutiple mappings that configure the operation of the proxy. 
+A mapping contains the target node to which we want to apply the proxy. 
+We will aggregate several basic functions into this node. 
+It also includes the corresponding P4 file and the connection data of the GRPC server. 
+The proxy will connect to it and appear as a controller for the data plane.
+In addition to the target, we must specify the mapping sources and the corresponding p4 files, these sources are the functions which we want to combine. 
+In the case of sources, we also specify a prefix that has to be added to the beginning of the entity names in the merged P4 file, so we can avoid name conflicts in the case of the aggregated P4 file.
+
+## Example
+
+One of the most basic example configurations that combines 2 functions onto one target node is shown below. The table name ipv4_lpm in the function1.p4 file should appear as NF1_ipv4_lpm in the aggregated.p4 file.
+
+```JSON
+{
+  "redis": "READWRITE",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "aggregated",
+        "port": 50051,
+        "device_id": 0
+      },
+      "sources": [
+        {
+          "program_name": "function1",
+          "prefix": "NF1_",
+          "controller_port": 60051
+        },
+        {
+          "program_name": "function2",
+          "prefix": "NF2_",
+          "controller_port": 60052
+        }
+      ]
+    }
+  ]
+}
+```
+
+In this case, when the proxy receives from the controller of the function1 program for the ipv4_lpm table a table entry insert, the proxy receives a unique key in the message that identifies the table. This identifier is resolved by the proxy based on the p4info file generated from the function1.p4 file (function1.p4info file). It resolves to MyIngress.ipv4_lpm. This full name will be prefixed by the proxy, as a result of which we will get the name MyIngress.NF1_ipv4_lpm, which will finally be converted into an identifier based on the aggregated.p4info file. We do the same conversion for the actions of the table insert entry and with the new identifiers obtained in this way, we generate the new message, which we can now send to the node running the aggregated P4 program.
+
+## Testing enviroment
+
+The repository contains an automatic tester that run all the examples that can be generated. 
+The testcase folder contains the main files for a test, but in the subtests we can create new folders that contains another files that can extend or overwrite the files the originates from the test folder.
+
+After the test folder is built up in the `__temporary_test_folder` the redis is purged and if a `redis.json` is existing then uploads the content of that file.
+
+When the redis and the files are in place the system creates a tmux and runs a mininet in it.
+When it is ready it launches a proxy and a controller.py.
+
+The basic testing is just start a ping from h1 to h2 node and check if it is going through.
+
+If you add a `validator.py` into the folder in that case it will run after everything is running. 
+That file can contain a code that connects to the proxy and requests information as a slave client and validate the end status of the test.
+If that code exits with non-zero then the testcase fails.
