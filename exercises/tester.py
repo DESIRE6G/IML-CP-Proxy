@@ -18,6 +18,14 @@ COLOR_BLUE = '\033[94m'
 COLOR_CYAN = '\033[96m'
 COLOR_END = '\033[0m'
 
+COLOR_GRAY_BG = '\033[100m'
+COLOR_RED_BG = '\033[101m'
+COLOR_GREEN_BG = '\033[102m'
+COLOR_YELLOW_BG = '\033[103m'
+COLOR_BLUE_BG = '\033[104m'
+COLOR_PURPLE_BG = '\033[105m'
+COLOR_CYAN_BG = '\033[106m'
+
 redis = redis.Redis()
 class TestCase(TypedDict):
     name: str
@@ -123,9 +131,11 @@ def prepare_test_folder(test_case, subtest=None, avoid_symlinks=False):
 
 
 def prepare_enviroment():
+    config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
     redis_file_path = f"{TARGET_TEST_FOLDER}/redis.json"
     redis.flushdb()
-    if os.path.isfile(redis_file_path):
+    if os.path.isfile(redis_file_path) and config.get('load_redis_json',True):
+        print(f'{COLOR_YELLOW_BG}REDIS FILLING from redis.json{COLOR_END}')
         with open(redis_file_path) as f:
             redis_data = json.load(f)
             for table_obj in redis_data:
