@@ -8,7 +8,7 @@ import common.p4runtime_lib.helper
 
 
 class HighLevelSwitchConnection():
-    def __init__(self, device_id, filename, port=None, send_p4info = True, reset_dataplane=True):
+    def __init__(self, device_id: int, filename: str, port=None, send_p4info = True, reset_dataplane=True):
         self.device_id = device_id
         self.filename = filename
         self.p4info_path = f'./build/{self.filename}.p4.p4info.txt'

@@ -16,11 +16,11 @@ class Validator:
         if a == b:
             self.__error(f'{a} is equal with {b}')
 
-    def should_be_greater(self, a, b):
+    def should_be_greater(self, a, b) -> None:
         if a <= b:
             self.__error(f'{a} is lower or equal than {b}')
 
-    def __error(self, message):
+    def __error(self, message) -> None:
         print(f'ERROR: {message} at:')
         print(f'   >>> {get_caller_line()}')
         self._success = False
