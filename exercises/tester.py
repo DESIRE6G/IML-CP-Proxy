@@ -182,7 +182,6 @@ def run_test_cases(test_cases_to_run):
                 print('Waiting for retry 2 sec')
                 time.sleep(2)
                 print(f'{COLOR_ORANGE} Retry server init {COLOR_END}')
-                break
 
             tmux_shell(f'cd {TARGET_TEST_FOLDER}')
             tmux_shell(f'mkdir -p logs')
