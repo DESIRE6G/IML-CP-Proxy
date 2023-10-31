@@ -295,6 +295,7 @@ else:
     elif sys.argv[1] == 'release':
         clear_folder('release')
         shutil.copyfile('base/proxy.py', 'release/proxy.py')
+        shutil.copyfile('testcases/l2fwd/proxy_config.json', 'release/proxy_config.json')
         shutil.copytree('common','release/common')
     else:
         run_test_cases([process_cmdline_testcase_name(sys.argv[1])])
