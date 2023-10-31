@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List
 
 from common.high_level_switch_connection import HighLevelSwitchConnection
 
@@ -64,7 +65,8 @@ class CounterObject:
     packet_count: int
     byte_count: int
 
-def get_counter_object_by_id(sw, counters_id, index) -> CounterObject:
+
+def get_counter_objects_by_id(sw, counters_id, index=None) -> List[CounterObject]:
     results = []
     for response in sw.ReadCounters(counters_id, index):
         for entity in response.entities:
@@ -75,6 +77,11 @@ def get_counter_object_by_id(sw, counters_id, index) -> CounterObject:
             )
             results.append(new_obj)
 
+    return results
+
+def get_counter_object_by_id(sw, counters_id, index) -> CounterObject:
+    results = get_counter_objects_by_id(sw, counters_id, index)
+
     if len(results) > 1:
         raise Exception(f'More than one result arrived for counter read!')
 
@@ -83,6 +90,10 @@ def get_counter_object_by_id(sw, counters_id, index) -> CounterObject:
 def get_counter_object(p4info_helper, sw, counter_name, index) -> CounterObject:
     counters_id = p4info_helper.get_counters_id(counter_name)
     return get_counter_object_by_id(sw, counters_id, index)
+
+def get_counter_objects(p4info_helper, sw, counter_name) -> List[CounterObject]:
+    counters_id = p4info_helper.get_counters_id(counter_name)
+    return get_counter_objects_by_id(sw, counters_id)
 
 
 def get_counter(p4info_helper, sw, counter_name, index):
