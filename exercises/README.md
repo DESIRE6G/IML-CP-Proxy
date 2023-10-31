@@ -66,3 +66,26 @@ The basic testing is just start a ping from h1 to h2 node and check if it is goi
 If you add a `validator.py` into the folder in that case it will run after everything is running. 
 That file can contain a code that connects to the proxy and requests information as a slave client and validate the end status of the test.
 If that code exits with non-zero then the testcase fails.
+
+If the testcase is failed the built testcase is reamins in the `__temporary_test_folder` folder that contains logs about the outputs of the tmux panes as well.
+
+### Examples
+
+Run all the test cases:
+```python tester.py```
+
+Run the l2fwd testcase without subtest:
+```python tester.py l2fwd```
+
+Run the l2fwd testcase simple_forward subtest:
+```python tester.py l2fwd/simple_forward```
+
+Build the `__temporary_test_folder` for the l2fwd testcase simple_forward subtest:
+```python tester.py l2fwd/simple_forward```
+
+Do a release into the `release` folder that contains all the necessary files to run the proxy without symlinks:
+```python release```
+
+Reload redis information for the actually built test folder:
+```python prepare```
+

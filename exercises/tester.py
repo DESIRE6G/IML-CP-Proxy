@@ -288,6 +288,7 @@ else:
         print('python tester.py [testcase] - run one test case ([test_name] or [test_name]/[subtest] form, e.g. l2fwd/simple_forward)')
         print('python tester.py build [testcase] - prepares the test folder with a testcase')
         print('python tester.py prepare - run the preparations for the actual content of the test folder (e.g. redis fill)')
+        print('python tester.py release - create a release folder that contains all the necessary files to run the proxy without symlinks')
     elif sys.argv[1] == 'build':
         if len(sys.argv) < 3:
             print('For build a testcase you need to add 3 parameters')
