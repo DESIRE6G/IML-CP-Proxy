@@ -100,7 +100,7 @@ def assert_folder_existence(path):
     if not os.path.exists(path):
         raise Exception(f'{path} has to exist')
 
-def prepare_test_folder(test_case, subtest=None):
+def prepare_test_folder(test_case, subtest=None, avoid_symlinks=False):
     clear_folder(TARGET_TEST_FOLDER)
     link_all_files_from_folder('base', TARGET_TEST_FOLDER)
     os.symlink(os.path.realpath('common'), os.path.realpath(f'{TARGET_TEST_FOLDER}/common'))
@@ -292,6 +292,10 @@ else:
         prepare_test_folder(splitted_testcase['name'], splitted_testcase['subtest'])
     elif sys.argv[1] == 'prepare':
         prepare_enviroment()
+    elif sys.argv[1] == 'release':
+        clear_folder('release')
+        shutil.copyfile('base/proxy.py', 'release/proxy.py')
+        shutil.copytree('common','release/common')
     else:
         run_test_cases([process_cmdline_testcase_name(sys.argv[1])])
 
