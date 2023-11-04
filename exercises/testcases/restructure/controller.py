@@ -16,7 +16,7 @@ if __name__ == '__main__':
             },
             action_name="MyIngress.state_set",
             action_params={
-                "newState": 11
+                "newState":66
             })
         s1.connection.WriteTableEntry(table_entry)
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
             },
             action_name="MyIngress.state_set",
             action_params={
-                "newState": 34
+                "newState": 80
             })
         s2.connection.WriteTableEntry(table_entry)
 

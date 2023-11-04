@@ -9,7 +9,7 @@ input = []
 expected = []
 for packet_index in range(10):
     input.append( Ether(src=source_mac, dst=destination_mac) / bytes([0, 0, 0]))
-    expected.append( Ether(src=source_mac, dst=destination_mac) / bytes([11, 34, 88]))
+    expected.append( Ether(src=source_mac, dst=destination_mac) / bytes([66, 80, 88]))
 
 wrpcap('test_h1_input.pcap', input)
 wrpcap('test_h2_expected.pcap', expected)
