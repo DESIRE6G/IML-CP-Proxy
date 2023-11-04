@@ -254,7 +254,9 @@ def run_test_cases(test_cases_to_run):
             print(f'{COLOR_GREEN}{test_case_printable_name} test successfully finished!{COLOR_END}')
             print('')
 
-            clear_folder(TARGET_TEST_FOLDER)
+
+            if len(test_cases_to_run) != 1:
+                clear_folder(TARGET_TEST_FOLDER)
             success_counter += 1
         finally:
             time.sleep(4)
