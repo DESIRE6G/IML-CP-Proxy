@@ -2,12 +2,20 @@
 import json
 import os
 import sys
-import pprint
-import time
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("logs/receive.log"),
+        logging.StreamHandler()
+    ]
+)
+
 
 from scapy.all import (
     IP,
-    TCP,
     Ether,
     IPOption,
     ShortField,
@@ -25,20 +33,19 @@ def get_if():
             iface=i
             break;
     if not iface:
-        print("Cannot find eth0 interface")
+        logging.error("Cannot find eth0 interface")
         exit(1)
     return iface
 
 packets_arrived = []
 def handle_pkt(pkt):
-    if TCP in pkt and pkt[TCP].dport == 1234:
-        print("got a packet")
-        packets_arrived.append(pkt)
-        packet_readable = pkt.show2(dump=True)
-        with open("output.txt", "a") as f:
-            f.write(packet_readable)
+    packets_arrived.append(pkt)
+    packet_readable = pkt.show2(dump=True)
+    logging.debug(f'Arrived {repr(pkt)}')
+    with open("output.txt", "a") as f:
+        f.write(packet_readable)
 
-        sys.stdout.flush()
+    sys.stdout.flush()
 
 
 def convert_packet_to_dump_object(pkt):
@@ -46,10 +53,11 @@ def convert_packet_to_dump_object(pkt):
 
 
 def are_packets_equal(packet1, packet2) -> bool:
-    packet1[IP].ttl = 64
-    packet2[IP].ttl = 64
-    packet1[IP].chksum = 0
-    packet2[IP].chksum = 0
+    if IP in packet1 and IP in packet2:
+        packet1[IP].ttl = 64
+        packet2[IP].ttl = 64
+        packet1[IP].chksum = 0
+        packet2[IP].chksum = 0
 
     return packet1.payload == packet2.payload
 
@@ -63,12 +71,12 @@ def compare_packet_lists(packets_arrived, packets_expected):
     for pkt_arrived in packets_arrived:
         if not is_packet_in(pkt_arrived, packets_expected):
             output_object['extra_packets'].append(convert_packet_to_dump_object(pkt_arrived))
-            print(f'Extra packet arrived {pkt_arrived}')
+            logging.debug(f'Extra packet arrived {pkt_arrived}')
 
     for pkt_expected in packets_expected:
         if not is_packet_in(pkt_expected, packets_arrived):
             output_object['missing_packets'].append(convert_packet_to_dump_object(pkt_expected))
-            print(f'Missing packet {pkt_expected}')
+            logging.debug(f'Missing packet {pkt_expected}')
 
     output_object['success'] = len(output_object['extra_packets']) == 0 and len(output_object['missing_packets']) == 0
 
@@ -79,14 +87,13 @@ def compare_packet_lists(packets_arrived, packets_expected):
 if __name__ == '__main__':
     ifaces = [i for i in os.listdir('/sys/class/net/') if 'eth' in i]
     iface = ifaces[0]
-    print("sniffing on %s" % iface)
+    logging.debug(f"sniffing on {iface}")
     sys.stdout.flush()
     sniff(iface = iface,
           prn = lambda x: handle_pkt(x), timeout=3)
 
-    print('SNIFFING FINISHED')
-    print('SNIFFING FINISHED')
-    print('SNIFFING FINISHED')
+    logging.debug('--------------------------------')
+    logging.debug('SNIFFING FINISHED')
     packets_expected = rdpcap(sys.argv[1])
     wrpcap('test_arrived.pcap', packets_arrived)
 
