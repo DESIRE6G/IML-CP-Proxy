@@ -1,0 +1,29 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "part123",
+        "port": 50051,
+        "device_id": 0
+      },
+      "sources": [
+        {
+          "program_name": "part1",
+          "prefix": "part1_",
+          "controller_port": 60051
+        },
+        {
+          "program_name": "part2",
+          "prefix": "part2_",
+          "controller_port": 60052
+        },
+        {
+          "program_name": "part3",
+          "prefix": "part3_",
+          "controller_port": 60053
+        }
+      ]
+    }
+  ]
+}
