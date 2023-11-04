@@ -46,9 +46,26 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
+
+    action state_set(bit<8> newState) {
+        hdr.states.state2 = newState;
+    }
+
+    table state_setter {
+        key = {
+            hdr.ethernet.dstAddr: exact;
+        }
+        actions = {
+            state_set;
+            NoAction;
+        }
+        size = 1024;
+    }
+
+
     apply {
+        state_setter.apply();
         standard_metadata.egress_spec = 2;
-        hdr.states.state2 = 34;
     }
 }
 
