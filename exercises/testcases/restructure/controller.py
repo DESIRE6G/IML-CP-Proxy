@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import grpc
 
-from common.controller_helper import create_experimental_model_forwards
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.error_utils import printGrpcError
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
