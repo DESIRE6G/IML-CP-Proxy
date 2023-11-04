@@ -1,0 +1,47 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "part1",
+        "port": 50051,
+        "device_id": 0
+      },
+      "sources": [
+        {
+          "program_name": "part1",
+          "prefix": "",
+          "controller_port": 60051
+        }
+      ]
+    },
+    {
+      "target": {
+        "program_name": "part2",
+        "port": 50052,
+        "device_id": 1
+      },
+      "sources": [
+        {
+          "program_name": "part2",
+          "prefix": "",
+          "controller_port": 60052
+        }
+      ]
+    },
+    {
+      "target": {
+        "program_name": "part3",
+        "port": 50053,
+        "device_id": 2
+      },
+      "sources": [
+        {
+          "program_name": "part3",
+          "prefix": "",
+          "controller_port": 60053
+        }
+      ]
+    }
+  ]
+}
