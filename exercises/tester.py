@@ -205,7 +205,11 @@ def run_test_cases(test_cases_to_run):
             tmux_shell(f'mkdir -p logs')
             tmux_shell(f'make stop')
             tmux_shell(f'make run')
-            wait_for_output('^mininet>', mininet_pane_name, max_time=30)
+            try:
+                wait_for_output('^mininet>', mininet_pane_name, max_time=30)
+            except Exception as e:
+                tmux(f'capture-pane -S - -pt {mininet_pane_name}')
+                raise e
 
             active_test_modes = {
                 'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
