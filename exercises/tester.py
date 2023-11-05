@@ -240,8 +240,9 @@ def run_test_cases(test_cases_to_run):
                         raise Exception(f'Pcap test failed, check test_output.json for more details')
 
             if active_test_modes['validator']:
-                tmux_shell(f'h1 ping h2', mininet_pane_name)
-                wait_for_output('^64 bytes from', mininet_pane_name)
+                if not active_test_modes['pcap'] and not active_test_modes['ping']:
+                    tmux_shell(f'h1 ping h2', mininet_pane_name)
+                    wait_for_output('^64 bytes from', mininet_pane_name)
 
                 print('------------- RUN VALIDATION -----------')
                 exit_code = subprocess.call(f'{os.path.realpath(TARGET_TEST_FOLDER)}/validator.py', shell=True, cwd=os.path.realpath(TARGET_TEST_FOLDER))

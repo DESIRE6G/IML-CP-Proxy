@@ -41,12 +41,15 @@ def compare_redis(redis_file: str) -> bool:
                     if redis.lindex(redis_key, index).decode('utf8') != data_one_record:
                         print(f'{redis_key} differs from the expected!')
                         success = False
+                    else:
+                        print(f'{redis_key} OK')
 
             if "string" in table_obj:
                 if(redis.get(redis_key).decode('utf8')) != table_obj['string']:
                     print(f'{redis_key} differs from the expected!')
                     success = False
-
+                else:
+                    print(f'{redis_key} OK')
 
     return success
 
