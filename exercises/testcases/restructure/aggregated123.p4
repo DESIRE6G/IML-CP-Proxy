@@ -46,6 +46,9 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
+    counter(1, CounterType.packets_and_bytes) part1_packetCounter1;
+    counter(1, CounterType.packets_and_bytes) part2_packetCounter2;
+    counter(1, CounterType.packets_and_bytes) part3_packetCounter3;
 
     action part1_state_set(bit<8> newState) {
         hdr.states.state1 = newState;
@@ -99,6 +102,12 @@ control MyIngress(inout headers hdr,
         part1_state_setter.apply();
         part2_state_setter.apply();
         part3_state_setter.apply();
+        part1_packetCounter1.count((bit<32>) 0);
+        part2_packetCounter2.count((bit<32>) 0);
+        part2_packetCounter2.count((bit<32>) 0);
+        part3_packetCounter3.count((bit<32>) 0);
+        part3_packetCounter3.count((bit<32>) 0);
+        part3_packetCounter3.count((bit<32>) 0);
         standard_metadata.egress_spec = 2;
     }
 }

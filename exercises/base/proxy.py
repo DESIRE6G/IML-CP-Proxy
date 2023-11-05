@@ -31,8 +31,10 @@ def prefix_p4_name(original_table_name : str, prefix : str) -> str:
 
 def remove_prefix_p4_name(prefixed_table_name : str, prefix : str) -> str:
     namespace,table_name = prefixed_table_name.split('.')
-
-    return f'{namespace}.{table_name.lstrip(prefix)}'
+    if table_name.startswith(prefix):
+        return f'{namespace}.{table_name[len(prefix):]}'
+    else:
+        raise Exception(f'Cannot find prefix "{prefix}" at the begining of the table name "{table_name}"')
 
 
 def get_pure_table_name(original_table_name : str) -> str:

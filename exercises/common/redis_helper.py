@@ -63,7 +63,7 @@ def save_redis_to_json_file(redis_file: str) -> None:
     print(f'redis_keys = {redis_keys}')
     for redis_record_field in redis_records_fields:
         for redis_key in redis_keys:
-            if redis_key.endswith(redis_record_field.default.postfix):
+            if redis_record_field.default.postfix in redis_key:
                 print(redis_key, redis_record_field.default)
                 output_row = {'key':redis_key}
                 if redis_record_field.default.type == RedisFieldType.STRING:
