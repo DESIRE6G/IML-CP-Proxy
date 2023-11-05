@@ -38,14 +38,22 @@ def compare_redis(redis_file: str) -> bool:
             redis_key = table_obj['key']
             if "list" in table_obj:
                 for index, data_one_record in enumerate(table_obj["list"]):
-                    if redis.lindex(redis_key, index).decode('utf8') != data_one_record:
+                    raw_result = redis.lindex(redis_key, index)
+                    if raw_result is None:
+                        print(f'{redis_key} key not exists!')
+                        success = False
+                    elif raw_result.decode('utf8') != data_one_record:
                         print(f'{redis_key} differs from the expected!')
                         success = False
                     else:
                         print(f'{redis_key} OK')
 
             if "string" in table_obj:
-                if(redis.get(redis_key).decode('utf8')) != table_obj['string']:
+                raw_result = redis.get(redis_key)
+                if raw_result is None:
+                    print(f'{redis_key} key not exists!')
+                    success = False
+                elif raw_result.decode('utf8') != table_obj['string']:
                     print(f'{redis_key} differs from the expected!')
                     success = False
                 else:
