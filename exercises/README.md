@@ -89,3 +89,12 @@ Do a release into the `release` folder that contains all the necessary files to 
 Reload redis information for the actually built test folder:
 ```python prepare```
 
+## Test config
+
+If you add a `test_config.json` to the test case, you can configure the followings:
+
+| Paramter name    | functionality                                                         | Defatult value |
+|------------------|-----------------------------------------------------------------------|----------------|
+| run_validator    | Determines if the tester run validator.py after the test case.        | true           |
+| load_redis_json  | Determines if the tester fills up the redis from the redis.json file. | true           |
+| start_controller | Determines if the tester starts the controller.                       | true           |

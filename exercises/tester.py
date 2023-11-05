@@ -209,7 +209,7 @@ def run_test_cases(test_cases_to_run):
 
             active_test_modes = {
                 'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
-                'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py')
+                'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py') and config.get('run_validator', default=True)
             }
             active_test_modes['ping'] = not any([active_test_modes[test_mode] for test_mode in active_test_modes])
 

@@ -1,5 +1,5 @@
 {
-  "redis": "OFF",
+  "redis": "ONLY_WRITE",
   "mappings": [
     {
       "target": {
