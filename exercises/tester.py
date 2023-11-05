@@ -233,6 +233,7 @@ def run_test_cases(test_cases_to_run):
             if active_test_modes['pcap']:
                 time.sleep(5)
                 tmux_shell('h2 python receive.py test_h2_expected.pcap &', mininet_pane_name)
+                wait_for_output('^mininet>', mininet_pane_name)
                 tmux_shell('h1 python send.py test_h1_input.pcap', mininet_pane_name)
                 time.sleep(5)
                 with open(f'{TARGET_TEST_FOLDER}/test_output.json', 'r') as f:
