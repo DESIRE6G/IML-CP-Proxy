@@ -21,7 +21,7 @@ class HighLevelSwitchConnection():
             name=f's{device_id+1}',
             address=f'127.0.0.1:{self.port}',
             device_id=device_id,
-            proto_dump_file=f'logs/s{device_id+1}-p4runtime-requests.txt')
+            proto_dump_file=f'logs/port{self.port}-p4runtime-requests.txt')
 
         self.connection.MasterArbitrationUpdate()
 
