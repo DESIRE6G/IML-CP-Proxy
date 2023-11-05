@@ -3,7 +3,7 @@
   "mappings": [
     {
       "target": {
-        "program_name": "part123",
+        "program_name": "aggregated123",
         "port": 50051,
         "device_id": 0
       },

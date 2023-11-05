@@ -1,9 +1,9 @@
 {
-  "redis": "OFF",
+  "redis": "ONLY_WRITE",
   "mappings": [
     {
       "target": {
-        "program_name": "part12",
+        "program_name": "aggregated12",
         "port": 50051,
         "device_id": 0
       },
@@ -22,14 +22,14 @@
     },
     {
       "target": {
-        "program_name": "part3",
+        "program_name": "aggregated3",
         "port": 50052,
         "device_id": 1
       },
       "sources": [
         {
           "program_name": "part3",
-          "prefix": "",
+          "prefix": "part3_",
           "controller_port": 60053
         }
       ]
