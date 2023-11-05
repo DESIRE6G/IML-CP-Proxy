@@ -282,12 +282,22 @@ def close_everything_and_save_logs():
     tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
 
 
-def process_cmdline_testcase_name(cmdline_input):
+def process_cmdline_testcase_name(cmdline_input: str):
     splitted_testcase = cmdline_input.split('/')
-    return {
-        'name': splitted_testcase[0],
-        'subtest': splitted_testcase[1] if len(splitted_testcase) > 1 else None
-    }
+
+    if len(splitted_testcase) > 1 and splitted_testcase[1].strip() == '*':
+        ret = []
+
+        for test_case in test_cases:
+            if test_case['name'] == splitted_testcase[0]:
+                ret.append(test_case)
+
+        return ret
+    else:
+        return [{
+            'name': splitted_testcase[0],
+            'subtest': splitted_testcase[1] if len(splitted_testcase) > 1 else None
+        }]
 
 
 def sigint_handler(signum, frame):
@@ -302,14 +312,19 @@ else:
     if sys.argv[1] == 'help':
         print('python tester.py - run all the test cases')
         print('python tester.py [testcase] - run one test case ([test_name] or [test_name]/[subtest] form, e.g. l2fwd/simple_forward)')
+        print('                              you can use wildcard for subtest to run all of the subtests for a test case e.g.: l2fwd/*')
         print('python tester.py build [testcase] - prepares the test folder with a testcase')
         print('python tester.py prepare - run the preparations for the actual content of the test folder (e.g. redis fill)')
         print('python tester.py release - create a release folder that contains all the necessary files to run the proxy without symlinks')
     elif sys.argv[1] == 'build':
         if len(sys.argv) < 3:
             print('For build a testcase you need to add 3 parameters')
-        splitted_testcase = process_cmdline_testcase_name(sys.argv[2])
-        prepare_test_folder(splitted_testcase['name'], splitted_testcase['subtest'])
+        test_cases_to_build = process_cmdline_testcase_name(sys.argv[2])
+        if len(test_cases_to_build) == 1:
+            splitted_testcase = test_cases_to_build[0]
+            prepare_test_folder(splitted_testcase['name'], splitted_testcase['subtest'])
+        else:
+            raise Exception('You cannot use wildcard for building a test case.')
     elif sys.argv[1] == 'prepare':
         prepare_enviroment()
     elif sys.argv[1] == 'release':
@@ -318,5 +333,5 @@ else:
         shutil.copyfile('testcases/l2fwd/proxy_config.json', 'release/proxy_config.json')
         shutil.copytree('common','release/common')
     else:
-        run_test_cases([process_cmdline_testcase_name(sys.argv[1])])
+        run_test_cases(process_cmdline_testcase_name(sys.argv[1]))
 
