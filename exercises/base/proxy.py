@@ -2,7 +2,6 @@ import json
 import logging
 import time
 from concurrent import futures
-from dataclasses import dataclass
 from enum import Enum
 from threading import Thread, Event
 
@@ -19,6 +18,7 @@ import common.p4runtime_lib.helper
 from common.controller_helper import get_counter_object_by_id, CounterObject
 from common.p4runtime_lib.switch import IterableQueue
 from common.high_level_switch_connection import HighLevelSwitchConnection
+from common.redis_helper import RedisKeys, RedisRecords
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
@@ -55,11 +55,6 @@ class RedisMode(Enum):
     def is_writing(cls, redis_mode: 'RedisMode') -> bool:
         return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_WRITE
 
-@dataclass
-class RedisKeys:
-    TABLE_ENTRIES: str
-    P4INFO: str
-    COUNTER_PREFIX: str
 
 class ProxyP4ServicerWorkerThread(Thread):
     def __init__(self, servicer):
@@ -80,9 +75,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
         self.prefix = prefix
         self.redis_keys = RedisKeys(
-            TABLE_ENTRIES=f'{prefix}TABLE_ENTRIES',
-            P4INFO= f'{prefix}P4INFO',
-            COUNTER_PREFIX= f'{prefix}COUNTER'
+            TABLE_ENTRIES=f'{prefix}{RedisRecords.TABLE_ENTRIES.postfix}',
+            P4INFO= f'{prefix}{RedisRecords.P4INFO.postfix}',
+            COUNTER=f'{prefix}{RedisRecords.COUNTER.postfix}'
         )
         self.counters = {}
 
@@ -269,7 +264,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             self.Write(parsed_write_request, None, redis_p4info_helper, save_to_redis = False)
 
         for counter_entry in self.from_p4info_helper.p4info.counters:
-            redis_key = f'{self.redis_keys.COUNTER_PREFIX}.{counter_entry.preamble.id}'
+            redis_key = f'{self.redis_keys.COUNTER}.{counter_entry.preamble.id}'
             raw_list = redis.lrange(redis_key,0,-1)
 
             self.counters[counter_entry.preamble.id] = list(map(json.loads, raw_list))
@@ -287,7 +282,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for counter_entry in self.from_p4info_helper.p4info.counters:
             counter_id_at_target = self.convert_id(self.from_p4info_helper, self.target_switch.p4info_helper, 'counter', counter_entry.preamble.id)
             with redis.pipeline() as pipe:
-                redis_key = f'{self.redis_keys.COUNTER_PREFIX}.{counter_entry.preamble.id}'
+                redis_key = f'{self.redis_keys.COUNTER}.{counter_entry.preamble.id}'
                 pipe.multi()
                 pipe.delete(redis_key)
                 for counter_index in range(counter_entry.size):

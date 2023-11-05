@@ -10,6 +10,8 @@ import subprocess
 from typing import TypedDict, List, Optional
 import redis
 
+from common.redis_helper import save_redis_to_json_file
+
 COLOR_YELLOW = '\033[33m'
 COLOR_RED = '\033[91m'
 COLOR_GREEN = '\033[92m'
@@ -318,7 +320,7 @@ else:
         print('python tester.py release - create a release folder that contains all the necessary files to run the proxy without symlinks')
     elif sys.argv[1] == 'build':
         if len(sys.argv) < 3:
-            print('For build a testcase you need to add 3 parameters')
+            raise Exception('For build a testcase you need to add 3 parameters')
         test_cases_to_build = process_cmdline_testcase_name(sys.argv[2])
         if len(test_cases_to_build) == 1:
             splitted_testcase = test_cases_to_build[0]
@@ -332,6 +334,11 @@ else:
         shutil.copyfile('base/proxy.py', 'release/proxy.py')
         shutil.copyfile('testcases/l2fwd/proxy_config.json', 'release/proxy_config.json')
         shutil.copytree('common','release/common')
+    elif sys.argv[1] == 'saveredis':
+        if len(sys.argv) < 3:
+            raise Exception('For saveredis you have to pass a filename as well')
+        redis_file = sys.argv[2]
+        save_redis_to_json_file(redis_file)
     else:
         run_test_cases(process_cmdline_testcase_name(sys.argv[1]))
 
