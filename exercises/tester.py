@@ -1,4 +1,5 @@
 import glob
+import itertools
 import json
 import os
 import shutil
@@ -47,6 +48,7 @@ test_cases : List[TestCase] = [
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
+BUILD_CACHE_FOLDER = '__build_cache'
 TESTCASE_FOLDER = 'testcases'
 TMUX_WINDOW_NAME = 'proxy_tester'
 necessary_files = ['*.p4', '*.py', '*.json', '*.pcap', 'Makefile']
@@ -113,8 +115,7 @@ controller_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
 
 def clear_folder(folder_path):
-    if not os.path.isdir(folder_path):
-        os.mkdir(folder_path)
+    os.makedirs(folder_path, exist_ok=True)
 
     for entry in os.scandir(folder_path):
         if entry.is_file() or entry.is_symlink():
@@ -137,7 +138,18 @@ def assert_folder_existence(path):
     if not os.path.exists(path):
         raise Exception(f'{path} has to exist')
 
-def prepare_test_folder(test_case, subtest=None, avoid_symlinks=False):
+
+def link_into_folder(path, dst_folder):
+    os.link(f'{path}', f'{dst_folder}/{os.path.basename(path)}')
+
+def copy_prebuilt_files():
+    os.makedirs(f'{TARGET_TEST_FOLDER}/build', exist_ok=True)
+    for filepath in glob.glob(f'{TARGET_TEST_FOLDER}/*.p4'):
+        filename_without_extension = os.path.splitext(os.path.basename(filepath))[0]
+        link_into_folder(f'{BUILD_CACHE_FOLDER}/build/{filename_without_extension}.json',f'{TARGET_TEST_FOLDER}/build')
+        link_into_folder(f'{BUILD_CACHE_FOLDER}/build/{filename_without_extension}.p4.p4info.txt',f'{TARGET_TEST_FOLDER}/build')
+
+def prepare_test_folder(test_case, subtest=None):
     clear_folder(TARGET_TEST_FOLDER)
     link_all_files_from_folder('base', TARGET_TEST_FOLDER)
     os.symlink(os.path.realpath('common'), os.path.realpath(f'{TARGET_TEST_FOLDER}/common'))
@@ -152,6 +164,7 @@ def prepare_test_folder(test_case, subtest=None, avoid_symlinks=False):
                 os.link(f'{filepath}', f'{TARGET_TEST_FOLDER}/{filename}')
             else:
                 os.link(f'{filepath}', f'{TARGET_TEST_FOLDER}/{os.path.basename(filepath)}')
+    copy_prebuilt_files()
 
     if subtest is not None:
         subtest_folder_path = f'{TESTCASE_FOLDER}/{test_case}/subtests/{subtest}'
@@ -351,7 +364,36 @@ def sigint_handler(signum, frame):
 
 signal.signal(signal.SIGINT, sigint_handler)
 
+
+def build_up_p4_cache():
+    print(f'{COLOR_CYAN}--- Building up P4 cache{COLOR_END} --- ')
+    os.makedirs(BUILD_CACHE_FOLDER, exist_ok=True)
+
+    def link_with_override(src, dst):
+        if os.path.exists(dst):
+            os.remove(dst)
+        os.link(src, dst)
+
+    link_with_override('base/Makefile', f'{BUILD_CACHE_FOLDER}/Makefile')
+    p4files = []
+    success = True
+    for root, dirs, files in itertools.chain(os.walk('testcases'), os.walk('base')):
+        for file in files:
+            if file.endswith('.p4'):
+                filepath = f'{root}/{file}'
+                print(filepath)
+                link_with_override(filepath, f'{BUILD_CACHE_FOLDER}/{file}')
+                if file in p4files:
+                    print(f'{COLOR_RED_BG}P4File caching does not support multiple files{COLOR_END} skipping cache use')
+                    success = False
+                    break
+                p4files.append(file)
+
+    if success:
+        exit_code = subprocess.call(f'make build', shell=True, cwd=os.path.realpath(BUILD_CACHE_FOLDER))
+
 if len(sys.argv) == 1:
+    build_up_p4_cache()
     run_test_cases(test_cases)
 else:
     if sys.argv[1] == 'help':
@@ -383,5 +425,6 @@ else:
         redis_file = sys.argv[2]
         save_redis_to_json_file(redis_file)
     else:
+        build_up_p4_cache()
         run_test_cases(process_cmdline_testcase_name(sys.argv[1]))
 

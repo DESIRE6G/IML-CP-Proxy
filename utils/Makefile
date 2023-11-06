@@ -3,7 +3,7 @@ PCAP_DIR = pcaps
 LOG_DIR = logs
 
 P4C = p4c-bm2-ss
-P4C_ARGS += --p4runtime-files $(BUILD_DIR)/$(basename $@).p4.p4info.txt
+P4C_ARGS += --p4runtime-files $(BUILD_DIR)/$*.p4.p4info.txt
 
 RUN_SCRIPT = ../../utils/run_exercise.py
 
@@ -12,7 +12,7 @@ TOPO = topology.json
 endif
 
 source = $(wildcard *.p4)
-compiled_json := $(source:.p4=.json)
+compiled_json := $(addprefix $(BUILD_DIR)/,$(source:.p4=.json))
 
 ifndef DEFAULT_PROG
 DEFAULT_PROG = $(wildcard *.p4)
@@ -39,8 +39,8 @@ stop:
 
 build: dirs $(compiled_json)
 
-%.json: %.p4
-	$(P4C) --p4v 16 $(P4C_ARGS) -o $(BUILD_DIR)/$@ $<
+$(BUILD_DIR)/%.json: %.p4
+	$(P4C) --p4v 16 $(P4C_ARGS) -o $(BUILD_DIR)/$*.json $<
 
 dirs:
 	mkdir -p $(BUILD_DIR) $(PCAP_DIR) $(LOG_DIR)
@@ -48,3 +48,4 @@ dirs:
 clean: stop
 	rm -f *.pcap
 	rm -rf $(BUILD_DIR) $(PCAP_DIR) $(LOG_DIR)
+
