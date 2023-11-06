@@ -56,23 +56,44 @@ def tmux(command):
     print(f'{COLOR_YELLOW}COMMAND{COLOR_END}: {command}')
     return subprocess.call(f'tmux {command}', shell=True)
 
-def tmux_shell(command, pane_name = None):
+def tmux_shell(command, pane_name = None, wait_command_appear=False):
     cmd = f'send-keys'
     if pane_name is not None:
        cmd += f' -t {pane_name}'
 
     cmd += f' "{command}" "C-m"'
-    return tmux(cmd)
+    ret = tmux(cmd)
+    if wait_command_appear and pane_name is not None and command.strip() not in ['C-c']:
+        wait_for_output_anywhere(command, pane_name)
+    return ret
 
-def get_pane_output(pane_name) -> str:
+def get_pane_output(pane_name: str) -> str:
     output = subprocess.check_output(f'tmux capture-pane -pt {pane_name}', shell=True)
     return output.decode('utf8')
 
-def get_last_pane_row(pane_name) -> str:
+def get_last_pane_row(pane_name: str) -> str:
     output = get_pane_output(pane_name)
     return [row for row in output.split('\n') if len(row.strip('\n \t')) > 0][-1]
 
-def wait_for_output(regexp_to_wait_for: str, pane_name: str, try_interval=1, max_time=10) -> None:
+def wait_for_condition_blocking(callback_function, max_try: int = 60, try_sleep = 0.5, quite_fail = False, verbose = False) -> bool:
+    for i in range(max_try):
+        result = callback_function()
+
+        if result:
+            return True
+
+        if verbose:
+            print(f'Failed {i}th iteration, sleep {try_sleep} and try again')
+        time.sleep(try_sleep)
+    if quite_fail:
+        return False
+    else:
+        raise TimeoutError(f'wait_for_condition failed to wait max_try={max_try}, try_sleep={try_sleep}')
+
+def wait_for_output_anywhere(regexp_to_wait_for: str, pane_name: str, max_try=10, try_sleep=0.5):
+    wait_for_condition_blocking(lambda: re.search(regexp_to_wait_for,get_pane_output(pane_name)),max_try,try_sleep)
+
+def wait_for_output(regexp_to_wait_for: str, pane_name: str, try_interval=0.5, max_time=10) -> None:
     print(f'Waiting for {regexp_to_wait_for} on {pane_name}')
     start_time = time.time()
     while time.time() - start_time < max_time:
@@ -195,16 +216,16 @@ def run_test_cases(test_cases_to_run):
                     if exit_code2 == 0:
                         break
 
-                print('Waiting for retry 2 sec')
-                time.sleep(2)
+                print('Waiting for retry 1 sec')
+                time.sleep(1)
                 print(f'{COLOR_ORANGE} Retry server init {COLOR_END}')
             else:
                 raise Exception('Cannot create tmux session!')
 
-            tmux_shell(f'cd {TARGET_TEST_FOLDER}')
-            tmux_shell(f'mkdir -p logs')
-            tmux_shell(f'make stop')
-            tmux_shell(f'make run')
+            tmux_shell(f'cd {TARGET_TEST_FOLDER}',mininet_pane_name)
+            tmux_shell(f'mkdir -p logs',mininet_pane_name)
+            tmux_shell(f'make stop',mininet_pane_name)
+            tmux_shell(f'make run',mininet_pane_name)
             try:
                 wait_for_output('^mininet>', mininet_pane_name, max_time=30)
             except Exception as e:
@@ -229,17 +250,20 @@ def run_test_cases(test_cases_to_run):
             if config.get('start_controller', default=True):
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
                 tmux_shell('python3 controller.py', controller_pane_name)
+                wait_for_output(f'{TARGET_TEST_FOLDER}\$\s*$', controller_pane_name)
 
             if active_test_modes['ping']:
                 tmux_shell(f'h1 ping h2', mininet_pane_name)
                 wait_for_output('^64 bytes from', mininet_pane_name)
 
             if active_test_modes['pcap']:
-                time.sleep(5)
-                tmux_shell('h2 python receive.py test_h2_expected.pcap &', mininet_pane_name)
+                tmux_shell('h2 python receive.py test_h2_expected.pcap &', mininet_pane_name, wait_command_appear=True)
                 wait_for_output('^mininet>', mininet_pane_name)
                 tmux_shell('h1 python send.py test_h1_input.pcap', mininet_pane_name)
-                time.sleep(5)
+                wait_for_output('^mininet>', mininet_pane_name)
+
+                wait_for_condition_blocking(lambda: os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_finished'))
+
                 with open(f'{TARGET_TEST_FOLDER}/test_output.json', 'r') as f:
                     test_output = json.load(f)
                     if not test_output['success']:
@@ -268,7 +292,6 @@ def run_test_cases(test_cases_to_run):
                 clear_folder(TARGET_TEST_FOLDER)
             success_counter += 1
         finally:
-            time.sleep(4)
             close_everything_and_save_logs()
     if success_counter == len(test_cases_to_run):
         print(f'{COLOR_GREEN}----------------------------------')

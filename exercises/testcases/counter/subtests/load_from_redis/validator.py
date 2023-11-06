@@ -19,7 +19,7 @@ if __name__ == '__main__':
     counter1_id = s1.p4info_helper.get_counters_id('MyIngress.packetCounter')
     counter2_id = s2.p4info_helper.get_counters_id('MyIngress.packetCounter')
 
-    time.sleep(2)
+    time.sleep(0.5)
     counter1_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.packetCounter')
     counter2_objects = get_counter_objects(s2.p4info_helper, s2.connection, 'MyIngress.packetCounter')
 

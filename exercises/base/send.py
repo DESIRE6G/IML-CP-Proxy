@@ -2,8 +2,19 @@
 import random
 import socket
 import sys
+from pathlib import Path
+import logging
 
 from scapy.all import IP, TCP, Ether, get_if_hwaddr, get_if_list, sendp, rdpcap
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("logs/send.log"),
+        logging.StreamHandler()
+    ]
+)
 
 
 def get_if():
@@ -27,5 +38,8 @@ iface = get_if()
 packets = rdpcap(sys.argv[1])
 for pkt in packets:
     sendp(pkt, iface=iface, verbose=False)
+    logging.debug(f'Sent {repr(pkt)}')
 
 
+Path('.pcap_send_finished').touch()
+logging.debug('touch pcap_send_finished')

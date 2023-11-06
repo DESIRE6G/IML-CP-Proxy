@@ -3,6 +3,8 @@ import json
 import os
 import sys
 import logging
+import time
+from pathlib import Path
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -22,7 +24,8 @@ from scapy.all import (
     get_if_list,
     sniff,
     rdpcap,
-    wrpcap
+    wrpcap,
+    AsyncSniffer
 )
 
 def get_if():
@@ -89,8 +92,19 @@ if __name__ == '__main__':
     iface = ifaces[0]
     logging.debug(f"sniffing on {iface}")
     sys.stdout.flush()
-    sniff(iface = iface,
-          prn = lambda x: handle_pkt(x), timeout=3)
+
+    t = AsyncSniffer(iface = iface, prn = lambda x: handle_pkt(x), timeout=10)
+    t.start()
+    while not hasattr(t, 'stop_cb'):
+        time.sleep(0.1)
+    while t.running and not os.path.exists('.pcap_send_finished'):
+        logging.debug('Waiting for .pcap_send_finished')
+        time.sleep(0.25)
+
+    logging.debug('Done, removing .pcap_send_finished')
+    os.remove('.pcap_send_finished')
+    if t.running:
+        t.stop()
 
     logging.debug('--------------------------------')
     logging.debug('SNIFFING FINISHED')
@@ -98,6 +112,9 @@ if __name__ == '__main__':
     wrpcap('test_arrived.pcap', packets_arrived)
 
     compare_packet_lists(packets_arrived, packets_expected)
+
+    logging.debug('touch .pcap_receive_finished')
+    Path('.pcap_receive_finished').touch()
     '''
     packets_arrived = rdpcap('test_arrived.pcap')
     packets_expected = rdpcap('test_h2_expected.pcap')
