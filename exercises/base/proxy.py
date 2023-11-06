@@ -101,7 +101,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             from_p4info_helper = self.from_p4info_helper
 
         for update in request.updates:
-            if update.type == Update.INSERT:
+            if update.type == Update.INSERT or update.type == Update.MODIFY:
                 if update.entity.WhichOneof('entity') == 'table_entry':
                     if save_to_redis and RedisMode.is_writing(self.redis_mode):
                         redis.rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(request))

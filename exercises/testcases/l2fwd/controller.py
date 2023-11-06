@@ -18,9 +18,20 @@ def config_not_aggregated_controller():
         action_name="MyIngress.chg_addr",
         action_params={
             "dstAddr": '08:00:00:00:02:22',
-            "port": 2
+            "port": 21
         })
     s3.connection.WriteTableEntry(table_entry)
+    table_entry = s3.p4info_helper.buildTableEntry(
+        table_name="MyIngress.ipv4_lpm1",
+        match_fields={
+            "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
+        },
+        action_name="MyIngress.chg_addr",
+        action_params={
+            "dstAddr": '08:00:00:00:02:22',
+            "port": 2
+        })
+    s3.connection.WriteTableEntry(table_entry, modify_request = True)
 
 
     table_entry = s4.p4info_helper.buildTableEntry(

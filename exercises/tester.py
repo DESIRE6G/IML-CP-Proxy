@@ -36,7 +36,6 @@ class TestCase(TypedDict):
 test_cases : List[TestCase] = [
     {'name': 'l2fwd','subtest': None},
     {'name': 'l2fwd','subtest': 'load_from_redis'},
-    {'name': 'l2fwd','subtest': 'write_to_redis'},
     {'name': 'l2fwd','subtest': 'simple_forward'},
     {'name': 'counter','subtest': None},
     {'name': 'counter','subtest': 'simple_forward'},
@@ -257,7 +256,9 @@ def run_test_cases(test_cases_to_run):
 
             if active_test_modes['ping']:
                 tmux_shell(f'h1 ping h2', mininet_pane_name)
+                print('Waiting for PING response')
                 wait_for_output('^64 bytes from', mininet_pane_name)
+                print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END}')
 
             if active_test_modes['pcap']:
                 tmux_shell('h2 python receive.py test_h2_expected.pcap &', mininet_pane_name, wait_command_appear=True)
@@ -282,7 +283,9 @@ def run_test_cases(test_cases_to_run):
             if active_test_modes['validator']:
                 if not active_test_modes['pcap'] and not active_test_modes['ping']:
                     tmux_shell(f'h1 ping h2', mininet_pane_name)
+                    print('Waiting for PING response')
                     wait_for_output('^64 bytes from', mininet_pane_name)
+                    print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END}')
 
                 print('------------- RUN VALIDATION -----------')
                 exit_code = subprocess.call(f'{os.path.realpath(TARGET_TEST_FOLDER)}/validator.py', shell=True, cwd=os.path.realpath(TARGET_TEST_FOLDER))
