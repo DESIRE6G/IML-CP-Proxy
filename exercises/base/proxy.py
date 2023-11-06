@@ -1,5 +1,6 @@
 import json
 import logging
+import os.path
 import time
 from concurrent import futures
 from enum import Enum
@@ -76,10 +77,16 @@ class ProxyP4ServicerWorkerThread(Thread):
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
         self.prefix = prefix
+        if prefix.strip() != '':
+            redis_prefix = prefix
+        else:
+            path_for_prefix = os.path.basename(from_p4info_path).split('.')[0]
+            redis_prefix = f'{path_for_prefix}_'
+
         self.redis_keys = RedisKeys(
-            TABLE_ENTRIES=f'{prefix}{RedisRecords.TABLE_ENTRIES.postfix}',
-            P4INFO= f'{prefix}{RedisRecords.P4INFO.postfix}',
-            COUNTER=f'{prefix}{RedisRecords.COUNTER.postfix}'
+            TABLE_ENTRIES=f'{redis_prefix}{RedisRecords.TABLE_ENTRIES.postfix}',
+            P4INFO= f'{redis_prefix}{RedisRecords.P4INFO.postfix}',
+            COUNTER=f'{redis_prefix}{RedisRecords.COUNTER.postfix}'
         )
         self.counters = {}
 
@@ -227,7 +234,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def SetForwardingPipelineConfig(self, request, context):
         # Do not forward p4info just save it, on init we load the p4info
         self.delete_redis_entries_for_this_service()
-        redis.set(self.redis_keys.P4INFO,MessageToString(request.config.p4info))
+        if RedisMode.is_writing(self.redis_mode):
+            redis.set(self.redis_keys.P4INFO,MessageToString(request.config.p4info))
+
         return SetForwardingPipelineConfigResponse()
 
     def GetForwardingPipelineConfig(self, request, context):

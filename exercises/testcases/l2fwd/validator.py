@@ -3,6 +3,7 @@ import sys
 
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
+from common.redis_helper import compare_redis
 
 if __name__ == '__main__':
     s1 = HighLevelSwitchConnection(2, 'basic_part1', '60053', send_p4info=False)
@@ -23,6 +24,7 @@ if __name__ == '__main__':
 
     success = success and check_table_rules(s1.p4info_helper, s1.connection)
     success = success and check_table_rules(s2.p4info_helper, s2.connection)
+    success = success and compare_redis('redis.json')
 
     ShutdownAllSwitchConnections()
 
