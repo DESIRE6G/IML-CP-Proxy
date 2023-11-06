@@ -8,7 +8,7 @@ import signal
 import sys
 import time
 import subprocess
-from typing import TypedDict, List, Optional
+from typing import TypedDict, List, Optional, Callable
 import redis
 
 from common.redis_helper import save_redis_to_json_file
@@ -78,35 +78,34 @@ def get_last_pane_row(pane_name: str) -> str:
 
     return rows[-1] if len(rows) > 0 else ''
 
-def wait_for_condition_blocking(callback_function, max_try: int = 60, try_sleep = 0.5, quite_fail = False, verbose = False) -> bool:
-    for i in range(max_try):
-        result = callback_function()
+def wait_for_condition_blocking(callback_function: Callable[[], bool], timeout_message: str = None, try_interval=0.5, max_time=10) -> None:
+    start_time = time.time()
+    while time.time() - start_time < max_time:
+        if callback_function():
+            return
+        time.sleep(try_interval)
 
-        if result:
-            return True
-
-        if verbose:
-            print(f'Failed {i}th iteration, sleep {try_sleep} and try again')
-        time.sleep(try_sleep)
-    if quite_fail:
-        return False
+    if timeout_message is not None:
+        raise TimeoutError(timeout_message)
     else:
-        raise TimeoutError(f'wait_for_condition failed to wait max_try={max_try}, try_sleep={try_sleep}')
+        raise TimeoutError(f'wait_for_condition failed to wait try_interval={try_interval}, max_time={max_time}')
 
-def wait_for_output_anywhere(regexp_to_wait_for: str, pane_name: str, max_try=10, try_sleep=0.5):
-    wait_for_condition_blocking(lambda: re.search(regexp_to_wait_for,get_pane_output(pane_name)),max_try,try_sleep)
+
+def wait_for_output_anywhere(regexp_to_wait_for: str, pane_name: str, try_interval=0.5, max_time=10):
+    wait_for_condition_blocking(lambda: re.search(regexp_to_wait_for, get_pane_output(pane_name)) is not None, try_interval, max_time)
 
 def wait_for_output(regexp_to_wait_for: str, pane_name: str, try_interval=0.5, max_time=10) -> None:
     print(f'Waiting for {regexp_to_wait_for} on {pane_name}')
-    start_time = time.time()
-    while time.time() - start_time < max_time:
+
+    def inner_function() -> bool:
         last_row = get_last_pane_row(pane_name)
         if re.search(regexp_to_wait_for, last_row) is not None:
-            return
+            return True
         print(f'Waiting... last_row="{last_row}"')
-        time.sleep(try_interval)
+        return False
 
-    raise TimeoutError(f'Not found {regexp_to_wait_for} on {pane_name}')
+    wait_for_condition_blocking(inner_function, f'Not found {regexp_to_wait_for} on {pane_name}', try_interval, max_time)
+
 
 mininet_pane_name = f'{TMUX_WINDOW_NAME}:0.0'
 proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
