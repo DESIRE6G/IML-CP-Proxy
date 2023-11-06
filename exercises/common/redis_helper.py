@@ -43,7 +43,7 @@ def compare_redis(redis_file: str) -> bool:
                         print(f'{redis_key} key not exists!')
                         success = False
                     elif raw_result.decode('utf8') != data_one_record:
-                        print(f'{redis_key} differs from the expected!')
+                        print(f'{redis_key} at {index} index differs from the expected!')
                         success = False
                     else:
                         print(f'{redis_key} OK')
