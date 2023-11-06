@@ -391,6 +391,9 @@ def build_up_p4_cache():
 
     if success:
         exit_code = subprocess.call(f'make build', shell=True, cwd=os.path.realpath(BUILD_CACHE_FOLDER))
+        if exit_code > 0:
+            print(f'{COLOR_RED_BG}Build failed{COLOR_END}')
+            sys.exit()
 
 if len(sys.argv) == 1:
     build_up_p4_cache()
