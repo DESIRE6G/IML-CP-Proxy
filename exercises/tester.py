@@ -38,6 +38,7 @@ test_cases : List[TestCase] = [
     {'name': 'l2fwd','subtest': None},
     {'name': 'l2fwd','subtest': 'load_from_redis'},
     {'name': 'l2fwd','subtest': 'simple_forward'},
+    {'name': 'l2fwd','subtest': 'delete_entry'},
     {'name': 'counter','subtest': None},
     {'name': 'counter','subtest': 'simple_forward'},
     {'name': 'counter','subtest': 'write_to_redis'},

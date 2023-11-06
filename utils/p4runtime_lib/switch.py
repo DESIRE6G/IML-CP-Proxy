@@ -82,13 +82,15 @@ class SwitchConnection(object):
         else:
             self.client_stub.SetForwardingPipelineConfig(request)
 
-    def WriteTableEntry(self, table_entry, dry_run=False, modify_request = False):
+    def WriteTableEntry(self, table_entry, dry_run=False, update_type = 'INSERT'):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = self.device_id
         request.election_id.low = 1
         update = request.updates.add()
-        if table_entry.is_default_action or modify_request:
+        if table_entry.is_default_action or update_type == 'MODIFY':
             update.type = p4runtime_pb2.Update.MODIFY
+        elif update_type == 'DELETE':
+            update.type = p4runtime_pb2.Update.DELETE
         else:
             update.type = p4runtime_pb2.Update.INSERT
         update.entity.table_entry.CopyFrom(table_entry)
