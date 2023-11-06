@@ -100,6 +100,7 @@ def wait_for_output(regexp_to_wait_for: str, pane_name: str, try_interval=0.5, m
         last_row = get_last_pane_row(pane_name)
         if re.search(regexp_to_wait_for, last_row) is not None:
             return
+        print(f'Waiting... last_row="{last_row}"')
         time.sleep(try_interval)
 
     raise TimeoutError(f'Not found {regexp_to_wait_for} on {pane_name}')
