@@ -68,9 +68,13 @@ def are_packets_equal(packet1, packet2) -> bool:
 def is_packet_in(packet_to_find, packet_list) -> bool:
     return any([are_packets_equal(packet, packet_to_find) for packet in packet_list])
 
+import difflib
+
+COLOR_RED = '\033[91m'
+COLOR_END = '\033[0m'
 
 def compare_packet_lists(packets_arrived, packets_expected):
-    output_object = {'success':None,'extra_packets':[], 'missing_packets':[]}
+    output_object = {'success':None,'extra_packets':[], 'missing_packets':[], 'ordered_compare': []}
     for pkt_arrived in packets_arrived:
         if not is_packet_in(pkt_arrived, packets_expected):
             output_object['extra_packets'].append(convert_packet_to_dump_object(pkt_arrived))
@@ -80,6 +84,50 @@ def compare_packet_lists(packets_arrived, packets_expected):
         if not is_packet_in(pkt_expected, packets_arrived):
             output_object['missing_packets'].append(convert_packet_to_dump_object(pkt_expected))
             logging.debug(f'Missing packet {pkt_expected}')
+
+
+    for packet_index in range(len(packets_arrived)):
+        actual_packet_arrived = str(packets_arrived[packet_index])
+        if packet_index < len(packets_expected):
+            actual_packet_expected = str(packets_expected[packet_index])
+        else:
+            actual_packet_expected = ''
+
+        actual_packet_arrived_colored = ''
+        diff_flags = ''
+
+        color_active = False
+        i = 0
+        for s in difflib.ndiff(actual_packet_arrived, actual_packet_expected):
+            if s[0] == '-':
+                continue
+
+            if  s[0] == '+':
+                if not color_active:
+                    actual_packet_arrived_colored += COLOR_RED
+                    color_active = True
+                diff_flags += '^'
+            else:
+                if color_active:
+                    actual_packet_arrived_colored += COLOR_END
+                diff_flags += ' '
+            actual_packet_arrived_colored += actual_packet_arrived[i]
+            i += 1
+
+        if color_active:
+            actual_packet_arrived_colored += COLOR_END
+
+        logging.debug(f'--- [Packet {packet_index}] ---')
+        logging.debug(f'Expected: {actual_packet_expected}')
+        logging.debug(f'Arrived:  {actual_packet_arrived}')
+        logging.debug(f'          {diff_flags}')
+
+        output_object['ordered_compare'].append({
+            'expected':actual_packet_expected,
+            'arrived':actual_packet_arrived,
+            'arrived_colored':actual_packet_arrived_colored,
+            'diff_string': diff_flags
+        })
 
     output_object['success'] = len(output_object['extra_packets']) == 0 and len(output_object['missing_packets']) == 0
 
@@ -97,8 +145,9 @@ if __name__ == '__main__':
     t.start()
     while not hasattr(t, 'stop_cb'):
         time.sleep(0.1)
+
+    logging.debug('Waiting for .pcap_send_finished')
     while t.running and not os.path.exists('.pcap_send_finished'):
-        logging.debug('Waiting for .pcap_send_finished')
         time.sleep(0.25)
 
     logging.debug('Done, removing .pcap_send_finished')

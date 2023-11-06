@@ -270,7 +270,14 @@ def run_test_cases(test_cases_to_run):
                 with open(f'{TARGET_TEST_FOLDER}/test_output.json', 'r') as f:
                     test_output = json.load(f)
                     if not test_output['success']:
-                        raise Exception(f'Pcap test failed, check test_output.json for more details')
+                        if 'ordered_compare' in test_output:
+                            print(f'{COLOR_RED_BG}PCAP Test failed{COLOR_END}')
+                            for i, compare in enumerate(test_output['ordered_compare']):
+                                print(f'--- [Packet {i}] ---')
+                                print(f'Expected: {compare["expected"]}')
+                                print(f'Arrived:  {compare["arrived_colored"]}')
+                                print(f'          {compare["diff_string"]}')
+                        raise Exception(f'Pcap test failed, check the logs above or the test_output.json for more details')
 
             if active_test_modes['validator']:
                 if not active_test_modes['pcap'] and not active_test_modes['ping']:
