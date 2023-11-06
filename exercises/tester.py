@@ -73,7 +73,9 @@ def get_pane_output(pane_name: str) -> str:
 
 def get_last_pane_row(pane_name: str) -> str:
     output = get_pane_output(pane_name)
-    return [row for row in output.split('\n') if len(row.strip('\n \t')) > 0][-1]
+    rows = [row for row in output.split('\n') if len(row.strip('\n \t')) > 0]
+
+    return rows[-1] if len(rows) > 0 else ''
 
 def wait_for_condition_blocking(callback_function, max_try: int = 60, try_sleep = 0.5, quite_fail = False, verbose = False) -> bool:
     for i in range(max_try):
