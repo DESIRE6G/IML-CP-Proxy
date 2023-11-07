@@ -39,6 +39,21 @@ if __name__ == '__main__':
     validator.should_be_equal(counter2_objects[2].packet_count, 0)
     validator.should_be_equal(counter1_objects[2].packet_count, counter1_objects[0].packet_count * 2)
 
+    counter1packet_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.packetCounterOnlyPacket')
+    counter2bytes_objects = get_counter_objects(s2.p4info_helper, s2.connection, 'MyIngress.packetCounterOnlyBytes')
+
+    print('counter1packet_objects object:')
+    pprint(counter1packet_objects)
+
+    print('counter2bytes_objects object:')
+    pprint(counter2bytes_objects)
+
+    validator.should_be_equal(counter1packet_objects[0].packet_count, counter1_objects[0].packet_count)
+    # BMV looks counts packets and bytes regardless of CounterType
+    # validator.should_be_equal(counter1packet_objects[0].byte_count, 0)
+    validator.should_be_equal(counter2bytes_objects[0].byte_count, counter2_objects[0].byte_count)
+    # validator.should_be_equal(counter2bytes_objects[0].packet_count, 0)
+
     ShutdownAllSwitchConnections()
 
     if validator.was_successful():

@@ -76,6 +76,7 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
     counter(3, CounterType.packets_and_bytes) packetCounter;
+    counter(1, CounterType.bytes) packetCounterOnlyBytes;
 
     action drop() {
         mark_to_drop(standard_metadata);
@@ -88,6 +89,8 @@ control MyIngress(inout headers hdr,
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
         packetCounter.count((bit<32>) 0);
         packetCounter.count((bit<32>) 0);
+        packetCounterOnlyBytes.count((bit<32>) 0);
+        packetCounterOnlyBytes.count((bit<32>) 0);
         packetCounter.count((bit<32>) 1);
     }
 
