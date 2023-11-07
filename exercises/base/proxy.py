@@ -136,6 +136,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             name = from_p4info_helper.get_actions_name(original_id)
         elif id_type == 'counter':
             name = from_p4info_helper.get_counters_name(original_id)
+        elif id_type == 'register':
+            name = from_p4info_helper.get_registers_name(original_id)
         else:
             raise Exception(f'convert_id cannot handle "{id_type}" id_type')
 
@@ -154,6 +156,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             return target_p4info_helper.get_actions_id(new_name)
         elif id_type == 'counter':
             return target_p4info_helper.get_counters_id(new_name)
+        elif id_type == 'register':
+            return target_p4info_helper.get_registers_id(new_name)
         else:
             raise Exception(f'convert_id cannot handle "{id_type}" id_type')
 
@@ -183,11 +187,19 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             entity.counter_entry.data.byte_count += stored_counter_object.byte_count
             entity.counter_entry.data.packet_count += stored_counter_object.packet_count
 
+    def convert_register_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+        if entity.table_entry.table_id != 0:
+            entity.counter_entry.counter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+                                                          'register', entity.register_entry.register_id,
+                                                          reverse, verbose)
+
     def convert_entity(self,  from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
         if entity.WhichOneof('entity') == 'table_entry':
             self.convert_table_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
         elif entity.WhichOneof('entity') == 'counter_entry':
             self.convert_counter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+        elif entity.WhichOneof('entity') == 'register_entry':
+            self.convert_register_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
         else:
             raise Exception(f"Not implemented type for read")
 

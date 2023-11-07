@@ -1,0 +1,19 @@
+{
+  "redis": "ONLY_WRITE",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "register",
+        "port": 50051,
+        "device_id": 0
+      },
+      "sources": [
+        {
+          "program_name": "register",
+          "prefix": "",
+          "controller_port": 60051
+        }
+      ]
+    }
+  ]
+}

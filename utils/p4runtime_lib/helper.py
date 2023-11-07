@@ -198,6 +198,14 @@ class P4InfoHelper(object):
                 ])
         return table_entry
 
+    def buildRegisterEntry(self,
+                           register_name,
+                           index=0):
+        register_entry = p4runtime_pb2.RegisterEntry()
+        register_entry.table_id = self.get_registers_id(register_name)
+        register_entry.index = index
+
+
     def buildMulticastGroupEntry(self, multicast_group_id, replicas):
         mc_entry = p4runtime_pb2.PacketReplicationEngineEntry()
         mc_entry.multicast_group_entry.multicast_group_id = multicast_group_id
