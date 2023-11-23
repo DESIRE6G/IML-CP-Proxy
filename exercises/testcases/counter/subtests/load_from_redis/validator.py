@@ -39,7 +39,10 @@ if __name__ == '__main__':
     validator.should_be_equal(counter1_id, counter1_objects[0].counter_id)
     validator.should_be_equal(counter2_id, counter2_objects[0].counter_id)
 
-    validator.should_be_equal(counter1_objects[1].packet_count, 0)
+    # Modified from the controller
+    validator.should_be_equal(counter1_objects[1].packet_count, 1234)
+    validator.should_be_equal(counter1_objects[1].byte_count, 6443)
+
     validator.should_be_greater(counter2_objects[1].packet_count, 200000)
     validator.should_be_equal(counter2_objects[1].packet_count - 100000, counter1_objects[0].packet_count)
 
