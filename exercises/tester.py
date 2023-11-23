@@ -46,6 +46,7 @@ test_cases : List[TestCase] = [
     {'name': 'restructure','subtest': 'aggregate1'},
     {'name': 'restructure','subtest': 'aggregate_all'},
     {'name': 'restructure','subtest': 'aggregate_all_from_redis'},
+    {'name': 'restructure','subtest': 'aggregate_all_from_redis_and_modify'},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
