@@ -41,7 +41,7 @@ if __name__ == '__main__':
     validator.should_be_equal(counter1_id, counter1_objects[0].counter_id)
     validator.should_be_equal(counter2_id, counter2_objects[0].counter_id)
 
-    validator.should_be_equal(counter1_objects[1].packet_count, )
+    validator.should_be_equal(counter1_objects[1].packet_count, 0)
     validator.should_be_equal(counter2_objects[1].packet_count, counter1_objects[0].packet_count)
 
     validator.should_be_equal(counter2_objects[2].packet_count, 0)

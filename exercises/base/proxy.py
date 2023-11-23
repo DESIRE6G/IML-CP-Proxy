@@ -319,8 +319,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             for index, value in enumerate(raw_list):
                 parsed_value = json.loads(value)
                 entity = p4runtime_pb2.Entity()
-                counter_entry = self.from_p4info_helper.buildCounterEntry('packetCounter', index, parsed_value['packet_count'], parsed_value['byte_count'])
-                entity.counter_entry.CopyFrom(counter_entry)
+                entity.counter_entry.counter_id = counter_entry.preamble.id
+                entity.counter_entry.index.index = index
+                entity.counter_entry.data.byte_count = parsed_value['byte_count']
+                entity.counter_entry.data.packet_count = parsed_value['packet_count']
 
                 self.convert_counter_entry(self.from_p4info_helper, self.target_switch.p4info_helper, entity)
 
