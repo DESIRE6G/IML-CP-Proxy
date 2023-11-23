@@ -192,7 +192,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
     def convert_counter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
-        entity.counter_entry.counter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+        if entity.counter_entry.counter_id != 0:
+            entity.counter_entry.counter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
                                                       'counter', entity.counter_entry.counter_id,
                                                       reverse, verbose)
 
@@ -201,6 +202,15 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             entity.counter_entry.data.byte_count += stored_counter_object.byte_count
             entity.counter_entry.data.packet_count += stored_counter_object.packet_count
 
+
+    def convert_direct_counter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+        if entity.direct_counter_entry.table_entry.table_id != 0:
+            entity.direct_counter_entry.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+                                                      'table', entity.direct_counter_entry.table_entry.table_id,
+                                                      reverse, verbose)
+
+        # TODO: Redis load
+
     def convert_register_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
         if entity.table_entry.table_id != 0:
             entity.counter_entry.counter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
@@ -208,14 +218,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                                                           reverse, verbose)
 
     def convert_entity(self,  from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
-        if entity.WhichOneof('entity') == 'table_entry':
+        which_one = entity.WhichOneof('entity')
+        if which_one == 'table_entry':
             self.convert_table_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
-        elif entity.WhichOneof('entity') == 'counter_entry':
+        elif which_one == 'counter_entry':
             self.convert_counter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
-        elif entity.WhichOneof('entity') == 'register_entry':
+        elif which_one == 'direct_counter_entry':
+            self.convert_direct_counter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+        elif which_one == 'register_entry':
             self.convert_register_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
         else:
-            raise Exception(f"Not implemented type for read")
+            raise Exception(f'Not implemented type for read "{which_one}"')
 
     def convert_read_request(self,  from_p4info_helper, target_p4info_helper, request, verbose=True):
         for entity in request.entities:
@@ -223,12 +236,15 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
     def get_entity_name(self, p4info_helper, entity):
-        if entity.WhichOneof('entity') == 'table_entry':
+        which_one = entity.WhichOneof('entity')
+        if which_one == 'table_entry':
             return p4info_helper.get_tables_name(entity.table_entry.table_id)
-        elif entity.WhichOneof('entity') == 'counter_entry':
+        elif which_one == 'counter_entry':
             return p4info_helper.get_counters_name(entity.counter_entry.counter_id)
+        elif which_one == 'direct_counter_entry':
+            return p4info_helper.get_tables_name(entity.direct_counter_entry.table_entry.table_id)
         else:
-            raise Exception(f"Not implemented type for read")
+            raise Exception(f'Not implemented type for read "{which_one}"')
 
     def Read(self, request, context):
         """Read one or more P4 entities from the target.

@@ -79,6 +79,7 @@ control MyIngress(inout headers hdr,
     counter(1, CounterType.packets) NF1_packetCounterOnlyPacket;
     counter(3, CounterType.packets_and_bytes) NF2_packetCounter;
     counter(1, CounterType.bytes) NF2_packetCounterOnlyBytes;
+    direct_counter(CounterType.packets_and_bytes) NF1_directIpCounter;
 
     action NF1_drop() {
         mark_to_drop(standard_metadata);
@@ -118,6 +119,7 @@ control MyIngress(inout headers hdr,
             NoAction;
         }
         size = 1024;
+        counters = NF1_directIpCounter;
         default_action = NoAction();
     }
     table NF2_ipv4_lpm {

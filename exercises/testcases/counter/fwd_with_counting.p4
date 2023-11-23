@@ -4,10 +4,6 @@
 
 const bit<16> TYPE_IPV4 = 0x800;
 
-/*************************************************************************
-*********************** H E A D E R S  ***********************************
-*************************************************************************/
-
 typedef bit<9>  egressSpec_t;
 typedef bit<48> macAddr_t;
 typedef bit<32> ip4Addr_t;
@@ -42,10 +38,6 @@ struct headers {
     ipv4_t       ipv4;
 }
 
-/*************************************************************************
-*********************** P A R S E R  ***********************************
-*************************************************************************/
-
 parser MyParser(packet_in packet,
                 out headers hdr,
                 inout metadata meta,
@@ -58,25 +50,16 @@ parser MyParser(packet_in packet,
     }
 }
 
-
-/*************************************************************************
-************   C H E C K S U M    V E R I F I C A T I O N   *************
-*************************************************************************/
-
 control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
     apply {  }
 }
-
-
-/*************************************************************************
-**************  I N G R E S S   P R O C E S S I N G   *******************
-*************************************************************************/
 
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
     counter(3, CounterType.packets_and_bytes) packetCounter;
     counter(1, CounterType.packets) packetCounterOnlyPacket;
+    direct_counter(CounterType.packets_and_bytes) directIpCounter;
 
     action drop() {
         mark_to_drop(standard_metadata);
@@ -104,6 +87,7 @@ control MyIngress(inout headers hdr,
             NoAction;
         }
         size = 1024;
+        counters = directIpCounter;
         default_action = NoAction();
     }
 
@@ -112,19 +96,11 @@ control MyIngress(inout headers hdr,
     }
 }
 
-/*************************************************************************
-****************  E G R E S S   P R O C E S S I N G   *******************
-*************************************************************************/
-
 control MyEgress(inout headers hdr,
                  inout metadata meta,
                  inout standard_metadata_t standard_metadata) {
     apply {  }
 }
-
-/*************************************************************************
-*************   C H E C K S U M    C O M P U T A T I O N   **************
-*************************************************************************/
 
 control MyComputeChecksum(inout headers hdr, inout metadata meta) {
      apply {

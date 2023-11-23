@@ -68,6 +68,7 @@ class CounterObject:
     byte_count: int
 
 
+
 def get_counter_objects_by_id(sw: SwitchConnection, counters_id: int, index=None) -> List[CounterObject]:
     results = []
     for response in sw.ReadCounters(counters_id, index):
@@ -99,4 +100,37 @@ def get_counter_objects(p4info_helper: P4InfoHelper, sw: SwitchConnection, count
 
 
 def get_counter(p4info_helper: P4InfoHelper, sw: SwitchConnection, counter_name: str, index: int):
-    return get_counter_object(p4info_helper, sw, counter_name, index)['packet_count']
+    return get_counter_object(p4info_helper, sw, counter_name, index)
+
+
+@dataclass
+class LPMMatchObject:
+    value: bytes
+    prefix_length_in_bits: int
+
+@dataclass
+class DirectCounterObject:
+    table_id: int
+    packet_count: int
+    byte_count: int
+    match: LPMMatchObject
+
+def get_direct_counter_objects_by_id(sw: SwitchConnection, table_id: int) -> List[DirectCounterObject]:
+    results = []
+    for response in sw.ReadDirectCounters(table_id):
+        for entity in response.entities:
+            table_entry = entity.direct_counter_entry.table_entry
+            new_obj = DirectCounterObject(
+                table_id=table_entry.table_id,
+                packet_count=entity.direct_counter_entry.data.packet_count,
+                byte_count=entity.direct_counter_entry.data.byte_count,
+                match=LPMMatchObject(table_entry.match[0].lpm.value, table_entry.match[0].lpm.prefix_len)
+            )
+            results.append(new_obj)
+
+    return results
+
+def get_direct_counter_objects(p4info_helper: P4InfoHelper, sw: SwitchConnection, table_name: str) -> List[DirectCounterObject]:
+    table_name = p4info_helper.get_tables_id(table_name)
+    return get_direct_counter_objects_by_id(sw, table_name)
+
