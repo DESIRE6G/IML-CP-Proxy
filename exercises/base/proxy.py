@@ -88,7 +88,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             P4INFO= f'{redis_prefix}{RedisRecords.P4INFO.postfix}',
             COUNTER=f'{redis_prefix}{RedisRecords.COUNTER.postfix}'
         )
-        self.counters = {}
 
         self.from_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
@@ -104,6 +103,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def Write(self, request, context, from_p4info_helper = None, save_to_redis = True):
         print('------------------- Write -------------------')
+        print(request)
         if from_p4info_helper is None:
             from_p4info_helper = self.from_p4info_helper
 
@@ -120,6 +120,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     # TODO: save to redis
                     entity = update.entity
                     self.convert_meter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
+                elif update.entity.WhichOneof('entity') == 'counter_entry':
+                    entity = update.entity
+                    self.convert_counter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
                 else:
                     raise Exception(f'Unhandled {update.Type.Name(update.type)} for {update.entity.WhichOneof("entity")}')
             else:
@@ -197,19 +200,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                                                       'counter', entity.counter_entry.counter_id,
                                                       reverse, verbose)
 
-        if reverse:
-            stored_counter_object = self.get_stored_counter_object(entity.counter_entry.counter_id, entity.counter_entry.index.index)
-            entity.counter_entry.data.byte_count += stored_counter_object.byte_count
-            entity.counter_entry.data.packet_count += stored_counter_object.packet_count
-
 
     def convert_direct_counter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
         if entity.direct_counter_entry.table_entry.table_id != 0:
             entity.direct_counter_entry.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
                                                       'table', entity.direct_counter_entry.table_entry.table_id,
                                                       reverse, verbose)
-
-        # TODO: Redis load
 
     def convert_register_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
         if entity.table_entry.table_id != 0:
@@ -320,16 +316,24 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             redis_key = f'{self.redis_keys.COUNTER}.{counter_entry.preamble.id}'
             raw_list = redis.lrange(redis_key,0,-1)
 
-            self.counters[counter_entry.preamble.id] = list(map(json.loads, raw_list))
+            for index, value in enumerate(raw_list):
+                parsed_value = json.loads(value)
+                entity = p4runtime_pb2.Entity()
+                counter_entry = self.from_p4info_helper.buildCounterEntry('packetCounter', index, parsed_value['packet_count'], parsed_value['byte_count'])
+                entity.counter_entry.CopyFrom(counter_entry)
+
+                self.convert_counter_entry(self.from_p4info_helper, self.target_switch.p4info_helper, entity)
+
+                request = p4runtime_pb2.WriteRequest()
+                request.device_id = self.target_switch.device_id
+                request.election_id.low = 1
+                update = request.updates.add()
+                update.type = p4runtime_pb2.Update.MODIFY
+                update.entity.CopyFrom(entity)
+                self.target_switch.connection.client_stub.Write(request)
 
     def delete_redis_entries_for_this_service(self):
         redis.delete(self.redis_keys.TABLE_ENTRIES)
-
-    def get_stored_counter_object(self, counter_id, index) -> CounterObject:
-        if counter_id not in self.counters or index >= len(self.counters[counter_id]):
-            return CounterObject(counter_id=0, byte_count=0, packet_count=0)
-
-        return CounterObject(**self.counters[counter_id][index])
 
     def save_counters_to_redis(self):
         for counter_entry in self.from_p4info_helper.p4info.counters:

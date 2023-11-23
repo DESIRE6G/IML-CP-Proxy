@@ -198,6 +198,18 @@ class P4InfoHelper(object):
                 ])
         return table_entry
 
+    def buildCounterEntry(self,
+                        counter_name,
+                          index,
+                          packet_count,
+                          byte_count):
+        counter_entry = p4runtime_pb2.CounterEntry()
+        counter_entry.counter_id = self.get_counters_id(counter_name)
+        counter_entry.index.index = index
+        counter_entry.data.byte_count = byte_count
+        counter_entry.data.packet_count = packet_count
+        return counter_entry
+
     def buildMeterConfigEntry(self,
                               meter_name,
                               cir,
