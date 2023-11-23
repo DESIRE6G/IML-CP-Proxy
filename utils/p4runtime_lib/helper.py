@@ -198,12 +198,22 @@ class P4InfoHelper(object):
                 ])
         return table_entry
 
-    def buildRegisterEntry(self,
-                           register_name,
-                           index=0):
-        register_entry = p4runtime_pb2.RegisterEntry()
-        register_entry.table_id = self.get_registers_id(register_name)
-        register_entry.index = index
+    def buildMeterConfigEntry(self,
+                              meter_name,
+                              cir,
+                              cburst,
+                              pir,
+                              pburst,
+                              index=0):
+        meter_entry = p4runtime_pb2.MeterEntry()
+        meter_entry.meter_id = self.get_meters_id(meter_name)
+        meter_entry.index.index = index
+        meter_entry.config.cir = cir
+        meter_entry.config.cburst = cburst
+        meter_entry.config.pir = pir
+        meter_entry.config.pburst = pburst
+
+        return meter_entry
 
 
     def buildMulticastGroupEntry(self, multicast_group_id, replicas):

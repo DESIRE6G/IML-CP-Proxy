@@ -116,6 +116,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     self.convert_table_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
 
                     print(update.entity.table_entry)
+                elif update.entity.WhichOneof('entity') == 'meter_entry':
+                    # TODO: save to redis
+                    entity = update.entity
+                    self.convert_meter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
                 else:
                     raise Exception(f'Unhandled {update.Type.Name(update.type)} for {update.entity.WhichOneof("entity")}')
             else:
@@ -132,6 +136,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def convert_id(self, from_p4info_helper, target_p4info_helper, id_type:str, original_id: int, reverse = False, verbose=True) -> int:
         if id_type == 'table':
             name = from_p4info_helper.get_tables_name(original_id)
+        elif id_type == 'meter':
+            name = from_p4info_helper.get_meters_name(original_id)
         elif id_type == 'action':
             name = from_p4info_helper.get_actions_name(original_id)
         elif id_type == 'counter':
@@ -152,6 +158,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         if id_type == 'table':
             return target_p4info_helper.get_tables_id(new_name)
+        if id_type == 'meter':
+            return target_p4info_helper.get_meters_id(new_name)
         elif id_type == 'action':
             return target_p4info_helper.get_actions_id(new_name)
         elif id_type == 'counter':
@@ -175,6 +183,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                                                   reverse, verbose)
             else:
                 raise Exception(f'Unhandled action type {entity.table_entry.action.type}')
+
+    def convert_meter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+        if entity.meter_entry.meter_id != 0:
+            entity.meter_entry.meter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+                                                          'meter', entity.meter_entry.meter_id,
+                                                          reverse, verbose)
 
 
     def convert_counter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):

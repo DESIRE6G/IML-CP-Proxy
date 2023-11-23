@@ -1,0 +1,19 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "meter1",
+        "port": 50051,
+        "device_id": 0,
+        "reset_dataplane": false
+      },
+      "sources": [
+        {
+          "program_name": "meter1",
+          "prefix": "",
+          "controller_port": 60051
+        }]
+    }
+  ]
+}
