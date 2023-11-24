@@ -229,12 +229,19 @@ class P4InfoHelper(object):
 
     def buildDirectMeterConfigEntry(self,
                               table_name,
+                              match_fields,
                               cir,
                               cburst,
                               pir,
                               pburst):
         direct_meter_entry = p4runtime_pb2.DirectMeterEntry()
         direct_meter_entry.table_entry.table_id = self.get_tables_id(table_name)
+        table_entry = direct_meter_entry.table_entry
+        if match_fields:
+            table_entry.match.extend([
+                self.get_match_field_pb(table_name, match_field_name, value)
+                for match_field_name, value in match_fields.items()
+            ])
         direct_meter_entry.config.cir = cir
         direct_meter_entry.config.cburst = cburst
         direct_meter_entry.config.pir = pir

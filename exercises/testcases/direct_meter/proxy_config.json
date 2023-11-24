@@ -1,0 +1,19 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "prefixed_direct_meter",
+        "port": 50051,
+        "device_id": 0,
+        "reset_dataplane": false
+      },
+      "sources": [
+        {
+          "program_name": "direct_meter",
+          "prefix": "NF1_",
+          "controller_port": 60051
+        }]
+    }
+  ]
+}

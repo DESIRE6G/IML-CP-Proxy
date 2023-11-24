@@ -25,13 +25,19 @@ logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
 redis = redis.Redis()
 
-def prefix_p4_name(original_table_name : str, prefix : str) -> str:
-    namespace,table_name = original_table_name.split('.')
+def prefix_p4_name(original_p4_name : str, prefix : str) -> str:
+    if not '.' in original_p4_name:
+        return original_p4_name
+
+    namespace,table_name = original_p4_name.split('.')
 
     return f'{namespace}.{prefix}{table_name}'
 
-def remove_prefix_p4_name(prefixed_table_name : str, prefix : str) -> str:
-    namespace,table_name = prefixed_table_name.split('.')
+def remove_prefix_p4_name(prefixed_p4_name : str, prefix : str) -> str:
+    if '.' not in prefixed_p4_name:
+        return prefixed_p4_name
+
+    namespace,table_name = prefixed_p4_name.split('.')
     if table_name.startswith(prefix):
         return f'{namespace}.{table_name[len(prefix):]}'
     else:
