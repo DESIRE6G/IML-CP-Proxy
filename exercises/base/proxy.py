@@ -109,22 +109,23 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         for update in request.updates:
             if update.type == Update.INSERT or update.type == Update.MODIFY or update.type == Update.DELETE:
-                if update.entity.WhichOneof('entity') == 'table_entry':
+                entity = update.entity
+                if entity.WhichOneof('entity') == 'table_entry':
                     if save_to_redis and RedisMode.is_writing(self.redis_mode):
                         redis.rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(request))
-                    entity = update.entity
                     self.convert_table_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
 
                     print(update.entity.table_entry)
                 elif update.entity.WhichOneof('entity') == 'meter_entry':
                     # TODO: save to redis
-                    entity = update.entity
                     self.convert_meter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
-                elif update.entity.WhichOneof('entity') == 'counter_entry':
-                    entity = update.entity
+                elif entity.WhichOneof('entity') == 'direct_meter_entry':
+                    # TODO: save to redis
+                    self.convert_direct_meter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
+                elif entity.WhichOneof('entity') == 'counter_entry':
                     self.convert_counter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
                 else:
-                    raise Exception(f'Unhandled {update.Type.Name(update.type)} for {update.entity.WhichOneof("entity")}')
+                    raise Exception(f'Unhandled {update.Type.Name(update.type)} for {entity.WhichOneof("entity")}')
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
 
@@ -191,6 +192,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         if entity.meter_entry.meter_id != 0:
             entity.meter_entry.meter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
                                                           'meter', entity.meter_entry.meter_id,
+                                                          reverse, verbose)
+    def convert_direct_meter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+        if entity.direct_meter_entry.table_entry.table_id != 0:
+            entity.direct_meter_entry.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
+                                                          'table', entity.direct_meter_entry.table_entry.table_id,
                                                           reverse, verbose)
 
 

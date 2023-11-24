@@ -187,6 +187,18 @@ class SwitchConnection(object):
         else:
             self.client_stub.Write(request)
 
+    def WriteDirectMeterEntry(self, direct_meter_entry, dry_run = False):
+        request = p4runtime_pb2.WriteRequest()
+        request.device_id = self.device_id
+        request.election_id.low = 1
+        update = request.updates.add()
+        update.type = p4runtime_pb2.Update.MODIFY
+        update.entity.direct_meter_entry.CopyFrom(direct_meter_entry)
+        if dry_run:
+            print("P4Runtime Write:", request)
+        else:
+            self.client_stub.Write(request)
+
 
     def WritePREEntry(self, pre_entry, dry_run=False):
         request = p4runtime_pb2.WriteRequest()

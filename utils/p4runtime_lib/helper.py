@@ -227,6 +227,21 @@ class P4InfoHelper(object):
 
         return meter_entry
 
+    def buildDirectMeterConfigEntry(self,
+                              table_name,
+                              cir,
+                              cburst,
+                              pir,
+                              pburst):
+        direct_meter_entry = p4runtime_pb2.DirectMeterEntry()
+        direct_meter_entry.table_entry.table_id = self.get_tables_id(table_name)
+        direct_meter_entry.config.cir = cir
+        direct_meter_entry.config.cburst = cburst
+        direct_meter_entry.config.pir = pir
+        direct_meter_entry.config.pburst = pburst
+
+        return direct_meter_entry
+
 
     def buildMulticastGroupEntry(self, multicast_group_id, replicas):
         mc_entry = p4runtime_pb2.PacketReplicationEngineEntry()
