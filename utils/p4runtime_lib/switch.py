@@ -175,6 +175,22 @@ class SwitchConnection(object):
             for response in self.client_stub.Read(request):
                 yield response
 
+    def ReadMeters(self, meter_id=None, dry_run=False):
+        request = p4runtime_pb2.ReadRequest()
+        request.device_id = self.device_id
+        entity = request.entities.add()
+        meter_entry = entity.meter_entry
+        if meter_entry is not None:
+            meter_entry.meter_id = meter_id
+        else:
+            meter_entry.meter_id = 0
+
+        if dry_run:
+            print("P4Runtime Read:", request)
+        else:
+            for response in self.client_stub.Read(request):
+                yield response
+
     def WriteMeterEntry(self, meter_entry, dry_run = False):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = self.device_id

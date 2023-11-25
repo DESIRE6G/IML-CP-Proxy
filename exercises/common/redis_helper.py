@@ -23,12 +23,14 @@ class RedisRecords:
     TABLE_ENTRIES: RedisRecord = RedisRecord(postfix='TABLE_ENTRIES', type=RedisFieldType.LIST)
     P4INFO: RedisRecord = RedisRecord(postfix='P4INFO', type=RedisFieldType.STRING)
     COUNTER: RedisRecord = RedisRecord(postfix='COUNTER', type=RedisFieldType.LIST)
+    ENTRIES: RedisRecord = RedisRecord(postfix='ENTRIES', type=RedisFieldType.LIST)
 
 @dataclass
 class RedisKeys:
     TABLE_ENTRIES: str
     P4INFO: str
     COUNTER: str
+    ENTRIES: str
 
 def compare_redis(redis_file: str) -> bool:
     success = True

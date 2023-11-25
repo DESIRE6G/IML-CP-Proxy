@@ -81,7 +81,7 @@ class ProxyP4ServicerWorkerThread(Thread):
         self.stopped.set()
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
-    def __init__(self, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
+    def __init__(self, prefix, from_p4info_path, target_switch: HighLevelSwitchConnection, redis_mode: RedisMode):
         self.prefix = prefix
         if prefix.strip() != '':
             redis_prefix = prefix
@@ -92,7 +92,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.redis_keys = RedisKeys(
             TABLE_ENTRIES=f'{redis_prefix}{RedisRecords.TABLE_ENTRIES.postfix}',
             P4INFO= f'{redis_prefix}{RedisRecords.P4INFO.postfix}',
-            COUNTER=f'{redis_prefix}{RedisRecords.COUNTER.postfix}'
+            COUNTER=f'{redis_prefix}{RedisRecords.COUNTER.postfix}',
+            ENTRIES=f'{redis_prefix}{RedisRecords.ENTRIES.postfix}'
         )
 
         self.from_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
@@ -233,6 +234,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             self.convert_counter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
         elif which_one == 'direct_counter_entry':
             self.convert_direct_counter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+        elif which_one == 'meter_entry':
+            self.convert_meter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+        elif which_one == 'direct_meter_entry':
+            self.convert_direct_meter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
         elif which_one == 'register_entry':
             self.convert_register_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
         else:
@@ -251,6 +256,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             return p4info_helper.get_counters_name(entity.counter_entry.counter_id)
         elif which_one == 'direct_counter_entry':
             return p4info_helper.get_tables_name(entity.direct_counter_entry.table_entry.table_id)
+        elif which_one == 'meter_entry':
+            return p4info_helper.get_meters_name(entity.meter_entry.meter_id)
+        elif which_one == 'direct_meter_entry':
+            return p4info_helper.get_tables_name(entity.direct_meter_entry.table_entry.table_id)
         else:
             raise Exception(f'Not implemented type for read "{which_one}"')
 
@@ -324,6 +333,18 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print(parsed_write_request)
             self.Write(parsed_write_request, None, redis_p4info_helper, save_to_redis = False)
 
+        for protobuf_message_json_object in redis.lrange(self.redis_keys.ENTRIES,0,-1):
+            entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
+            print(entity)
+
+            request = p4runtime_pb2.WriteRequest()
+            request.device_id = self.target_switch.device_id
+            request.election_id.low = 1
+            update = request.updates.add()
+            update.type = p4runtime_pb2.Update.MODIFY
+            update.entity.CopyFrom(entity)
+            self.Write(request, None, redis_p4info_helper, save_to_redis = False)
+
         for counter_entry in self.from_p4info_helper.p4info.counters:
             redis_key = f'{self.redis_keys.COUNTER}.{counter_entry.preamble.id}'
             raw_list = redis.lrange(redis_key,0,-1)
@@ -369,10 +390,25 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
                 pipe.execute()
 
+        request = p4runtime_pb2.ReadRequest()
+        request.device_id = self.target_switch.connection.device_id
+        entity = request.entities.add()
+        meter_entry = entity.meter_entry
+        meter_entry.meter_id = 0
+        with redis.pipeline() as pipe:
+            pipe.multi()
+            pipe.delete(self.redis_keys.ENTRIES)
+            for response in self.target_switch.connection.client_stub.Read(request):
+                for entity in response.entities:
+                    self.convert_entity(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
+                    pipe.rpush(self.redis_keys.ENTRIES, MessageToJson(entity))
+
+            pipe.execute()
+
 
 
 class ProxyServer:
-    def __init__(self, port, prefix, from_p4info_path, target_switch, redis_mode: RedisMode):
+    def __init__(self, port, prefix, from_p4info_path, target_switch: HighLevelSwitchConnection, redis_mode: RedisMode):
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
@@ -409,7 +445,7 @@ proxy_config = ProxyConfig()
 mappings = proxy_config.get_mappings()
 servers = []
 
-def serve(port, prefix, p4info_path, target_switch, redis_mode: RedisMode):
+def serve(port, prefix, p4info_path, target_switch: HighLevelSwitchConnection, redis_mode: RedisMode):
     global servers
     proxy_server = ProxyServer(port, prefix, p4info_path, target_switch, redis_mode)
     proxy_server.start()
