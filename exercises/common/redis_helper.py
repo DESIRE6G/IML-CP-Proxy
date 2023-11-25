@@ -46,6 +46,10 @@ def compare_redis(redis_file: str) -> bool:
                         success = False
                     elif raw_result.decode('utf8') != data_one_record:
                         print(f'{redis_key} at {index} index differs from the expected!')
+                        print('------ REDIS DATA')
+                        print(raw_result.decode('utf8'))
+                        print('------ EXPECTED')
+                        print(data_one_record)
                         success = False
                     else:
                         print(f'{redis_key} OK')
