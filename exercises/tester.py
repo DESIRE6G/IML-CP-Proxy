@@ -304,7 +304,7 @@ def run_test_cases(test_cases_to_run):
                                     print(f'          {compare["diff_string"]}')
 
                         raise Exception(f'Pcap test failed, check the logs above or the test_output.json for more details')
-
+                print(f'{COLOR_GREEN} PCAP Test successful {COLOR_END}')
             if active_test_modes['validator']:
                 if not active_test_modes['pcap'] and not active_test_modes['ping']:
                     tmux_shell(f'h1 ping h2', mininet_pane_name)

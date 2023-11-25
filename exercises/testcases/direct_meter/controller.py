@@ -33,7 +33,7 @@ if __name__ == '__main__':
         meter_entry = s1.p4info_helper.buildDirectMeterConfigEntry('MyIngress.m_read',
             {
                 "hdr.ethernet.srcAddr": '08:00:00:00:01:11'
-            },cir=1,cburst=1,pir=2,pburst=2000000)
+            },cir=0,cburst=1,pir=5,pburst=50)
         s1.connection.WriteDirectMeterEntry(meter_entry)
     except KeyboardInterrupt:
         print(" Shutting down.")

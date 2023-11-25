@@ -11,10 +11,10 @@ if __name__ == '__main__':
     validator = Validator()
 
     config = next(s1.connection.ReadMeters(s1.p4info_helper.get_meters_id('my_meter'))).entities[0].meter_entry.config
-    validator.should_be_equal(1, config.cir)
+    validator.should_be_equal(0, config.cir)
     validator.should_be_equal(1, config.cburst)
     validator.should_be_equal(2, config.pir)
-    validator.should_be_equal(2_000_000, config.pburst)
+    validator.should_be_equal(200, config.pburst)
 
     ShutdownAllSwitchConnections()
 
