@@ -309,10 +309,11 @@ def run_test_cases(test_cases_to_run):
                 print(f'{COLOR_GREEN}PCAP Test successful{COLOR_END}')
             if active_test_modes['validator']:
                 if not active_test_modes['pcap'] and not active_test_modes['ping']:
-                    tmux_shell(f'h1 ping h2', mininet_pane_name)
+                    tmux_shell(f'h1 ping -c 4 h2', mininet_pane_name)
                     print('Waiting for PING response')
                     wait_for_output('^64 bytes from', mininet_pane_name)
-                    print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END}')
+                    print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END} waiting for ping finish')
+                    wait_for_output('^mininet>', mininet_pane_name)
 
                 print('------------- RUN VALIDATION -----------')
                 exit_code = subprocess.call(f'{os.path.realpath(TARGET_TEST_FOLDER)}/validator.py', shell=True, cwd=os.path.realpath(TARGET_TEST_FOLDER))
