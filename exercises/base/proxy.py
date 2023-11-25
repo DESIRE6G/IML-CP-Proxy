@@ -75,7 +75,7 @@ class ProxyP4ServicerWorkerThread(Thread):
         while not self.stopped.wait(2):
             print(f'Heartbeat... {self.servicer.prefix}')
             if RedisMode.is_writing(self.servicer.redis_mode):
-                self.servicer.save_counters_to_redis()
+                self.servicer.save_counters_and_meters_to_redis()
 
     def stop(self):
         self.stopped.set()
@@ -103,6 +103,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         self.worker_thread = ProxyP4ServicerWorkerThread(self)
         self.worker_thread.start()
+        # self.save_counters_and_meters_to_redis()
 
     def stop(self):
         self.worker_thread.stop()
@@ -370,7 +371,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def delete_redis_entries_for_this_service(self):
         redis.delete(self.redis_keys.TABLE_ENTRIES)
 
-    def save_counters_to_redis(self):
+    def save_counters_and_meters_to_redis(self):
         for counter_entry in self.from_p4info_helper.p4info.counters:
             counter_id_at_target = self.convert_id(self.from_p4info_helper, self.target_switch.p4info_helper, 'counter', counter_entry.preamble.id)
             with redis.pipeline() as pipe:
@@ -393,8 +394,13 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         request = p4runtime_pb2.ReadRequest()
         request.device_id = self.target_switch.connection.device_id
         entity = request.entities.add()
-        meter_entry = entity.meter_entry
-        meter_entry.meter_id = 0
+        entity.meter_entry.meter_id = 0
+
+        for direct_meter in self.from_p4info_helper.p4info.direct_meters:
+            entity = request.entities.add()
+            entity.direct_meter_entry.table_entry.table_id = direct_meter.direct_table_id
+            self.convert_entity(self.from_p4info_helper, self.target_switch.p4info_helper, entity)
+
         with redis.pipeline() as pipe:
             pipe.multi()
             pipe.delete(self.redis_keys.ENTRIES)

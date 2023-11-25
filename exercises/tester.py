@@ -50,6 +50,7 @@ test_cases : List[TestCase] = [
     {'name': 'meter','subtest': None},
     {'name': 'meter','subtest': 'load_from_redis'},
     {'name': 'direct_meter','subtest': None},
+    {'name': 'direct_meter','subtest': 'load_from_redis'},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'

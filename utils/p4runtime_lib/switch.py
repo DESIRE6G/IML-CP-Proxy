@@ -203,6 +203,19 @@ class SwitchConnection(object):
         else:
             self.client_stub.Write(request)
 
+    def ReadDirectMeters(self, table_id, dry_run=False):
+        request = p4runtime_pb2.ReadRequest()
+        request.device_id = self.device_id
+        entity = request.entities.add()
+        direct_meter_entry = entity.direct_meter_entry
+        direct_meter_entry.table_entry.table_id = table_id
+
+        if dry_run:
+            print("P4Runtime Read:", request)
+        else:
+            for response in self.client_stub.Read(request):
+                yield response
+
     def WriteDirectMeterEntry(self, direct_meter_entry, dry_run = False):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = self.device_id
