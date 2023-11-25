@@ -396,6 +396,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         entity = request.entities.add()
         entity.meter_entry.meter_id = 0
 
+        # BMV does not support table_id = 0
         for direct_meter in self.from_p4info_helper.p4info.direct_meters:
             entity = request.entities.add()
             entity.direct_meter_entry.table_entry.table_id = direct_meter.direct_table_id
