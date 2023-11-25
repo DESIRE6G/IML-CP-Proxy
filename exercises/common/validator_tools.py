@@ -27,3 +27,8 @@ class Validator:
 
     def was_successful(self) -> bool:
         return self._success
+
+    def should_be_true(self, a):
+        if not a:
+            self.__error(f'{a} is not True')
+

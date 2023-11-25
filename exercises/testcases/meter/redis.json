@@ -6,7 +6,7 @@
     {
         "key": "NF1_ENTRIES",
         "list": [
-            "{\n  \"meterEntry\": {\n    \"meterId\": 348122430,\n    \"index\": {},\n    \"config\": {\n      \"cir\": \"1\",\n      \"cburst\": \"1\",\n      \"pir\": \"2\",\n      \"pburst\": \"2000000\"\n    }\n  }\n}"
+            "{\n  \"meterEntry\": {\n    \"meterId\": 348122430,\n    \"index\": {},\n    \"config\": {\n      \"cburst\": \"1\",\n      \"pir\": \"2\",\n      \"pburst\": \"200\"\n    }\n  }\n}"
         ]
     }
 ]

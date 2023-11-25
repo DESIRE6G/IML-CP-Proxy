@@ -7,7 +7,7 @@ from common.redis_helper import compare_redis
 from common.validator_tools import Validator
 
 if __name__ == '__main__':
-    s1 = HighLevelSwitchConnection(0, 'meter1', '60051')
+    s1 = HighLevelSwitchConnection(0, 'meter1', '60051', send_p4info=False)
     validator = Validator()
 
     config = next(s1.connection.ReadMeters(s1.p4info_helper.get_meters_id('my_meter'))).entities[0].meter_entry.config
@@ -15,6 +15,8 @@ if __name__ == '__main__':
     validator.should_be_equal(1, config.cburst)
     validator.should_be_equal(2, config.pir)
     validator.should_be_equal(200, config.pburst)
+
+    validator.should_be_true(compare_redis('redis.json'))
 
     ShutdownAllSwitchConnections()
 
