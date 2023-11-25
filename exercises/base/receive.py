@@ -114,6 +114,22 @@ def compare_packet_lists(packets_arrived, packets_expected):
             actual_packet_arrived_colored += actual_packet_arrived[i]
             i += 1
 
+        while i < len(actual_packet_arrived):
+            if not color_active:
+                actual_packet_arrived_colored += COLOR_RED
+                color_active = True
+            actual_packet_arrived_colored += actual_packet_arrived[i]
+            diff_flags += '^'
+            i += 1
+
+        while i < len(actual_packet_expected):
+            if not color_active:
+                actual_packet_arrived_colored += COLOR_RED
+                color_active = True
+            actual_packet_arrived_colored += '#'
+            diff_flags += '^'
+            i += 1
+
         if color_active:
             actual_packet_arrived_colored += COLOR_END
 
@@ -126,7 +142,8 @@ def compare_packet_lists(packets_arrived, packets_expected):
             'expected':actual_packet_expected,
             'arrived':actual_packet_arrived,
             'arrived_colored':actual_packet_arrived_colored,
-            'diff_string': diff_flags
+            'diff_string': diff_flags,
+            'ok': actual_packet_expected == actual_packet_arrived
         })
 
     output_object['success'] = len(output_object['extra_packets']) == 0 and len(output_object['missing_packets']) == 0
@@ -147,6 +164,7 @@ if __name__ == '__main__':
         time.sleep(0.1)
 
     logging.debug('Waiting for .pcap_send_finished')
+    Path('.pcap_receive_started').touch()
     while t.running and not os.path.exists('.pcap_send_finished'):
         time.sleep(0.25)
 
