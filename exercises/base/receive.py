@@ -111,7 +111,10 @@ def compare_packet_lists(packets_arrived, packets_expected):
                 if color_active:
                     actual_packet_arrived_colored += COLOR_END
                 diff_flags += ' '
-            actual_packet_arrived_colored += actual_packet_arrived[i]
+            if i < len(actual_packet_arrived):
+                actual_packet_arrived_colored += actual_packet_arrived[i]
+            else:
+                actual_packet_arrived_colored += '#'
             i += 1
 
         while i < len(actual_packet_arrived):
@@ -158,13 +161,14 @@ if __name__ == '__main__':
     logging.debug(f"sniffing on {iface}")
     sys.stdout.flush()
 
-    t = AsyncSniffer(iface = iface, prn = lambda x: handle_pkt(x), timeout=10)
+    t = AsyncSniffer(iface = iface, prn = lambda x: handle_pkt(x))
     t.start()
     while not hasattr(t, 'stop_cb'):
         time.sleep(0.1)
 
-    logging.debug('Waiting for .pcap_send_finished')
+    logging.debug('Touch .pcap_receive_started')
     Path('.pcap_receive_started').touch()
+    logging.debug('Waiting for .pcap_send_finished')
     while t.running and not os.path.exists('.pcap_send_finished'):
         time.sleep(0.25)
 
