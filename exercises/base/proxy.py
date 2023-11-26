@@ -126,13 +126,13 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
                     print(update.entity.table_entry)
                 elif update.entity.WhichOneof('entity') == 'meter_entry':
-                    # TODO: save to redis
                     self.convert_meter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
                 elif entity.WhichOneof('entity') == 'direct_meter_entry':
-                    # TODO: save to redis
                     self.convert_direct_meter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
                 elif entity.WhichOneof('entity') == 'counter_entry':
                     self.convert_counter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
+                elif entity.WhichOneof('entity') == 'direct_counter_entry':
+                    self.convert_direct_counter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
                 else:
                     raise Exception(f'Unhandled {update.Type.Name(update.type)} for {entity.WhichOneof("entity")}')
             else:
@@ -356,10 +356,15 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         entity = request.entities.add()
         entity.meter_entry.meter_id = 0
 
-        # BMV does not support table_id = 0
+        # BMV does not support table_id = 0 for direct meter and counter
         for direct_meter in self.from_p4info_helper.p4info.direct_meters:
             entity = request.entities.add()
             entity.direct_meter_entry.table_entry.table_id = direct_meter.direct_table_id
+            self.convert_entity(self.from_p4info_helper, self.target_switch.p4info_helper, entity)
+
+        for direct_counter in self.from_p4info_helper.p4info.direct_counters:
+            entity = request.entities.add()
+            entity.direct_counter_entry.table_entry.table_id = direct_counter.direct_table_id
             self.convert_entity(self.from_p4info_helper, self.target_switch.p4info_helper, entity)
 
         entity = request.entities.add()
@@ -367,6 +372,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         with redis.pipeline() as pipe:
             pipe.multi()
             pipe.delete(self.redis_keys.ENTRIES)
+            print('-----------REQUEST')
+            print(request)
+            print('-----------REQUESTEND')
             for response in self.target_switch.connection.client_stub.Read(request):
                 for entity in response.entities:
                     entity_name = self.get_entity_name(self.target_switch.p4info_helper,entity)

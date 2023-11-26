@@ -5,7 +5,7 @@ from pprint import pprint
 
 import redis
 
-from common.controller_helper import CounterObject, get_counter_object, get_counter_objects
+from common.controller_helper import CounterObject, get_counter_object, get_counter_objects, get_direct_counter_objects
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 from common.validator_tools import Validator
@@ -22,6 +22,7 @@ if __name__ == '__main__':
     time.sleep(0.5)
     counter1_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.packetCounter')
     counter2_objects = get_counter_objects(s2.p4info_helper, s2.connection, 'MyIngress.packetCounter')
+    node1_direct_counter = get_direct_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.ipv4_lpm')
 
     print('counter1_objects object:')
     pprint(counter1_objects)
@@ -29,10 +30,16 @@ if __name__ == '__main__':
     print('counter2_objects object:')
     pprint(counter2_objects)
 
+    print('node1_direct_counter object:')
+    pprint(node1_direct_counter)
+
     validator = Validator()
 
     validator.should_be_greater(counter1_objects[0].packet_count, 100000)
     validator.should_be_greater(counter1_objects[0].byte_count, 9800000)
+    validator.should_be_greater(node1_direct_counter[0].packet_count, 4000)
+    validator.should_be_greater(node1_direct_counter[0].byte_count, 20000)
+    validator.should_be_greater(counter1_objects[0].packet_count - 100000, node1_direct_counter[0].packet_count - 4000)
 
     validator.should_be_equal(counter1_objects[0].packet_count * 2, counter2_objects[0].packet_count)
 

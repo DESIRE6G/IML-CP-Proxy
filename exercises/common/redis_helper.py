@@ -94,7 +94,7 @@ def save_redis_to_json_file(redis_file: str) -> None:
 
     output = []
 
-    redis_keys: List[str] = [x.decode('ascii') for x in redis.keys()]
+    redis_keys: List[str] = [x.decode('ascii') for x in redis.keys() if not x.decode('ascii').endswith(RedisRecords.HEARTBEAT.postfix)]
     print(f'redis_keys = {redis_keys}')
     for redis_record_field in redis_records_fields:
         for redis_key in redis_keys:

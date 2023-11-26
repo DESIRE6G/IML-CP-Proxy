@@ -32,6 +32,7 @@
     {
         "key": "NF1_ENTRIES",
         "list": [
+            "{\n  \"directCounterEntry\": {\n    \"tableEntry\": {\n      \"tableId\": 37375156,\n      \"match\": [\n        {\n          \"fieldId\": 1,\n          \"lpm\": {\n            \"value\": \"CgABAQ==\",\n            \"prefixLen\": 32\n          }\n        }\n      ]\n    },\n    \"data\": {\n      \"byteCount\": \"20000\",\n      \"packetCount\": \"4000\"\n    }\n  }\n}",
             "{\n  \"counterEntry\": {\n    \"counterId\": 318616944,\n    \"index\": {\n      \"index\": \"0\"\n    },\n    \"data\": {\n      \"byteCount\": \"9800000\",\n      \"packetCount\": \"100000\"\n    }\n  }\n}"
         ]
     }
