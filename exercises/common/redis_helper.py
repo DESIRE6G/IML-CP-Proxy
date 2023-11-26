@@ -1,11 +1,14 @@
 import dataclasses
 import json
+import time
 from dataclasses import dataclass
 from enum import Enum
 from pprint import pprint
-from typing import List, Dict
+from typing import List
 
 import redis
+
+from common.sync import wait_for_condition_blocking
 
 redis = redis.Redis()
 
@@ -22,15 +25,15 @@ class RedisRecord:
 class RedisRecords:
     TABLE_ENTRIES: RedisRecord = RedisRecord(postfix='TABLE_ENTRIES', type=RedisFieldType.LIST)
     P4INFO: RedisRecord = RedisRecord(postfix='P4INFO', type=RedisFieldType.STRING)
-    COUNTER: RedisRecord = RedisRecord(postfix='COUNTER', type=RedisFieldType.LIST)
     ENTRIES: RedisRecord = RedisRecord(postfix='ENTRIES', type=RedisFieldType.LIST)
+    HEARTBEAT: RedisRecord = RedisRecord(postfix='HEARTBEAT', type=RedisFieldType.STRING)
 
 @dataclass
 class RedisKeys:
     TABLE_ENTRIES: str
     P4INFO: str
-    COUNTER: str
     ENTRIES: str
+    HEARTBEAT: str
 
 def compare_redis(redis_file: str) -> bool:
     success = True
@@ -67,6 +70,24 @@ def compare_redis(redis_file: str) -> bool:
 
     return success
 
+
+def wait_heartbeats_in_redis(prefixes, verbose: bool = False):
+    def wait_function():
+        redis_key = f'{prefix}{RedisRecords.HEARTBEAT.postfix}'
+
+        redis_value = redis.get(redis_key)
+        if verbose:
+            print(f'redis_key={redis_key}, redis_value={redis_value}')
+
+        if redis_value is None:
+            return False
+
+
+        return float(redis_value) > start_time
+
+    start_time = time.time()
+    for prefix in prefixes:
+        wait_for_condition_blocking(wait_function)
 
 def save_redis_to_json_file(redis_file: str) -> None:
     redis_records_fields = dataclasses.fields(RedisRecords())

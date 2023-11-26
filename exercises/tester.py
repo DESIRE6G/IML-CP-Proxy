@@ -8,10 +8,11 @@ import signal
 import sys
 import time
 import subprocess
-from typing import TypedDict, List, Optional, Callable
+from typing import TypedDict, List, Optional
 import redis
 
 from common.redis_helper import save_redis_to_json_file
+from common.sync import wait_for_condition_blocking
 
 COLOR_YELLOW = '\033[33m'
 COLOR_RED = '\033[91m'
@@ -40,6 +41,7 @@ test_cases : List[TestCase] = [
     {'name': 'l2fwd','subtest': 'simple_forward'},
     {'name': 'l2fwd','subtest': 'delete_entry'},
     {'name': 'counter','subtest': None},
+    {'name': 'counter','subtest': 'load_from_redis'},
     {'name': 'counter','subtest': 'simple_forward'},
     {'name': 'counter','subtest': 'write_to_redis'},
     {'name': 'restructure','subtest': None},
@@ -83,18 +85,6 @@ def get_last_pane_row(pane_name: str) -> str:
     rows = [row for row in output.split('\n') if len(row.strip('\n \t')) > 0]
 
     return rows[-1] if len(rows) > 0 else ''
-
-def wait_for_condition_blocking(callback_function: Callable[[], bool], timeout_message: str = None, try_interval=0.5, max_time=10) -> None:
-    start_time = time.time()
-    while time.time() - start_time < max_time:
-        if callback_function():
-            return
-        time.sleep(try_interval)
-
-    if timeout_message is not None:
-        raise TimeoutError(timeout_message)
-    else:
-        raise TimeoutError(f'wait_for_condition failed to wait try_interval={try_interval}, max_time={max_time}')
 
 
 def wait_for_output_anywhere(regexp_to_wait_for: str, pane_name: str, try_interval=0.5, max_time=10):
@@ -309,11 +299,18 @@ def run_test_cases(test_cases_to_run):
                 print(f'{COLOR_GREEN}PCAP Test successful{COLOR_END}')
             if active_test_modes['validator']:
                 if not active_test_modes['pcap'] and not active_test_modes['ping']:
-                    tmux_shell(f'h1 ping -c 4 h2', mininet_pane_name)
-                    print('Waiting for PING response')
-                    wait_for_output('^64 bytes from', mininet_pane_name)
-                    print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END} waiting for ping finish')
-                    wait_for_output('^mininet>', mininet_pane_name)
+                    exact_ping_packet_num = config.get("exact_ping_packet_num",None)
+                    if exact_ping_packet_num is not None:
+                        tmux_shell(f'h1 ping -c {exact_ping_packet_num} h2', mininet_pane_name)
+                        print('Waiting for PING response')
+                        wait_for_output('^64 bytes from', mininet_pane_name)
+                        print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END} waiting for ping finish')
+                        wait_for_output('^mininet>', mininet_pane_name)
+                    else:
+                        tmux_shell(f'h1 ping h2', mininet_pane_name)
+                        print('Waiting for PING response')
+                        wait_for_output('^64 bytes from', mininet_pane_name)
+
 
                 print('------------- RUN VALIDATION -----------')
                 exit_code = subprocess.call(f'{os.path.realpath(TARGET_TEST_FOLDER)}/validator.py', shell=True, cwd=os.path.realpath(TARGET_TEST_FOLDER))

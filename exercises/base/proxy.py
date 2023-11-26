@@ -1,6 +1,8 @@
 import json
 import logging
 import os.path
+import signal
+import sys
 import time
 from concurrent import futures
 from enum import Enum
@@ -16,7 +18,6 @@ import redis
 
 import common.p4runtime_lib
 import common.p4runtime_lib.helper
-from common.controller_helper import get_counter_object_by_id, CounterObject
 from common.p4runtime_lib.switch import IterableQueue
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.redis_helper import RedisKeys, RedisRecords
@@ -92,8 +93,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.redis_keys = RedisKeys(
             TABLE_ENTRIES=f'{redis_prefix}{RedisRecords.TABLE_ENTRIES.postfix}',
             P4INFO= f'{redis_prefix}{RedisRecords.P4INFO.postfix}',
-            COUNTER=f'{redis_prefix}{RedisRecords.COUNTER.postfix}',
-            ENTRIES=f'{redis_prefix}{RedisRecords.ENTRIES.postfix}'
+            ENTRIES=f'{redis_prefix}{RedisRecords.ENTRIES.postfix}',
+            HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}'
         )
 
         self.from_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
@@ -103,10 +104,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         self.worker_thread = ProxyP4ServicerWorkerThread(self)
         self.worker_thread.start()
-        # self.save_counters_and_meters_to_redis()
 
     def stop(self):
         self.worker_thread.stop()
+        self.save_counters_and_meters_to_redis()
 
 
     def Write(self, request, context, from_p4info_helper = None, save_to_redis = True):
@@ -346,51 +347,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             update.entity.CopyFrom(entity)
             self.Write(request, None, redis_p4info_helper, save_to_redis = False)
 
-        for counter_entry in self.from_p4info_helper.p4info.counters:
-            redis_key = f'{self.redis_keys.COUNTER}.{counter_entry.preamble.id}'
-            raw_list = redis.lrange(redis_key,0,-1)
-
-            for index, value in enumerate(raw_list):
-                parsed_value = json.loads(value)
-                entity = p4runtime_pb2.Entity()
-                entity.counter_entry.counter_id = counter_entry.preamble.id
-                entity.counter_entry.index.index = index
-                entity.counter_entry.data.byte_count = parsed_value['byte_count']
-                entity.counter_entry.data.packet_count = parsed_value['packet_count']
-
-                self.convert_counter_entry(self.from_p4info_helper, self.target_switch.p4info_helper, entity)
-
-                request = p4runtime_pb2.WriteRequest()
-                request.device_id = self.target_switch.device_id
-                request.election_id.low = 1
-                update = request.updates.add()
-                update.type = p4runtime_pb2.Update.MODIFY
-                update.entity.CopyFrom(entity)
-                self.target_switch.connection.client_stub.Write(request)
-
     def delete_redis_entries_for_this_service(self):
         redis.delete(self.redis_keys.TABLE_ENTRIES)
 
     def save_counters_and_meters_to_redis(self):
-        for counter_entry in self.from_p4info_helper.p4info.counters:
-            counter_id_at_target = self.convert_id(self.from_p4info_helper, self.target_switch.p4info_helper, 'counter', counter_entry.preamble.id)
-            with redis.pipeline() as pipe:
-                redis_key = f'{self.redis_keys.COUNTER}.{counter_entry.preamble.id}'
-                pipe.multi()
-                pipe.delete(redis_key)
-                for counter_index in range(counter_entry.size):
-                    counter_object = get_counter_object_by_id(self.target_switch.connection, counter_id_at_target, counter_index)
-
-                    redis_value = json.dumps({
-                        'counter_id': counter_entry.preamble.id,
-                        'packet_count': counter_object.packet_count,
-                        'byte_count': counter_object.byte_count,
-                    })
-
-                    pipe.rpush(redis_key, redis_value)
-
-                pipe.execute()
-
         request = p4runtime_pb2.ReadRequest()
         request.device_id = self.target_switch.connection.device_id
         entity = request.entities.add()
@@ -402,15 +362,23 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             entity.direct_meter_entry.table_entry.table_id = direct_meter.direct_table_id
             self.convert_entity(self.from_p4info_helper, self.target_switch.p4info_helper, entity)
 
+        entity = request.entities.add()
+        entity.counter_entry.counter_id = 0
         with redis.pipeline() as pipe:
             pipe.multi()
             pipe.delete(self.redis_keys.ENTRIES)
             for response in self.target_switch.connection.client_stub.Read(request):
                 for entity in response.entities:
-                    self.convert_entity(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
-                    pipe.rpush(self.redis_keys.ENTRIES, MessageToJson(entity))
+                    entity_name = self.get_entity_name(self.target_switch.p4info_helper,entity)
+                    if get_pure_table_name(entity_name).startswith(self.prefix):
+                        print(entity)
+                        self.convert_entity(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
+                        pipe.rpush(self.redis_keys.ENTRIES, MessageToJson(entity))
 
             pipe.execute()
+
+        print(self.redis_keys.HEARTBEAT, time.time())
+        redis.set(self.redis_keys.HEARTBEAT, time.time())
 
 
 
@@ -433,9 +401,9 @@ class ProxyServer:
         self.server.add_insecure_port(f'[::]:{self.port}')
         self.server.start()
 
-    def stop(self, *args):
+    def stop(self):
         self.servicer.stop()
-        self.server.stop(*args)
+        self.server.stop(grace=None)
 
 class ProxyConfig:
     def __init__(self, filename = 'proxy_config.json'):
@@ -475,6 +443,15 @@ for mapping in mappings:
     for source in sources:
         p4_info_path = f"build/{source['program_name']}.p4.p4info.txt"
         serve(source['controller_port'], prefix=source['prefix'], p4info_path=p4_info_path, target_switch=mapping_target_switch, redis_mode=proxy_config.get_redis_mode())
+
+def sigint_handler(signum, frame):
+    global servers
+    for server in servers:
+        server.stop()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, sigint_handler)
+
 
 try:
     # Important message for the testing system, do not remove :)

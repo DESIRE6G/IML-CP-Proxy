@@ -9,6 +9,7 @@ import json
 from common.controller_helper import CounterObject, get_counter_objects
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
+from common.redis_helper import compare_redis, wait_heartbeats_in_redis
 from common.validator_tools import Validator
 
 redis = redis.Redis()
@@ -46,6 +47,9 @@ if __name__ == '__main__':
 
     validator.should_be_equal(counter2_objects[2].packet_count, 0)
     validator.should_be_equal(counter1_objects[2].packet_count, counter1_objects[0].packet_count * 2)
+
+    wait_heartbeats_in_redis(['NF1_','NF2_'])
+    validator.should_be_true(compare_redis('redis.json'))
 
     ShutdownAllSwitchConnections()
 

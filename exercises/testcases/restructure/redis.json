@@ -1,26 +1,5 @@
 [
-    {
-        "key": "part1_TABLE_ENTRIES",
-        "list": [
-            "{\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"Qg==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
-        ]
-    },
-    {
-        "key": "part3_TABLE_ENTRIES",
-        "list": [
-            "{\n  \"deviceId\": \"2\",\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"WA==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
-        ]
-    },
-    {
-        "key": "part2_TABLE_ENTRIES",
-        "list": [
-            "{\n  \"deviceId\": \"1\",\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"UA==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
-        ]
-    },
-    {
-        "key": "part3_P4INFO",
-        "string": "pkg_info {\n  arch: \"v1model\"\n}\ntables {\n  preamble {\n    id: 36348755\n    name: \"MyIngress.state_setter\"\n    alias: \"state_setter\"\n  }\n  match_fields {\n    id: 1\n    name: \"hdr.ethernet.dstAddr\"\n    bitwidth: 48\n    match_type: EXACT\n  }\n  action_refs {\n    id: 24390349\n  }\n  action_refs {\n    id: 21257015\n  }\n  size: 1024\n}\nactions {\n  preamble {\n    id: 21257015\n    name: \"NoAction\"\n    alias: \"NoAction\"\n    annotations: \"@noWarn(\\\"unused\\\")\"\n  }\n}\nactions {\n  preamble {\n    id: 24390349\n    name: \"MyIngress.state_set\"\n    alias: \"state_set\"\n  }\n  params {\n    id: 1\n    name: \"newState\"\n    bitwidth: 8\n  }\n}\ncounters {\n  preamble {\n    id: 306473799\n    name: \"MyIngress.packetCounter3\"\n    alias: \"packetCounter3\"\n  }\n  spec {\n    unit: BOTH\n  }\n  size: 1\n}\ntype_info {\n}\n"
-    },
+
     {
         "key": "part1_P4INFO",
         "string": "pkg_info {\n  arch: \"v1model\"\n}\ntables {\n  preamble {\n    id: 36348755\n    name: \"MyIngress.state_setter\"\n    alias: \"state_setter\"\n  }\n  match_fields {\n    id: 1\n    name: \"hdr.ethernet.dstAddr\"\n    bitwidth: 48\n    match_type: EXACT\n  }\n  action_refs {\n    id: 24390349\n  }\n  action_refs {\n    id: 21257015\n  }\n  size: 1024\n}\nactions {\n  preamble {\n    id: 21257015\n    name: \"NoAction\"\n    alias: \"NoAction\"\n    annotations: \"@noWarn(\\\"unused\\\")\"\n  }\n}\nactions {\n  preamble {\n    id: 24390349\n    name: \"MyIngress.state_set\"\n    alias: \"state_set\"\n  }\n  params {\n    id: 1\n    name: \"newState\"\n    bitwidth: 8\n  }\n}\ncounters {\n  preamble {\n    id: 318335637\n    name: \"MyIngress.packetCounter1\"\n    alias: \"packetCounter1\"\n  }\n  spec {\n    unit: BOTH\n  }\n  size: 1\n}\ntype_info {\n}\n"
@@ -30,21 +9,43 @@
         "string": "pkg_info {\n  arch: \"v1model\"\n}\ntables {\n  preamble {\n    id: 36348755\n    name: \"MyIngress.state_setter\"\n    alias: \"state_setter\"\n  }\n  match_fields {\n    id: 1\n    name: \"hdr.ethernet.dstAddr\"\n    bitwidth: 48\n    match_type: EXACT\n  }\n  action_refs {\n    id: 24390349\n  }\n  action_refs {\n    id: 21257015\n  }\n  size: 1024\n}\nactions {\n  preamble {\n    id: 21257015\n    name: \"NoAction\"\n    alias: \"NoAction\"\n    annotations: \"@noWarn(\\\"unused\\\")\"\n  }\n}\nactions {\n  preamble {\n    id: 24390349\n    name: \"MyIngress.state_set\"\n    alias: \"state_set\"\n  }\n  params {\n    id: 1\n    name: \"newState\"\n    bitwidth: 8\n  }\n}\ncounters {\n  preamble {\n    id: 310693832\n    name: \"MyIngress.packetCounter2\"\n    alias: \"packetCounter2\"\n  }\n  spec {\n    unit: BOTH\n  }\n  size: 1\n}\ntype_info {\n}\n"
     },
     {
-        "key": "part1_COUNTER.318335637",
+        "key": "part3_P4INFO",
+        "string": "pkg_info {\n  arch: \"v1model\"\n}\ntables {\n  preamble {\n    id: 36348755\n    name: \"MyIngress.state_setter\"\n    alias: \"state_setter\"\n  }\n  match_fields {\n    id: 1\n    name: \"hdr.ethernet.dstAddr\"\n    bitwidth: 48\n    match_type: EXACT\n  }\n  action_refs {\n    id: 24390349\n  }\n  action_refs {\n    id: 21257015\n  }\n  size: 1024\n}\nactions {\n  preamble {\n    id: 21257015\n    name: \"NoAction\"\n    alias: \"NoAction\"\n    annotations: \"@noWarn(\\\"unused\\\")\"\n  }\n}\nactions {\n  preamble {\n    id: 24390349\n    name: \"MyIngress.state_set\"\n    alias: \"state_set\"\n  }\n  params {\n    id: 1\n    name: \"newState\"\n    bitwidth: 8\n  }\n}\ncounters {\n  preamble {\n    id: 306473799\n    name: \"MyIngress.packetCounter3\"\n    alias: \"packetCounter3\"\n  }\n  spec {\n    unit: BOTH\n  }\n  size: 1\n}\ntype_info {\n}\n"
+    },
+    {
+        "key": "part1_TABLE_ENTRIES",
         "list": [
-            "{\"counter_id\": 318335637, \"packet_count\": 10, \"byte_count\": 170}"
+            "{\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"Qg==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
         ]
     },
     {
-        "key": "part2_COUNTER.310693832",
+        "key": "part2_TABLE_ENTRIES",
         "list": [
-            "{\"counter_id\": 310693832, \"packet_count\": 20, \"byte_count\": 340}"
+            "{\n  \"deviceId\": \"1\",\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"UA==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
         ]
     },
     {
-        "key": "part3_COUNTER.306473799",
+        "key": "part3_TABLE_ENTRIES",
         "list": [
-            "{\"counter_id\": 306473799, \"packet_count\": 30, \"byte_count\": 510}"
+            "{\n  \"deviceId\": \"2\",\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"WA==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
+        ]
+    },
+    {
+        "key": "part1_ENTRIES",
+        "list": [
+            "{\n  \"counterEntry\": {\n    \"counterId\": 318335637,\n    \"index\": {},\n    \"data\": {\n      \"byteCount\": \"170\",\n      \"packetCount\": \"10\"\n    }\n  }\n}"
+        ]
+    },
+    {
+        "key": "part2_ENTRIES",
+        "list": [
+            "{\n  \"counterEntry\": {\n    \"counterId\": 310693832,\n    \"index\": {},\n    \"data\": {\n      \"byteCount\": \"340\",\n      \"packetCount\": \"20\"\n    }\n  }\n}"
+        ]
+    },
+    {
+        "key": "part3_ENTRIES",
+        "list": [
+            "{\n  \"counterEntry\": {\n    \"counterId\": 306473799,\n    \"index\": {},\n    \"data\": {\n      \"byteCount\": \"510\",\n      \"packetCount\": \"30\"\n    }\n  }\n}"
         ]
     }
 ]
