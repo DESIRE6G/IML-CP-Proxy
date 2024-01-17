@@ -6,6 +6,8 @@ import logging
 import time
 from pathlib import Path
 
+from common.colors import COLOR_RED, COLOR_END
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -70,8 +72,6 @@ def is_packet_in(packet_to_find, packet_list) -> bool:
 
 import difflib
 
-COLOR_RED = '\033[91m'
-COLOR_END = '\033[0m'
 
 def compare_packet_lists(packets_arrived, packets_expected):
     output_object = {'success':None,'extra_packets':[], 'missing_packets':[], 'ordered_compare': []}

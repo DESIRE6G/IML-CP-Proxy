@@ -9,6 +9,7 @@ from typing import List
 
 import redis
 
+from common.colors import COLOR_RED, COLOR_END
 from common.sync import wait_for_condition_blocking
 
 redis = redis.Redis()
@@ -35,9 +36,6 @@ class RedisKeys:
     P4INFO: str
     ENTRIES: str
     HEARTBEAT: str
-
-COLOR_RED = '\033[91m'
-COLOR_END = '\033[0m'
 
 def json_equals(actual_value: str, expected_value: str, verbose_on_fail=False) -> bool:
     try:

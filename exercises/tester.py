@@ -11,24 +11,9 @@ import subprocess
 from typing import TypedDict, List, Optional
 import redis
 
+from common.colors import COLOR_YELLOW, COLOR_GREEN, COLOR_ORANGE, COLOR_CYAN, COLOR_END, COLOR_RED_BG, COLOR_YELLOW_BG
 from common.redis_helper import save_redis_to_json_file
 from common.sync import wait_for_condition_blocking
-
-COLOR_YELLOW = '\033[33m'
-COLOR_RED = '\033[91m'
-COLOR_GREEN = '\033[92m'
-COLOR_ORANGE = '\033[93m'
-COLOR_BLUE = '\033[94m'
-COLOR_CYAN = '\033[96m'
-COLOR_END = '\033[0m'
-
-COLOR_GRAY_BG = '\033[100m'
-COLOR_RED_BG = '\033[101m'
-COLOR_GREEN_BG = '\033[102m'
-COLOR_YELLOW_BG = '\033[103m'
-COLOR_BLUE_BG = '\033[104m'
-COLOR_PURPLE_BG = '\033[105m'
-COLOR_CYAN_BG = '\033[106m'
 
 redis = redis.Redis()
 class TestCase(TypedDict):
