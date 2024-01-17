@@ -270,10 +270,17 @@ def run_test_cases(test_cases_to_run):
                 print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END}')
 
             if active_test_modes['pcap']:
-                tmux_shell('h2 python receive.py test_h2_expected.pcap &', mininet_pane_name, wait_command_appear=True)
+                tmux_shell('h2 python receive.py test_h2_expected.pcap > receive.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
                 wait_for_output('^mininet>', mininet_pane_name)
                 print('Waiting for .pcap_receive_started')
-                wait_for_condition_blocking(lambda : os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_started'))
+                try:
+                    wait_for_condition_blocking(lambda : os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_started'))
+                except TimeoutError:
+                    with open(f'{TARGET_TEST_FOLDER}/receive.log') as f:
+                        print(f'{COLOR_RED_BG}PCAP Receive not started correctly{COLOR_END}')
+                        print(f.read())
+                        print('-------------------------')
+                    raise
                 print('Removing .pcap_receive_started')
                 os.remove(f'{TARGET_TEST_FOLDER}/.pcap_receive_started')
 
