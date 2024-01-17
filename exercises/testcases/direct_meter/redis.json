@@ -2,8 +2,8 @@
     {
         "key": "NF1_TABLE_ENTRIES",
         "list": [
-            "{\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 46475086,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAER\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24729989\n            }\n          }\n        }\n      }\n    }\n  ]\n}",
-            "{\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 38899973,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"AAAAAA==\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 21257015\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
+            "{\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 46475086,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAER\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24729989\n            }\n          }\n        }\n      }\n    }",
+            "{\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 38899973,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"AAAAAA==\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 21257015\n            }\n          }\n        }\n      }\n    }"
         ]
     },
     {

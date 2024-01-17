@@ -130,7 +130,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 entity = update.entity
                 if entity.WhichOneof('entity') == 'table_entry':
                     if save_to_redis and RedisMode.is_writing(self.redis_mode):
-                        redis.rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(request))
+                        redis.rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(update))
                     self.convert_table_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
 
                     print(update.entity.table_entry)
@@ -379,9 +379,14 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         redis_p4info_helper = P4InfoHelper(raw_p4info=raw_p4info)
         for protobuf_message_json_object in redis.lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
-            parsed_write_request = Parse(protobuf_message_json_object, p4runtime_pb2.WriteRequest())
-            print(parsed_write_request)
-            self.Write(parsed_write_request, None, redis_p4info_helper, save_to_redis = False)
+            parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
+            print(parsed_update_object)
+            request = p4runtime_pb2.WriteRequest()
+            request.device_id = self.target_switch.device_id
+            request.election_id.low = 1
+            update = request.updates.add()
+            update.CopyFrom(parsed_update_object)
+            self.Write(request, None, redis_p4info_helper, save_to_redis = False)
 
         for protobuf_message_json_object in redis.lrange(self.redis_keys.ENTRIES,0,-1):
             entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())

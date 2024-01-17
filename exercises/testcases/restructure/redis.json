@@ -15,19 +15,19 @@
     {
         "key": "part1_TABLE_ENTRIES",
         "list": [
-            "{\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"Qg==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
+            "{\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"Qg==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }"
         ]
     },
     {
         "key": "part2_TABLE_ENTRIES",
         "list": [
-            "{\n  \"deviceId\": \"1\",\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"UA==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
+            "{\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"UA==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }"
         ]
     },
     {
         "key": "part3_TABLE_ENTRIES",
         "list": [
-            "{\n  \"deviceId\": \"2\",\n  \"electionId\": {\n    \"low\": \"1\"\n  },\n  \"updates\": [\n    {\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"WA==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }\n  ]\n}"
+            "{\n      \"type\": \"INSERT\",\n      \"entity\": {\n        \"tableEntry\": {\n          \"tableId\": 36348755,\n          \"match\": [\n            {\n              \"fieldId\": 1,\n              \"exact\": {\n                \"value\": \"CAAAAAIi\"\n              }\n            }\n          ],\n          \"action\": {\n            \"action\": {\n              \"actionId\": 24390349,\n              \"params\": [\n                {\n                  \"paramId\": 1,\n                  \"value\": \"WA==\"\n                }\n              ]\n            }\n          }\n        }\n      }\n    }"
         ]
     },
     {
