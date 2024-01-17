@@ -1,4 +1,9 @@
+import difflib
 import traceback
+from typing import Tuple
+
+from common.colors import COLOR_RED, COLOR_END
+
 
 def get_caller_line() -> str:
     stack = traceback.extract_stack(limit=4)
@@ -32,3 +37,45 @@ class Validator:
         if not a:
             self.__error(f'{a} is not True')
 
+
+def diff_strings(actual_rebuilt: str, expected_rebuilt: str) -> Tuple[str, str]:
+    actual_packet_arrived_colored = ''
+    color_active = False
+    diff_flags = ''
+    i = 0
+    for s in difflib.ndiff(actual_rebuilt, expected_rebuilt):
+        if s[0] == '-':
+            continue
+
+        if s[0] == '+':
+            if not color_active:
+                actual_packet_arrived_colored += COLOR_RED
+                color_active = True
+            diff_flags += '^'
+        else:
+            if color_active:
+                actual_packet_arrived_colored += COLOR_END
+            diff_flags += ' '
+        if i < len(actual_rebuilt):
+            actual_packet_arrived_colored += actual_rebuilt[i]
+        else:
+            actual_packet_arrived_colored += '#'
+        i += 1
+    while i < len(actual_rebuilt):
+        if not color_active:
+            actual_packet_arrived_colored += COLOR_RED
+            color_active = True
+        actual_packet_arrived_colored += actual_rebuilt[i]
+        diff_flags += '^'
+        i += 1
+    while i < len(expected_rebuilt):
+        if not color_active:
+            actual_packet_arrived_colored += COLOR_RED
+            color_active = True
+        actual_packet_arrived_colored += '#'
+        diff_flags += '^'
+        i += 1
+    if color_active:
+        actual_packet_arrived_colored += COLOR_END
+
+    return actual_packet_arrived_colored, diff_flags

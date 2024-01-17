@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from common.colors import COLOR_RED, COLOR_END
+from common.validator_tools import diff_strings
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -93,48 +94,7 @@ def compare_packet_lists(packets_arrived, packets_expected):
         else:
             actual_packet_expected = ''
 
-        actual_packet_arrived_colored = ''
-        diff_flags = ''
-
-        color_active = False
-        i = 0
-        for s in difflib.ndiff(actual_packet_arrived, actual_packet_expected):
-            if s[0] == '-':
-                continue
-
-            if  s[0] == '+':
-                if not color_active:
-                    actual_packet_arrived_colored += COLOR_RED
-                    color_active = True
-                diff_flags += '^'
-            else:
-                if color_active:
-                    actual_packet_arrived_colored += COLOR_END
-                diff_flags += ' '
-            if i < len(actual_packet_arrived):
-                actual_packet_arrived_colored += actual_packet_arrived[i]
-            else:
-                actual_packet_arrived_colored += '#'
-            i += 1
-
-        while i < len(actual_packet_arrived):
-            if not color_active:
-                actual_packet_arrived_colored += COLOR_RED
-                color_active = True
-            actual_packet_arrived_colored += actual_packet_arrived[i]
-            diff_flags += '^'
-            i += 1
-
-        while i < len(actual_packet_expected):
-            if not color_active:
-                actual_packet_arrived_colored += COLOR_RED
-                color_active = True
-            actual_packet_arrived_colored += '#'
-            diff_flags += '^'
-            i += 1
-
-        if color_active:
-            actual_packet_arrived_colored += COLOR_END
+        actual_packet_arrived_colored, diff_flags = diff_strings(actual_packet_arrived, actual_packet_expected)
 
         logging.debug(f'--- [Packet {packet_index}] ---')
         logging.debug(f'Expected: {actual_packet_expected}')

@@ -1,5 +1,4 @@
 import dataclasses
-import difflib
 import json
 import time
 from dataclasses import dataclass
@@ -9,7 +8,7 @@ from typing import List
 
 import redis
 
-from common.colors import COLOR_RED, COLOR_END
+from common.validator_tools import diff_strings
 from common.sync import wait_for_condition_blocking
 
 redis = redis.Redis()
@@ -59,54 +58,12 @@ def json_equals(actual_value: str, expected_value: str, verbose_on_fail=False) -
 
     is_ok = actual_rebuilt == expected_rebuilt
     if verbose_on_fail and not is_ok:
-        actual_packet_arrived_colored, _ = compare_strings(actual_rebuilt, expected_rebuilt)
+        actual_packet_arrived_colored, _ = diff_strings(actual_rebuilt, expected_rebuilt)
 
         print(f'Expected: {expected_rebuilt}')
         print(f'Arrived:  {actual_packet_arrived_colored}')
 
     return is_ok
-
-
-def compare_strings(actual_rebuilt, expected_rebuilt):
-    actual_packet_arrived_colored = ''
-    color_active = False
-    diff_flags = ''
-    i = 0
-    for s in difflib.ndiff(actual_rebuilt, expected_rebuilt):
-        if s[0] == '-':
-            continue
-
-        if s[0] == '+':
-            if not color_active:
-                actual_packet_arrived_colored += COLOR_RED
-                color_active = True
-            diff_flags += '^'
-        else:
-            if color_active:
-                actual_packet_arrived_colored += COLOR_END
-            diff_flags += ' '
-        if i < len(actual_rebuilt):
-            actual_packet_arrived_colored += actual_rebuilt[i]
-        else:
-            actual_packet_arrived_colored += '#'
-        i += 1
-    while i < len(actual_rebuilt):
-        if not color_active:
-            actual_packet_arrived_colored += COLOR_RED
-            color_active = True
-        actual_packet_arrived_colored += actual_rebuilt[i]
-        diff_flags += '^'
-        i += 1
-    while i < len(expected_rebuilt):
-        if not color_active:
-            actual_packet_arrived_colored += COLOR_RED
-            color_active = True
-        actual_packet_arrived_colored += '#'
-        diff_flags += '^'
-        i += 1
-    if color_active:
-        actual_packet_arrived_colored += COLOR_END
-    return actual_packet_arrived_colored, diff_flags
 
 
 def compare_redis(redis_file: str) -> bool:
