@@ -35,6 +35,10 @@ class RedisKeys:
     ENTRIES: str
     HEARTBEAT: str
 
+def json_equals(json1: str, json2: str) -> bool:
+    return json.dumps(json.loads(json1)) == json.dumps(json.loads(json1))
+
+
 def compare_redis(redis_file: str) -> bool:
     success = True
     with open(redis_file, 'r') as f:
@@ -47,7 +51,7 @@ def compare_redis(redis_file: str) -> bool:
                     if raw_result is None:
                         print(f'{redis_key} key not exists!')
                         success = False
-                    elif raw_result.decode('utf8') != data_one_record:
+                    elif not json_equals(raw_result.decode('utf8'), data_one_record):
                         print(f'{redis_key} at {index} index differs from the expected!')
                         print('------ REDIS DATA')
                         print(raw_result.decode('utf8'))
