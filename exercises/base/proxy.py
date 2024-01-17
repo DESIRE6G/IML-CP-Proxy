@@ -7,6 +7,7 @@ import time
 from concurrent import futures
 from enum import Enum
 from threading import Thread, Event
+from typing import Union
 
 import grpc
 from google.protobuf.text_format import MessageToString
@@ -14,10 +15,9 @@ from p4.v1 import p4runtime_pb2
 from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, Update, WriteResponse, ReadResponse
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 from google.protobuf.json_format import MessageToJson, Parse
+from common.p4runtime_lib.helper import P4InfoHelper
 import redis
 
-import common.p4runtime_lib
-import common.p4runtime_lib.helper
 from common.p4runtime_lib.switch import IterableQueue
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.redis_helper import RedisKeys, RedisRecords
@@ -67,19 +67,28 @@ class RedisMode(Enum):
 
 
 class ProxyP4ServicerWorkerThread(Thread):
-    def __init__(self, servicer):
+    def __init__(self, servicer) -> None:
         Thread.__init__(self)
         self.stopped = Event()
         self.servicer = servicer
 
-    def run(self):
+    def run(self) -> None:
         while not self.stopped.wait(2):
             print(f'Heartbeat... {self.servicer.prefix}')
             if RedisMode.is_writing(self.servicer.redis_mode):
                 self.servicer.save_counters_and_meters_to_redis()
 
-    def stop(self):
+    def stop(self) -> None:
         self.stopped.set()
+
+HandledEntityTypes = Union[
+                           p4runtime_pb2.Entity,
+                           p4runtime_pb2.CounterEntry,
+                           p4runtime_pb2.DirectCounterEntry,
+                           p4runtime_pb2.MeterEntry,
+                           p4runtime_pb2.DirectMeterEntry,
+                           p4runtime_pb2.RegisterEntry
+                       ]
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, prefix, from_p4info_path, target_switch: HighLevelSwitchConnection, redis_mode: RedisMode):
@@ -97,7 +106,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}'
         )
 
-        self.from_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(from_p4info_path)
+        self.from_p4info_helper = P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
         self.target_switch = target_switch
         self.redis_mode = redis_mode
@@ -105,12 +114,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.worker_thread = ProxyP4ServicerWorkerThread(self)
         self.worker_thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         self.worker_thread.stop()
         self.save_counters_and_meters_to_redis()
 
 
-    def Write(self, request, context, from_p4info_helper = None, save_to_redis = True):
+    def Write(self, request, context, from_p4info_helper = None, save_to_redis: bool = True) -> None:
         print('------------------- Write -------------------')
         print(request)
         if from_p4info_helper is None:
@@ -184,7 +193,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
 
-    def convert_table_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+    def convert_table_entry(self,
+                            from_p4info_helper: P4InfoHelper,
+                            target_p4info_helper: P4InfoHelper,
+                            entity: p4runtime_pb2.TableEntry,
+                            reverse: bool=False,
+                            verbose: bool=True) -> None:
         if entity.table_entry.table_id != 0:
             entity.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
                                                           'table', entity.table_entry.table_id,
@@ -197,38 +211,68 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             else:
                 raise Exception(f'Unhandled action type {entity.table_entry.action.type}')
 
-    def convert_meter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+    def convert_meter_entry(self,
+                            from_p4info_helper: P4InfoHelper,
+                            target_p4info_helper: P4InfoHelper,
+                            entity: p4runtime_pb2.MeterEntry,
+                            reverse: bool=False,
+                            verbose: bool=True) -> None:
         if entity.meter_entry.meter_id != 0:
             entity.meter_entry.meter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
                                                           'meter', entity.meter_entry.meter_id,
                                                           reverse, verbose)
-    def convert_direct_meter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+    def convert_direct_meter_entry(self,
+                                   from_p4info_helper: P4InfoHelper,
+                                   target_p4info_helper: P4InfoHelper,
+                                   entity: p4runtime_pb2.DirectMeterEntry,
+                                   reverse: bool=False,
+                                   verbose: bool=True) -> None:
         if entity.direct_meter_entry.table_entry.table_id != 0:
             entity.direct_meter_entry.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
                                                           'table', entity.direct_meter_entry.table_entry.table_id,
                                                           reverse, verbose)
 
 
-    def convert_counter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+    def convert_counter_entry(self,
+                              from_p4info_helper: P4InfoHelper,
+                              target_p4info_helper: P4InfoHelper,
+                              entity: p4runtime_pb2.CounterEntry,
+                              reverse: bool=False,
+                              verbose: bool=True) -> None:
         if entity.counter_entry.counter_id != 0:
             entity.counter_entry.counter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
                                                       'counter', entity.counter_entry.counter_id,
                                                       reverse, verbose)
 
 
-    def convert_direct_counter_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+    def convert_direct_counter_entry(self,
+                                     from_p4info_helper: P4InfoHelper,
+                                     target_p4info_helper: P4InfoHelper,
+                                     entity: p4runtime_pb2.DirectCounterEntry,
+                                     reverse: bool=False,
+                                     verbose: bool=True) -> None:
         if entity.direct_counter_entry.table_entry.table_id != 0:
             entity.direct_counter_entry.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
                                                       'table', entity.direct_counter_entry.table_entry.table_id,
                                                       reverse, verbose)
 
-    def convert_register_entry(self, from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+    def convert_register_entry(self,
+                               from_p4info_helper: P4InfoHelper,
+                               target_p4info_helper: P4InfoHelper,
+                               entity: p4runtime_pb2.RegisterEntry,
+                               reverse: bool=False,
+                               verbose: bool=True) -> None:
         if entity.table_entry.table_id != 0:
             entity.counter_entry.counter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
                                                           'register', entity.register_entry.register_id,
                                                           reverse, verbose)
 
-    def convert_entity(self,  from_p4info_helper, target_p4info_helper, entity, reverse=False, verbose=True):
+    def convert_entity(self,
+                       from_p4info_helper: P4InfoHelper,
+                       target_p4info_helper: P4InfoHelper,
+                       entity: HandledEntityTypes,
+                       reverse: bool=False,
+                       verbose: bool=True) -> None:
         which_one = entity.WhichOneof('entity')
         if which_one == 'table_entry':
             self.convert_table_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
@@ -245,12 +289,16 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         else:
             raise Exception(f'Not implemented type for read "{which_one}"')
 
-    def convert_read_request(self,  from_p4info_helper, target_p4info_helper, request, verbose=True):
+    def convert_read_request(self,
+                             from_p4info_helper: P4InfoHelper,
+                             target_p4info_helper: P4InfoHelper,
+                             request: p4runtime_pb2.ReadRequest,
+                             verbose: bool=True) -> None:
         for entity in request.entities:
             self.convert_entity(from_p4info_helper, target_p4info_helper, entity, reverse=False,verbose=verbose)
 
 
-    def get_entity_name(self, p4info_helper, entity):
+    def get_entity_name(self, p4info_helper: P4InfoHelper, entity: HandledEntityTypes) -> str:
         which_one = entity.WhichOneof('entity')
         if which_one == 'table_entry':
             return p4info_helper.get_tables_name(entity.table_entry.table_id)
@@ -265,7 +313,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         else:
             raise Exception(f'Not implemented type for read "{which_one}"')
 
-    def Read(self, request, context):
+    def Read(self, request: p4runtime_pb2.ReadRequest, context):
         """Read one or more P4 entities from the target.
         """
         print('------------------- Read -------------------')
@@ -292,7 +340,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         else:
             raise Exception(f"Read only handles when requested everything")
 
-    def SetForwardingPipelineConfig(self, request, context):
+    def SetForwardingPipelineConfig(self, request: p4runtime_pb2.SetForwardingPipelineConfigRequest, context):
         # Do not forward p4info just save it, on init we load the p4info
         self.delete_redis_entries_for_this_service()
         if RedisMode.is_writing(self.redis_mode):
@@ -300,7 +348,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         return SetForwardingPipelineConfigResponse()
 
-    def GetForwardingPipelineConfig(self, request, context):
+    def GetForwardingPipelineConfig(self, request: p4runtime_pb2.GetForwardingPipelineConfigRequest, context):
         """Gets the current P4 forwarding-pipeline config.
         """
         print('GetForwardingPipelineConfig')
@@ -313,7 +361,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def StreamChannel(self, request_iterator, context):
         return iter([])
 
-    def Capabilities(self, request, context):
+    def Capabilities(self, request: p4runtime_pb2.CapabilitiesRequest, context):
         # missing associated documentation comment in .proto file
         print('Capabilities')
         print(request)
@@ -322,14 +370,14 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def fill_from_redis(self):
+    def fill_from_redis(self) -> None:
         print('FILLING FROM REDIS')
         raw_p4info = redis.get(self.redis_keys.P4INFO)
         if raw_p4info is None:
             print('Fillig from redis failed, because p4info cannot be found in redis')
             return
 
-        redis_p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(raw_p4info=raw_p4info)
+        redis_p4info_helper = P4InfoHelper(raw_p4info=raw_p4info)
         for protobuf_message_json_object in redis.lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
             parsed_write_request = Parse(protobuf_message_json_object, p4runtime_pb2.WriteRequest())
             print(parsed_write_request)
@@ -347,10 +395,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             update.entity.CopyFrom(entity)
             self.Write(request, None, redis_p4info_helper, save_to_redis = False)
 
-    def delete_redis_entries_for_this_service(self):
+    def delete_redis_entries_for_this_service(self) -> None:
         redis.delete(self.redis_keys.TABLE_ENTRIES)
 
-    def save_counters_and_meters_to_redis(self):
+    def save_counters_and_meters_to_redis(self) -> None:
         request = p4runtime_pb2.ReadRequest()
         request.device_id = self.target_switch.connection.device_id
         entity = request.entities.add()
@@ -400,7 +448,7 @@ class ProxyServer:
         self.servicer = None
         self.redis_mode = redis_mode
 
-    def start(self):
+    def start(self) -> None:
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
         self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switch, self.redis_mode)
         if RedisMode.is_reading(self.redis_mode):
@@ -409,19 +457,19 @@ class ProxyServer:
         self.server.add_insecure_port(f'[::]:{self.port}')
         self.server.start()
 
-    def stop(self):
+    def stop(self) -> None:
         self.servicer.stop()
         self.server.stop(grace=None)
 
 class ProxyConfig:
-    def __init__(self, filename = 'proxy_config.json'):
+    def __init__(self, filename = 'proxy_config.json') -> None:
         with open(filename) as f:
             self.proxy_config = json.load(f)
 
     def get_redis_mode(self) -> RedisMode:
         return RedisMode(self.proxy_config['redis'])
 
-    def get_mappings(self):
+    def get_mappings(self) -> dict:
         return self.proxy_config['mappings']
 
 proxy_config = ProxyConfig()
