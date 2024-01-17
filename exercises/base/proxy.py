@@ -131,19 +131,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 if entity.WhichOneof('entity') == 'table_entry':
                     if save_to_redis and RedisMode.is_writing(self.redis_mode):
                         redis.rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(update))
-                    self.convert_table_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
 
-                    print(update.entity.table_entry)
-                elif update.entity.WhichOneof('entity') == 'meter_entry':
-                    self.convert_meter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
-                elif entity.WhichOneof('entity') == 'direct_meter_entry':
-                    self.convert_direct_meter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
-                elif entity.WhichOneof('entity') == 'counter_entry':
-                    self.convert_counter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
-                elif entity.WhichOneof('entity') == 'direct_counter_entry':
-                    self.convert_direct_counter_entry(from_p4info_helper, self.target_switch.p4info_helper, entity)
-                else:
-                    raise Exception(f'Unhandled {update.Type.Name(update.type)} for {entity.WhichOneof("entity")}')
+                self.convert_entity(from_p4info_helper, self.target_switch.p4info_helper, entity)
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
 
