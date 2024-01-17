@@ -36,7 +36,7 @@ class RedisKeys:
     HEARTBEAT: str
 
 def json_equals(json1: str, json2: str) -> bool:
-    return json.dumps(json.loads(json1)) == json.dumps(json.loads(json1))
+    return json.dumps(json.loads(json1)) == json.dumps(json.loads(json2))
 
 
 def compare_redis(redis_file: str) -> bool:
