@@ -397,6 +397,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def delete_redis_entries_for_this_service(self) -> None:
         redis.delete(self.redis_keys.TABLE_ENTRIES)
+        redis.delete(self.redis_keys.ENTRIES)
+        redis.delete(self.redis_keys.HEARTBEAT)
 
     def save_counters_and_meters_to_redis(self) -> None:
         request = p4runtime_pb2.ReadRequest()
