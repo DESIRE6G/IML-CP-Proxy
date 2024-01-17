@@ -1,4 +1,5 @@
 import dataclasses
+import difflib
 import json
 import time
 from dataclasses import dataclass
@@ -35,22 +36,79 @@ class RedisKeys:
     ENTRIES: str
     HEARTBEAT: str
 
-def json_equals(actual_value: str, expected_value: str) -> bool:
+COLOR_RED = '\033[91m'
+COLOR_END = '\033[0m'
+
+def json_equals(actual_value: str, expected_value: str, verbose_on_fail=False) -> bool:
     try:
         actual_parsed = json.loads(actual_value)
     except json.decoder.JSONDecodeError:
-        print('Failed to parse the actual value in json_equals')
-        print(actual_value)
+        if verbose_on_fail:
+            print('Failed to parse the actual value in json_equals')
+            print(actual_value)
         return False
 
     try:
         expected_parsed = json.loads(expected_value)
     except json.decoder.JSONDecodeError:
-        print('Failed to parse the expected value in json_equals')
-        print(expected_value)
+        if verbose_on_fail:
+            print('Failed to parse the expected value in json_equals')
+            print(expected_value)
         return False
 
-    return json.dumps(actual_parsed) == json.dumps(expected_parsed)
+    actual_rebuilt = json.dumps(actual_parsed)
+    expected_rebuilt = json.dumps(expected_parsed)
+
+    is_ok = actual_rebuilt == expected_rebuilt
+    if verbose_on_fail and not is_ok:
+        actual_packet_arrived_colored, _ = compare_strings(actual_rebuilt, expected_rebuilt)
+
+        print(f'Expected: {expected_rebuilt}')
+        print(f'Arrived:  {actual_packet_arrived_colored}')
+
+    return is_ok
+
+
+def compare_strings(actual_rebuilt, expected_rebuilt):
+    actual_packet_arrived_colored = ''
+    color_active = False
+    diff_flags = ''
+    i = 0
+    for s in difflib.ndiff(actual_rebuilt, expected_rebuilt):
+        if s[0] == '-':
+            continue
+
+        if s[0] == '+':
+            if not color_active:
+                actual_packet_arrived_colored += COLOR_RED
+                color_active = True
+            diff_flags += '^'
+        else:
+            if color_active:
+                actual_packet_arrived_colored += COLOR_END
+            diff_flags += ' '
+        if i < len(actual_rebuilt):
+            actual_packet_arrived_colored += actual_rebuilt[i]
+        else:
+            actual_packet_arrived_colored += '#'
+        i += 1
+    while i < len(actual_rebuilt):
+        if not color_active:
+            actual_packet_arrived_colored += COLOR_RED
+            color_active = True
+        actual_packet_arrived_colored += actual_rebuilt[i]
+        diff_flags += '^'
+        i += 1
+    while i < len(expected_rebuilt):
+        if not color_active:
+            actual_packet_arrived_colored += COLOR_RED
+            color_active = True
+        actual_packet_arrived_colored += '#'
+        diff_flags += '^'
+        i += 1
+    if color_active:
+        actual_packet_arrived_colored += COLOR_END
+    return actual_packet_arrived_colored, diff_flags
 
 
 def compare_redis(redis_file: str) -> bool:
@@ -65,12 +123,13 @@ def compare_redis(redis_file: str) -> bool:
                     if raw_result is None:
                         print(f'{redis_key} key not exists!')
                         success = False
-                    elif not json_equals(raw_result.decode('utf8'), data_one_record):
+                    elif not json_equals(raw_result.decode('utf8'), data_one_record, verbose_on_fail=True):
                         print(f'{redis_key} at {index} index differs from the expected!')
                         print('------ REDIS DATA')
                         print(raw_result.decode('utf8'))
                         print('------ EXPECTED')
                         print(data_one_record)
+
                         success = False
                     else:
                         print(f'{redis_key} OK')
