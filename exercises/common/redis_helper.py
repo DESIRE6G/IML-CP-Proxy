@@ -35,8 +35,22 @@ class RedisKeys:
     ENTRIES: str
     HEARTBEAT: str
 
-def json_equals(json1: str, json2: str) -> bool:
-    return json.dumps(json.loads(json1)) == json.dumps(json.loads(json2))
+def json_equals(actual_value: str, expected_value: str) -> bool:
+    try:
+        actual_parsed = json.loads(actual_value)
+    except json.decoder.JSONDecodeError:
+        print('Failed to parse the actual value in json_equals')
+        print(actual_value)
+        return False
+
+    try:
+        expected_parsed = json.loads(expected_value)
+    except json.decoder.JSONDecodeError:
+        print('Failed to parse the expected value in json_equals')
+        print(expected_value)
+        return False
+
+    return json.dumps(actual_parsed) == json.dumps(expected_parsed)
 
 
 def compare_redis(redis_file: str) -> bool:
