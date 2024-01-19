@@ -241,7 +241,17 @@ def run_test_cases(test_cases_to_run):
             tmux_shell(f'cd {TARGET_TEST_FOLDER}', proxy_pane_name)
             tmux_shell('python3 proxy.py', proxy_pane_name)
 
-            wait_for_output('^Proxy is ready', proxy_pane_name)
+            try:
+                wait_for_output('^Proxy is ready', proxy_pane_name)
+            except TimeoutError:
+                print(f'{COLOR_RED_BG}Proxy is failed to startup{COLOR_END}')
+                tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
+                with open(f'{TARGET_TEST_FOLDER}/logs/proxy.log') as log_f:
+                    print(f'{COLOR_RED_BG} --- Proxy output --- {COLOR_END}')
+                    print(log_f.read())
+                    print(f'{COLOR_RED_BG} --- Proxy output end --- {COLOR_END}')
+                    raise Exception('Proxy is failed to startup')
+
             # Start Controller
             if config.get('start_controller', default=True):
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
