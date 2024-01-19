@@ -51,6 +51,15 @@ One of the most basic example configurations that combines 2 functions onto one 
 
 In this case, when the proxy receives from the controller of the function1 program for the ipv4_lpm table a table entry insert, the proxy receives a unique key in the message that identifies the table. This identifier is resolved by the proxy based on the p4info file generated from the function1.p4 file (function1.p4info file). It resolves to MyIngress.ipv4_lpm. This full name will be prefixed by the proxy, as a result of which we will get the name MyIngress.NF1_ipv4_lpm, which will finally be converted into an identifier based on the aggregated.p4info file. We do the same conversion for the actions of the table insert entry and with the new identifiers obtained in this way, we generate the new message, which we can now send to the node running the aggregated P4 program.
 
+In production the typical mode is used for Redis is `READWRITE`, but for testing purpose there are different modes:
+
+| Key        | Effect                                                              |
+|------------|---------------------------------------------------------------------|
+| READWRITE  | Reads entries from redis and write updates it on change             |
+| ONLY_WRITE | Does not read on startup, but update                                |
+| ONLY_READ  | Only load entries from redis on startup, but do not save any change |
+| OFF        | Do not use redis entirely                                           |
+
 ## Testing enviroment
 
 The repository contains an automatic tester that run all the examples that can be generated. 
