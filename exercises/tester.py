@@ -204,7 +204,7 @@ def run_test_cases(test_cases_to_run):
 
             # Initialize mininet
             for _ in range(3):
-                exit_code1 = tmux(f'new -d -s {TMUX_WINDOW_NAME}')
+                exit_code1 = tmux(f'new -d -s {TMUX_WINDOW_NAME} -x 150')
                 print(f'exit_code1={exit_code1}')
                 if exit_code1 == 0:
                     exit_code2 = tmux(f'select-window -t {TMUX_WINDOW_NAME}')
