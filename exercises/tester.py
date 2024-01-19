@@ -245,8 +245,20 @@ def run_test_cases(test_cases_to_run):
             # Start Controller
             if config.get('start_controller', default=True):
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
-                tmux_shell('python3 controller.py', controller_pane_name)
+                tmux_shell('./run_controller.sh', controller_pane_name)
                 wait_for_output(f'{TARGET_TEST_FOLDER}\$\s*$', controller_pane_name)
+
+                with open(f'{TARGET_TEST_FOLDER}/.controller_exit_code') as f:
+                    exit_code = f.read().strip()
+                    if exit_code != '0':
+                        print(f'{COLOR_RED_BG}Controller exited with non-zero code!{COLOR_END}')
+                        tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
+                        with open(f'{TARGET_TEST_FOLDER}/logs/controller.log') as log_f:
+                            print(f'{COLOR_RED_BG} --- Controller output --- {COLOR_END}')
+                            print(log_f.read())
+                            print(f'{COLOR_RED_BG} --- Controller output end --- {COLOR_END}')
+                            raise Exception('Controller exited with non-zero code')
+
 
             if active_test_modes['ping']:
                 tmux_shell(f'h1 ping h2', mininet_pane_name)
