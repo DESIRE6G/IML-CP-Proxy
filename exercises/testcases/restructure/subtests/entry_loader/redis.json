@@ -1,0 +1,10 @@
+[
+    {
+        "key": "aggregated123_TABLE_ENTRIES",
+        "list": [
+            "{\n  \"type\": \"INSERT\",\n  \"entity\": {\n    \"tableEntry\": {\n      \"tableId\": 36935333,\n      \"match\": [\n        {\n          \"fieldId\": 1,\n          \"exact\": {\n            \"value\": \"CAAAAAIi\"\n          }\n        }\n      ],\n      \"action\": {\n        \"action\": {\n          \"actionId\": 17621451,\n          \"params\": [\n            {\n              \"paramId\": 1,\n              \"value\": \"Qg==\"\n            }\n          ]\n        }\n      }\n    }\n  }\n}",
+            "{\n  \"type\": \"INSERT\",\n  \"entity\": {\n    \"tableEntry\": {\n      \"tableId\": 50070911,\n      \"match\": [\n        {\n          \"fieldId\": 1,\n          \"exact\": {\n            \"value\": \"CAAAAAIi\"\n          }\n        }\n      ],\n      \"action\": {\n        \"action\": {\n          \"actionId\": 27202120,\n          \"params\": [\n            {\n              \"paramId\": 1,\n              \"value\": \"UA==\"\n            }\n          ]\n        }\n      }\n    }\n  }\n}",
+            "{\n  \"type\": \"INSERT\",\n  \"entity\": {\n    \"tableEntry\": {\n      \"tableId\": 36354468,\n      \"match\": [\n        {\n          \"fieldId\": 1,\n          \"exact\": {\n            \"value\": \"CAAAAAIi\"\n          }\n        }\n      ],\n      \"action\": {\n        \"action\": {\n          \"actionId\": 33478710,\n          \"params\": [\n            {\n              \"paramId\": 1,\n              \"value\": \"WA==\"\n            }\n          ]\n        }\n      }\n    }\n  }\n}"
+        ]
+    }
+]

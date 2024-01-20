@@ -468,6 +468,9 @@ class ProxyConfig:
     def get_mappings(self) -> dict:
         return self.proxy_config['mappings']
 
+    def get_preload_entries(self) -> list:
+        return self.proxy_config['preload_entries']
+
 proxy_config = ProxyConfig()
 mappings = proxy_config.get_mappings()
 servers = []
@@ -495,6 +498,14 @@ for mapping in mappings:
     for source in sources:
         p4_info_path = f"build/{source['program_name']}.p4.p4info.txt"
         serve(source['controller_port'], prefix=source['prefix'], p4info_path=p4_info_path, target_switch=mapping_target_switch, redis_mode=proxy_config.get_redis_mode())
+
+preload_entries = proxy_config.get_preload_entries()
+for target in preload_entries:
+    switch_connection = HighLevelSwitchConnection(target['device_id'], target['program_name'], target['controller_port'])
+    for entry in target['entries']:
+        if entry['type'] == 'table':
+            table_entry = switch_connection.p4info_helper.buildTableEntry(**entry['parameters'])
+            switch_connection.connection.WriteTableEntry(table_entry)
 
 def sigint_handler(signum, frame):
     global servers
