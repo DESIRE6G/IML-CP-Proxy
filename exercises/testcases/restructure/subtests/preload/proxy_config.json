@@ -22,21 +22,9 @@
           "program_name": "part3",
           "prefix": "part3_",
           "controller_port": 60053
-        },
-        {
-          "program_name": "aggregated123",
-          "prefix": "",
-          "controller_port": 51051
         }
-      ]
-    }
-  ],
-  "preload_entries": [
-    {
-      "program_name": "aggregated123",
-      "device_id": 0,
-      "controller_port": 51051,
-      "entries": [
+      ],
+      "preload_entries": [
         {
           "type": "table",
           "parameters": {
