@@ -1,0 +1,32 @@
+{
+  "redis": "ONLY_READ",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "prefixed_meter1",
+        "port": 50051,
+        "device_id": 0,
+        "reset_dataplane": false
+      },
+      "sources": [
+        {
+          "program_name": "meter1",
+          "prefix": "NF1_",
+          "controller_port": 60051
+        }
+      ],
+      "preload_entries": [
+        {
+          "type": "meter",
+          "parameters": {
+            "meter_name":"NF1_my_meter",
+            "cir":0,
+            "cburst":1,
+            "pir":2,
+            "pburst":200
+          }
+        }
+      ]
+    }
+  ]
+}

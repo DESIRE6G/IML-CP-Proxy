@@ -1,0 +1,55 @@
+{
+  "redis": "ONLY_READ",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "prefixed_direct_meter",
+        "port": 50051,
+        "device_id": 0,
+        "reset_dataplane": false
+      },
+      "sources": [
+        {
+          "program_name": "direct_meter",
+          "prefix": "NF1_",
+          "controller_port": 60051
+        }
+      ],
+      "preload_entries": [
+        {
+          "type": "table",
+          "parameters": {
+            "table_name": "MyIngress.NF1_m_read",
+            "match_fields": {
+              "hdr.ethernet.srcAddr": "08:00:00:00:01:11"
+            },
+            "action_name": "MyIngress.NF1_m_action"
+          }
+        },
+        {
+          "type": "table",
+          "parameters": {
+            "table_name": "MyIngress.NF1_m_filter",
+            "match_fields": {
+              "meta.NF1_meter_tag": 0
+            },
+            "action_name": "NoAction"
+          }
+        },
+        {
+          "type": "direct_meter",
+          "parameters": {
+            "table_name": "MyIngress.NF1_m_read",
+            "match_fields": {
+              "hdr.ethernet.srcAddr": "08:00:00:00:01:11"
+            },
+            "cir":0,
+            "cburst":1,
+            "pir":5,
+            "pburst":50
+          }
+        }
+      ]
+    }
+  ]
+}

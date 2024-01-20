@@ -498,9 +498,18 @@ for mapping in mappings:
 
     if 'preload_entries' in mapping:
         for entry in mapping['preload_entries']:
-            if entry['type'] == 'table':
+            entry_type = entry['type']
+            if entry_type == 'table':
                 table_entry = mapping_target_switch.p4info_helper.buildTableEntry(**entry['parameters'])
                 mapping_target_switch.connection.WriteTableEntry(table_entry)
+            elif entry_type == 'meter':
+                meter_entry = mapping_target_switch.p4info_helper.buildMeterConfigEntry(**entry['parameters'])
+                mapping_target_switch.connection.WriteMeterEntry(meter_entry)
+            elif entry_type == 'direct_meter':
+                meter_entry = mapping_target_switch.p4info_helper.buildDirectMeterConfigEntry(**entry['parameters'])
+                mapping_target_switch.connection.WriteDirectMeterEntry(meter_entry)
+            else:
+                raise Exception(f'Preload does not handle {entry_type} yet, inform the author to add what you need.')
 
 def sigint_handler(signum, frame):
     global servers
