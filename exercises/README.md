@@ -102,8 +102,9 @@ Reload redis information for the actually built test folder:
 
 If you add a `test_config.json` to the test case, you can configure the followings:
 
-| Paramter name    | functionality                                                         | Defatult value |
-|------------------|-----------------------------------------------------------------------|----------------|
-| run_validator    | Determines if the tester run validator.py after the test case.        | true           |
-| load_redis_json  | Determines if the tester fills up the redis from the redis.json file. | true           |
-| start_controller | Determines if the tester starts the controller.                       | true           |
+| Paramter name         | functionality                                                         | Defatult value      |
+|-----------------------|-----------------------------------------------------------------------|---------------------|
+| run_validator         | Determines if the tester run validator.py after the test case.        | true                |
+| load_redis_json       | Determines if the tester fills up the redis from the redis.json file. | true                |
+| start_controller      | Determines if the tester starts the controller.                       | true                |
+| exact_ping_packet_num | Determines how many ping the tester will send to the h2 node.         | Run until a timeout |
