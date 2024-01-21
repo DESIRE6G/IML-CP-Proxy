@@ -133,7 +133,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     if save_to_redis and RedisMode.is_writing(self.redis_mode):
                         redis.rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(update))
 
-                self.convert_entity(from_p4info_helper, self.target_switch.p4info_helper, entity)
+                self.convert_entity(entity)
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
 
@@ -145,7 +145,14 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
 
-    def convert_id(self, from_p4info_helper, target_p4info_helper, id_type:str, original_id: int, reverse = False, verbose=True) -> int:
+    def convert_id(self, id_type:str, original_id: int, reverse = False, verbose=True) -> int:
+
+        if not reverse:
+           from_p4info_helper = self.from_p4info_helper
+           target_p4info_helper = self.target_switch.p4info_helper
+        else:
+           from_p4info_helper = self.target_switch.p4info_helper
+           target_p4info_helper = self.from_p4info_helper
         if id_type == 'table':
             name = from_p4info_helper.get_tables_name(original_id)
         elif id_type == 'meter':
@@ -184,108 +191,85 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
     def convert_table_entry(self,
-                            from_p4info_helper: P4InfoHelper,
-                            target_p4info_helper: P4InfoHelper,
                             entity: p4runtime_pb2.TableEntry,
                             reverse: bool=False,
                             verbose: bool=True) -> None:
         if entity.table_entry.table_id != 0:
-            entity.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
-                                                          'table', entity.table_entry.table_id,
+            entity.table_entry.table_id = self.convert_id('table', entity.table_entry.table_id,
                                                           reverse, verbose)
         if entity.table_entry.HasField('action'):
             if entity.table_entry.action.WhichOneof('type') == 'action':
-                entity.table_entry.action.action.action_id = self.convert_id(from_p4info_helper, target_p4info_helper,
-                                                  'action', entity.table_entry.action.action.action_id,
+                entity.table_entry.action.action.action_id = self.convert_id('action', entity.table_entry.action.action.action_id,
                                                   reverse, verbose)
             else:
                 raise Exception(f'Unhandled action type {entity.table_entry.action.type}')
 
     def convert_meter_entry(self,
-                            from_p4info_helper: P4InfoHelper,
-                            target_p4info_helper: P4InfoHelper,
                             entity: p4runtime_pb2.MeterEntry,
                             reverse: bool=False,
                             verbose: bool=True) -> None:
         if entity.meter_entry.meter_id != 0:
-            entity.meter_entry.meter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
-                                                          'meter', entity.meter_entry.meter_id,
+            entity.meter_entry.meter_id = self.convert_id('meter', entity.meter_entry.meter_id,
                                                           reverse, verbose)
     def convert_direct_meter_entry(self,
-                                   from_p4info_helper: P4InfoHelper,
-                                   target_p4info_helper: P4InfoHelper,
                                    entity: p4runtime_pb2.DirectMeterEntry,
                                    reverse: bool=False,
                                    verbose: bool=True) -> None:
         if entity.direct_meter_entry.table_entry.table_id != 0:
-            entity.direct_meter_entry.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
-                                                          'table', entity.direct_meter_entry.table_entry.table_id,
+            entity.direct_meter_entry.table_entry.table_id = self.convert_id('table', entity.direct_meter_entry.table_entry.table_id,
                                                           reverse, verbose)
 
 
     def convert_counter_entry(self,
-                              from_p4info_helper: P4InfoHelper,
-                              target_p4info_helper: P4InfoHelper,
                               entity: p4runtime_pb2.CounterEntry,
                               reverse: bool=False,
                               verbose: bool=True) -> None:
         if entity.counter_entry.counter_id != 0:
-            entity.counter_entry.counter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
-                                                      'counter', entity.counter_entry.counter_id,
+            entity.counter_entry.counter_id = self.convert_id('counter', entity.counter_entry.counter_id,
                                                       reverse, verbose)
 
 
     def convert_direct_counter_entry(self,
-                                     from_p4info_helper: P4InfoHelper,
-                                     target_p4info_helper: P4InfoHelper,
                                      entity: p4runtime_pb2.DirectCounterEntry,
                                      reverse: bool=False,
                                      verbose: bool=True) -> None:
         if entity.direct_counter_entry.table_entry.table_id != 0:
-            entity.direct_counter_entry.table_entry.table_id = self.convert_id(from_p4info_helper, target_p4info_helper,
-                                                      'table', entity.direct_counter_entry.table_entry.table_id,
+            entity.direct_counter_entry.table_entry.table_id = self.convert_id('table', entity.direct_counter_entry.table_entry.table_id,
                                                       reverse, verbose)
 
     def convert_register_entry(self,
-                               from_p4info_helper: P4InfoHelper,
-                               target_p4info_helper: P4InfoHelper,
                                entity: p4runtime_pb2.RegisterEntry,
                                reverse: bool=False,
                                verbose: bool=True) -> None:
         if entity.table_entry.table_id != 0:
-            entity.counter_entry.counter_id = self.convert_id(from_p4info_helper, target_p4info_helper,
-                                                          'register', entity.register_entry.register_id,
+            entity.counter_entry.counter_id = self.convert_id('register', entity.register_entry.register_id,
                                                           reverse, verbose)
 
     def convert_entity(self,
-                       from_p4info_helper: P4InfoHelper,
-                       target_p4info_helper: P4InfoHelper,
                        entity: HandledEntityTypes,
                        reverse: bool=False,
                        verbose: bool=True) -> None:
         which_one = entity.WhichOneof('entity')
         if which_one == 'table_entry':
-            self.convert_table_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+            self.convert_table_entry(entity, reverse, verbose)
         elif which_one == 'counter_entry':
-            self.convert_counter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+            self.convert_counter_entry( entity, reverse, verbose)
         elif which_one == 'direct_counter_entry':
-            self.convert_direct_counter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+            self.convert_direct_counter_entry( entity, reverse, verbose)
         elif which_one == 'meter_entry':
-            self.convert_meter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+            self.convert_meter_entry(entity, reverse, verbose)
         elif which_one == 'direct_meter_entry':
-            self.convert_direct_meter_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+            self.convert_direct_meter_entry(entity, reverse, verbose)
         elif which_one == 'register_entry':
-            self.convert_register_entry(  from_p4info_helper, target_p4info_helper, entity, reverse, verbose)
+            self.convert_register_entry(entity, reverse, verbose)
         else:
             raise Exception(f'Not implemented type for read "{which_one}"')
 
     def convert_read_request(self,
-                             from_p4info_helper: P4InfoHelper,
-                             target_p4info_helper: P4InfoHelper,
                              request: p4runtime_pb2.ReadRequest,
                              verbose: bool=True) -> None:
         for entity in request.entities:
-            self.convert_entity(from_p4info_helper, target_p4info_helper, entity, reverse=False,verbose=verbose)
+            self.convert_entity(entity, reverse=False,verbose=verbose)
 
 
     def get_entity_name(self, p4info_helper: P4InfoHelper, entity: HandledEntityTypes) -> str:
@@ -311,7 +295,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             ret = ReadResponse()
             print('request:')
             print(request)
-            self.convert_read_request(self.from_p4info_helper,self.target_switch.p4info_helper,request)
+            self.convert_read_request(request)
             request.device_id = self.target_switch.device_id
             print('converted_request:')
             print(request)
@@ -321,7 +305,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 for entity in result.entities:
                     entity_name = self.get_entity_name(self.target_switch.p4info_helper,entity)
                     if get_pure_table_name(entity_name).startswith(self.prefix):
-                        self.convert_entity(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
+                        self.convert_entity(entity, reverse=True)
                         ret_entity = ret.entities.add()
                         ret_entity.CopyFrom(entity)
 
@@ -405,12 +389,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for direct_meter in self.from_p4info_helper.p4info.direct_meters:
             entity = request.entities.add()
             entity.direct_meter_entry.table_entry.table_id = direct_meter.direct_table_id
-            self.convert_entity(self.from_p4info_helper, self.target_switch.p4info_helper, entity)
+            self.convert_entity(entity)
 
         for direct_counter in self.from_p4info_helper.p4info.direct_counters:
             entity = request.entities.add()
             entity.direct_counter_entry.table_entry.table_id = direct_counter.direct_table_id
-            self.convert_entity(self.from_p4info_helper, self.target_switch.p4info_helper, entity)
+            self.convert_entity(entity)
 
         entity = request.entities.add()
         entity.counter_entry.counter_id = 0
@@ -425,7 +409,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     entity_name = self.get_entity_name(self.target_switch.p4info_helper,entity)
                     if get_pure_table_name(entity_name).startswith(self.prefix):
                         print(entity)
-                        self.convert_entity(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
+                        self.convert_entity(entity, reverse=True)
                         pipe.rpush(self.redis_keys.COUNTER_METER_ENTRIES, MessageToJson(entity))
 
             pipe.execute()
