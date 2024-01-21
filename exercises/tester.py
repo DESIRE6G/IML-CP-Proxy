@@ -372,11 +372,17 @@ def close_everything_and_save_logs():
     tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
 
 
+def assert_folder_existence(path: str) -> None:
+    if not os.path.isdir(path):
+        raise Exception(f'Cannot find a "{path}" folder')
+
 def process_cmdline_testcase_name(cmdline_input: str):
     splitted_testcase = cmdline_input.split('/')
 
     if len(splitted_testcase) > 1 and splitted_testcase[1].strip() == '*':
         ret = []
+
+        assert_folder_existence(f'testcases/{splitted_testcase[0]}')
 
         for test_case in test_cases:
             if test_case['name'] == splitted_testcase[0]:
@@ -384,10 +390,18 @@ def process_cmdline_testcase_name(cmdline_input: str):
 
         return ret
     else:
-        return [{
+        ret = [{
             'name': splitted_testcase[0],
             'subtest': splitted_testcase[1] if len(splitted_testcase) > 1 else None
         }]
+
+        if len(splitted_testcase) == 1:
+            assert_folder_existence(f'testcases/{splitted_testcase[0]}')
+
+        if len(splitted_testcase) > 1:
+            assert_folder_existence(f'testcases/{splitted_testcase[0]}/{splitted_testcase[1]}')
+
+        return ret
 
 
 def sigint_handler(signum, frame):
