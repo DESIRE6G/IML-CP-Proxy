@@ -1,0 +1,130 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "fwd_with_counting_aggregated",
+        "port": 50051,
+        "device_id": 0,
+        "reset_dataplane": false
+      },
+      "sources": [
+        {
+          "program_name": "fwd_with_counting",
+          "prefix": "NF1_",
+          "controller_port": 60051
+        },
+        {
+          "program_name": "fwd_with_counting2",
+          "prefix": "NF2_",
+          "controller_port": 60052
+        }
+      ],
+      "preload_entries": [
+        {
+          "type": "counter",
+          "parameters": {
+            "counter_name": "MyIngress.NF1_packetCounter",
+            "index": 0,
+            "packet_count": 100000,
+            "byte_count": 9800000
+          }
+        },
+        {
+          "type": "counter",
+          "parameters": {
+            "counter_name": "MyIngress.NF2_packetCounter",
+            "index": 0,
+            "packet_count": 200000,
+            "byte_count": 19600000
+          }
+        },
+        {
+          "type": "counter",
+          "parameters": {
+            "counter_name": "MyIngress.NF2_packetCounter",
+            "index": 1,
+            "packet_count": 200000,
+            "byte_count": 19600000
+          }
+        },
+        {
+          "type": "counter",
+          "parameters": {
+            "counter_name": "MyIngress.NF2_packetCounter",
+            "index": 2,
+            "packet_count": 200000,
+            "byte_count": 19600000
+          }
+        },
+        {
+          "type": "table",
+          "parameters": {
+            "table_name":"MyIngress.NF1_ipv4_lpm",
+            "match_fields":{
+              "hdr.ipv4.dstAddr": ["10.0.1.1", 32]
+            },
+            "action_name":"MyIngress.NF1_ipv4_forward",
+            "action_params": {
+              "dstAddr": "08:00:00:00:01:11",
+              "port": 1
+            }
+          }
+        },
+        {
+          "type": "table",
+          "parameters": {
+            "table_name":"MyIngress.NF2_ipv4_lpm",
+            "match_fields":{
+              "hdr.ipv4.dstAddr": ["10.0.1.1", 32]
+            },
+            "action_name":"MyIngress.NF2_ipv4_forward",
+            "action_params": {
+              "dstAddr": "08:00:00:00:01:11",
+              "port": 1
+            }
+          }
+        },
+        {
+          "type": "table",
+          "parameters": {
+            "table_name":"MyIngress.NF1_ipv4_lpm",
+            "match_fields":{
+              "hdr.ipv4.dstAddr": ["10.0.2.2", 32]
+            },
+            "action_name":"MyIngress.NF1_ipv4_forward",
+            "action_params": {
+              "dstAddr": "08:00:00:00:02:22",
+              "port": 2
+            }
+          }
+        },
+        {
+          "type": "table",
+          "parameters": {
+            "table_name":"MyIngress.NF2_ipv4_lpm",
+            "match_fields":{
+              "hdr.ipv4.dstAddr": ["10.0.2.2", 32]
+            },
+            "action_name":"MyIngress.NF2_ipv4_forward",
+            "action_params": {
+              "dstAddr": "08:00:00:00:02:22",
+              "port": 2
+            }
+          }
+        },
+        {
+          "type": "direct_counter",
+          "parameters": {
+            "table_name": "MyIngress.NF1_ipv4_lpm",
+            "match_fields": {
+              "hdr.ipv4.dstAddr": ["10.0.1.1", 32]
+            },
+            "packet_count": 4000,
+            "byte_count": 20000
+          }
+        }
+      ]
+    }
+  ]
+}

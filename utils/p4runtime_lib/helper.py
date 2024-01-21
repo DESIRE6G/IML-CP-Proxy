@@ -210,6 +210,24 @@ class P4InfoHelper(object):
         counter_entry.data.packet_count = packet_count
         return counter_entry
 
+    def buildDirectCounterEntry(self,
+                          table_name,
+                          match_fields,
+                          packet_count,
+                          byte_count):
+
+        direct_counter_entry = p4runtime_pb2.DirectCounterEntry()
+        direct_counter_entry.table_entry.table_id = self.get_tables_id(table_name)
+        table_entry = direct_counter_entry.table_entry
+        if match_fields:
+            table_entry.match.extend([
+                self.get_match_field_pb(table_name, match_field_name, value)
+                for match_field_name, value in match_fields.items()
+            ])
+        direct_counter_entry.data.byte_count = byte_count
+        direct_counter_entry.data.packet_count = packet_count
+        return direct_counter_entry
+
     def buildMeterConfigEntry(self,
                               meter_name,
                               cir,

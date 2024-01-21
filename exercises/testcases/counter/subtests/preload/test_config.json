@@ -1,0 +1,5 @@
+{
+  "load_redis_json": false,
+  "start_controller": false,
+  "run_validator": true
+}
