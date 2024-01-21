@@ -441,9 +441,25 @@ def build_up_p4_cache():
             print(f'{COLOR_RED_BG}Build failed{COLOR_END}')
             sys.exit()
 
+
+def print_all_missing_test_folders_in_test_case_list():
+    for folder in (f.path for f in os.scandir('testcases') if f.is_dir()):
+        test_name = folder.split(os.sep)[1]
+        if not any(x for x in test_cases if x['name'] == test_name):
+            print(f'{COLOR_YELLOW_BG}{test_name} is missing from test list{COLOR_END}')
+
+        subtest_folder_path = f'{folder}{os.sep}subtests'
+        if os.path.isdir(subtest_folder_path):
+            for subtest_folder in (f.path for f in os.scandir(subtest_folder_path) if f.is_dir()):
+                subtest_name = subtest_folder.split(os.sep)[-1]
+                if not any(x for x in test_cases if x['name'] == test_name and x['subtest'] == subtest_name):
+                    print(f'{COLOR_YELLOW_BG}{test_name}/{subtest_name} is missing from test list{COLOR_END}')
+
+
 if len(sys.argv) == 1:
     build_up_p4_cache()
     run_test_cases(test_cases)
+    print_all_missing_test_folders_in_test_case_list()
 else:
     if sys.argv[1] == 'help':
         print('python tester.py - run all the test cases')
