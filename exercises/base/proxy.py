@@ -116,7 +116,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def stop(self) -> None:
         self.worker_thread.stop()
-        self.save_counters_and_meters_to_redis()
+        if RedisMode.is_writing(self.redis_mode):
+            self.save_counters_and_meters_to_redis()
 
 
     def Write(self, request, context, from_p4info_helper = None, save_to_redis: bool = True) -> None:
