@@ -29,7 +29,7 @@
         ]
     },
     {
-        "key": "NF2_ENTRIES",
+        "key": "NF2_COUNTER_METER_ENTRIES",
         "list": [
             "{\n  \"counterEntry\": {\n    \"counterId\": 318616944,\n    \"index\": {},\n    \"data\": {\n      \"byteCount\": \"1568\",\n      \"packetCount\": \"16\"\n    }\n  }\n}",
             "{\n  \"counterEntry\": {\n    \"counterId\": 318616944,\n    \"index\": {\n      \"index\": \"1\"\n    },\n    \"data\": {\n      \"byteCount\": \"784\",\n      \"packetCount\": \"8\"\n    }\n  }\n}",
@@ -45,7 +45,7 @@
         ]
     },
     {
-        "key": "NF1_ENTRIES",
+        "key": "NF1_COUNTER_METER_ENTRIES",
         "list": [
             "{\n  \"directCounterEntry\": {\n    \"tableEntry\": {\n      \"tableId\": 37375156,\n      \"match\": [\n        {\n          \"fieldId\": 1,\n          \"lpm\": {\n            \"value\": \"CgABAQ==\",\n            \"prefixLen\": 32\n          }\n        }\n      ]\n    },\n    \"data\": {\n      \"byteCount\": \"392\",\n      \"packetCount\": \"4\"\n    }\n  }\n}",
             "{\n  \"directCounterEntry\": {\n    \"tableEntry\": {\n      \"tableId\": 37375156,\n      \"match\": [\n        {\n          \"fieldId\": 1,\n          \"lpm\": {\n            \"value\": \"CgACAg==\",\n            \"prefixLen\": 32\n          }\n        }\n      ]\n    },\n    \"data\": {\n      \"byteCount\": \"392\",\n      \"packetCount\": \"4\"\n    }\n  }\n}",

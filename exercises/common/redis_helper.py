@@ -26,14 +26,14 @@ class RedisRecord:
 class RedisRecords:
     TABLE_ENTRIES: RedisRecord = RedisRecord(postfix='TABLE_ENTRIES', type=RedisFieldType.LIST)
     P4INFO: RedisRecord = RedisRecord(postfix='P4INFO', type=RedisFieldType.STRING)
-    ENTRIES: RedisRecord = RedisRecord(postfix='ENTRIES', type=RedisFieldType.LIST)
+    COUNTER_METER_ENTRIES: RedisRecord = RedisRecord(postfix='COUNTER_METER_ENTRIES', type=RedisFieldType.LIST)
     HEARTBEAT: RedisRecord = RedisRecord(postfix='HEARTBEAT', type=RedisFieldType.STRING)
 
 @dataclass
 class RedisKeys:
     TABLE_ENTRIES: str
     P4INFO: str
-    ENTRIES: str
+    COUNTER_METER_ENTRIES: str
     HEARTBEAT: str
 
 def json_equals(actual_value: str, expected_value: str, verbose_on_fail=False) -> bool:

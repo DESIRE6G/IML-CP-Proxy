@@ -102,7 +102,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.redis_keys = RedisKeys(
             TABLE_ENTRIES=f'{redis_prefix}{RedisRecords.TABLE_ENTRIES.postfix}',
             P4INFO= f'{redis_prefix}{RedisRecords.P4INFO.postfix}',
-            ENTRIES=f'{redis_prefix}{RedisRecords.ENTRIES.postfix}',
+            COUNTER_METER_ENTRIES=f'{redis_prefix}{RedisRecords.COUNTER_METER_ENTRIES.postfix}',
             HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}'
         )
 
@@ -378,7 +378,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             update.CopyFrom(parsed_update_object)
             self.Write(request, None, redis_p4info_helper, save_to_redis = False)
 
-        for protobuf_message_json_object in redis.lrange(self.redis_keys.ENTRIES,0,-1):
+        for protobuf_message_json_object in redis.lrange(self.redis_keys.COUNTER_METER_ENTRIES, 0, -1):
             entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
             print(entity)
 
@@ -392,7 +392,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def delete_redis_entries_for_this_service(self) -> None:
         redis.delete(self.redis_keys.TABLE_ENTRIES)
-        redis.delete(self.redis_keys.ENTRIES)
+        redis.delete(self.redis_keys.COUNTER_METER_ENTRIES)
         redis.delete(self.redis_keys.HEARTBEAT)
 
     def save_counters_and_meters_to_redis(self) -> None:
@@ -416,7 +416,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         entity.counter_entry.counter_id = 0
         with redis.pipeline() as pipe:
             pipe.multi()
-            pipe.delete(self.redis_keys.ENTRIES)
+            pipe.delete(self.redis_keys.COUNTER_METER_ENTRIES)
             print('-----------REQUEST')
             print(request)
             print('-----------REQUESTEND')
@@ -426,7 +426,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     if get_pure_table_name(entity_name).startswith(self.prefix):
                         print(entity)
                         self.convert_entity(self.target_switch.p4info_helper, self.from_p4info_helper, entity, reverse=True)
-                        pipe.rpush(self.redis_keys.ENTRIES, MessageToJson(entity))
+                        pipe.rpush(self.redis_keys.COUNTER_METER_ENTRIES, MessageToJson(entity))
 
             pipe.execute()
 

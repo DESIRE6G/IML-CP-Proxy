@@ -4,7 +4,7 @@
         "string": "pkg_info {\n  arch: \"v1model\"\n}\nmeters {\n  preamble {\n    id: 348122430\n    name: \"MyIngress.my_meter\"\n    alias: \"my_meter\"\n  }\n  spec {\n    unit: PACKETS\n  }\n  size: 1\n}\ntype_info {\n}\n"
     },
     {
-        "key": "NF1_ENTRIES",
+        "key": "NF1_COUNTER_METER_ENTRIES",
         "list": [
             "{\n  \"meterEntry\": {\n    \"meterId\": 348122430,\n    \"index\": {},\n    \"config\": {\n      \"cburst\": \"1\",\n      \"pir\": \"2\",\n      \"pburst\": \"200\"\n    }\n  }\n}"
         ]

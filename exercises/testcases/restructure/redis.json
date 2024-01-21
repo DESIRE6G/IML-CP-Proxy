@@ -31,19 +31,19 @@
         ]
     },
     {
-        "key": "part1_ENTRIES",
+        "key": "part1_COUNTER_METER_ENTRIES",
         "list": [
             "{\n  \"counterEntry\": {\n    \"counterId\": 318335637,\n    \"index\": {},\n    \"data\": {\n      \"byteCount\": \"170\",\n      \"packetCount\": \"10\"\n    }\n  }\n}"
         ]
     },
     {
-        "key": "part2_ENTRIES",
+        "key": "part2_COUNTER_METER_ENTRIES",
         "list": [
             "{\n  \"counterEntry\": {\n    \"counterId\": 310693832,\n    \"index\": {},\n    \"data\": {\n      \"byteCount\": \"340\",\n      \"packetCount\": \"20\"\n    }\n  }\n}"
         ]
     },
     {
-        "key": "part3_ENTRIES",
+        "key": "part3_COUNTER_METER_ENTRIES",
         "list": [
             "{\n  \"counterEntry\": {\n    \"counterId\": 306473799,\n    \"index\": {},\n    \"data\": {\n      \"byteCount\": \"510\",\n      \"packetCount\": \"30\"\n    }\n  }\n}"
         ]
