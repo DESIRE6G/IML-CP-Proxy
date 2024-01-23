@@ -1,4 +1,8 @@
 {
   "load_redis_json": true,
-  "start_controller": false
+  "start_controller": false,
+  "file_overrides": {
+    "topology.json": "topology_all.json",
+    "proxy_config.json": "proxy_config_all_with_redis_read.json"
+  }
 }

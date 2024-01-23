@@ -1,3 +1,7 @@
 {
-  "load_redis_json": true
+  "load_redis_json": true,
+  "file_overrides": {
+    "topology.json": "topology_all.json",
+    "proxy_config.json": "proxy_config_all_with_redis_read.json"
+  }
 }

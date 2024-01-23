@@ -109,15 +109,22 @@ def clear_folder(folder_path):
         else:
             shutil.rmtree(entry.path, ignore_errors = True)
 
+
+def link_file_with_override(source_path, target_path):
+    if os.path.isfile(target_path) or os.path.islink(target_path):
+        os.unlink(target_path)
+    else:
+        shutil.rmtree(target_path, ignore_errors=True)
+    os.link(source_path, target_path)
+
+
 def link_all_files_from_folder(from_path, to_path):
     for entry in os.scandir(from_path):
         target_path = f'{to_path}/{os.path.basename(entry.path)}'
-        if os.path.isfile(target_path) or os.path.islink(target_path):
-            os.unlink(target_path)
-        else:
-            shutil.rmtree(target_path, ignore_errors=True)
+        source_path = entry.path
+        link_file_with_override(source_path, target_path)
 
-        os.link(f'{entry.path}', f'{target_path}')
+
 
 
 def assert_folder_existence(path):
@@ -156,6 +163,11 @@ def prepare_test_folder(test_case, subtest=None):
         subtest_folder_path = f'{TESTCASE_FOLDER}/{test_case}/subtests/{subtest}'
         assert_folder_existence(subtest_folder_path)
         link_all_files_from_folder(subtest_folder_path, TARGET_TEST_FOLDER)
+
+    config = Config(f'{TARGET_TEST_FOLDER}/test_config.json', ignore_missing_file=True)
+    for override_target, override_source in config.get('file_overrides', {}).items():
+        link_file_with_override(f'{TESTCASE_FOLDER}/{test_case}/{override_source}', f'{TARGET_TEST_FOLDER}/{override_target}')
+
 
 
 def prepare_enviroment():
