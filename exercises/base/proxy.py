@@ -103,7 +103,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.redis_keys = RedisKeys(
             TABLE_ENTRIES=f'{redis_prefix}{RedisRecords.TABLE_ENTRIES.postfix}',
             P4INFO= f'{redis_prefix}{RedisRecords.P4INFO.postfix}',
-            COUNTER_METER_ENTRIES=f'{redis_prefix}{RedisRecords.COUNTER_METER_ENTRIES.postfix}',
+            COUNTER_ENTRIES=f'{redis_prefix}{RedisRecords.COUNTER_ENTRIES.postfix}',
             METER_ENTRIES=f'{redis_prefix}{RedisRecords.METER_ENTRIES.postfix}',
             HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}'
         )
@@ -370,30 +370,30 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for protobuf_message_json_object in redis.lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
             parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
             print(parsed_update_object)
-            request = p4runtime_pb2.WriteRequest()
-            request.device_id = self.target_switch.device_id
-            request.election_id.low = 1
-            update = request.updates.add()
-            update.CopyFrom(parsed_update_object)
-            self.Write(request, None, redis_p4info_helper, save_to_redis = False)
+            self._write_update_object(parsed_update_object, redis_p4info_helper)
 
-        for protobuf_message_json_object in itertools.chain(redis.lrange(self.redis_keys.COUNTER_METER_ENTRIES, 0, -1),
+        for protobuf_message_json_object in itertools.chain(redis.lrange(self.redis_keys.COUNTER_ENTRIES, 0, -1),
                                                             redis.lrange(self.redis_keys.METER_ENTRIES, 0, -1),
                                                             ):
             entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
             print(entity)
 
-            request = p4runtime_pb2.WriteRequest()
-            request.device_id = self.target_switch.device_id
-            request.election_id.low = 1
-            update = request.updates.add()
+            update = p4runtime_pb2.Update()
             update.type = p4runtime_pb2.Update.MODIFY
             update.entity.CopyFrom(entity)
-            self.Write(request, None, redis_p4info_helper, save_to_redis = False)
+            self._write_update_object(update, redis_p4info_helper)
+
+    def _write_update_object(self, update_object, from_p4info_helper):
+        request = p4runtime_pb2.WriteRequest()
+        request.device_id = self.target_switch.device_id
+        request.election_id.low = 1
+        update = request.updates.add()
+        update.CopyFrom(update_object)
+        self.Write(request, None, from_p4info_helper, save_to_redis=False)
 
     def delete_redis_entries_for_this_service(self) -> None:
         redis.delete(self.redis_keys.TABLE_ENTRIES)
-        redis.delete(self.redis_keys.COUNTER_METER_ENTRIES)
+        redis.delete(self.redis_keys.COUNTER_ENTRIES)
         redis.delete(self.redis_keys.HEARTBEAT)
 
     def save_counters_state_to_redis(self) -> None:
@@ -409,7 +409,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         entity.counter_entry.counter_id = 0
         with redis.pipeline() as pipe:
             pipe.multi()
-            pipe.delete(self.redis_keys.COUNTER_METER_ENTRIES)
+            pipe.delete(self.redis_keys.COUNTER_ENTRIES)
             print('-----------REQUEST')
             print(request)
             print('-----------REQUESTEND')
@@ -419,7 +419,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     if get_pure_table_name(entity_name).startswith(self.prefix):
                         print(entity)
                         self.convert_entity(entity, reverse=True)
-                        pipe.rpush(self.redis_keys.COUNTER_METER_ENTRIES, MessageToJson(entity))
+                        pipe.rpush(self.redis_keys.COUNTER_ENTRIES, MessageToJson(entity))
 
             pipe.execute()
 

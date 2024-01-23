@@ -26,7 +26,7 @@ class RedisRecord:
 class RedisRecords:
     TABLE_ENTRIES: RedisRecord = RedisRecord(postfix='TABLE_ENTRIES', type=RedisFieldType.LIST)
     P4INFO: RedisRecord = RedisRecord(postfix='P4INFO', type=RedisFieldType.STRING)
-    COUNTER_METER_ENTRIES: RedisRecord = RedisRecord(postfix='COUNTER_METER_ENTRIES', type=RedisFieldType.LIST)
+    COUNTER_ENTRIES: RedisRecord = RedisRecord(postfix='COUNTER_ENTRIES', type=RedisFieldType.LIST)
     METER_ENTRIES: RedisRecord = RedisRecord(postfix='METER_ENTRIES', type=RedisFieldType.LIST)
     HEARTBEAT: RedisRecord = RedisRecord(postfix='HEARTBEAT', type=RedisFieldType.STRING)
 
@@ -34,7 +34,7 @@ class RedisRecords:
 class RedisKeys:
     TABLE_ENTRIES: str
     P4INFO: str
-    COUNTER_METER_ENTRIES: str
+    COUNTER_ENTRIES: str
     METER_ENTRIES: str
     HEARTBEAT: str
 
