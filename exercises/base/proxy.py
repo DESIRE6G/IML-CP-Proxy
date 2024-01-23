@@ -1,3 +1,4 @@
+import itertools
 import json
 import logging
 import os.path
@@ -76,7 +77,7 @@ class ProxyP4ServicerWorkerThread(Thread):
         while not self.stopped.wait(2):
             print(f'Heartbeat... {self.servicer.prefix}')
             if RedisMode.is_writing(self.servicer.redis_mode):
-                self.servicer.save_counters_and_meters_to_redis()
+                self.servicer.save_counters_state_to_redis()
 
     def stop(self) -> None:
         self.stopped.set()
@@ -103,6 +104,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             TABLE_ENTRIES=f'{redis_prefix}{RedisRecords.TABLE_ENTRIES.postfix}',
             P4INFO= f'{redis_prefix}{RedisRecords.P4INFO.postfix}',
             COUNTER_METER_ENTRIES=f'{redis_prefix}{RedisRecords.COUNTER_METER_ENTRIES.postfix}',
+            METER_ENTRIES=f'{redis_prefix}{RedisRecords.METER_ENTRIES.postfix}',
             HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}'
         )
 
@@ -117,7 +119,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def stop(self) -> None:
         self.worker_thread.stop()
         if RedisMode.is_writing(self.redis_mode):
-            self.save_counters_and_meters_to_redis()
+            self.save_counters_state_to_redis()
 
 
     def Write(self, request, context, from_p4info_helper: P4InfoHelper = None, save_to_redis: bool = True) -> None:
@@ -127,9 +129,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for update in request.updates:
             if update.type == Update.INSERT or update.type == Update.MODIFY or update.type == Update.DELETE:
                 entity = update.entity
-                if entity.WhichOneof('entity') == 'table_entry':
-                    if save_to_redis and RedisMode.is_writing(self.redis_mode):
+                which_one = entity.WhichOneof('entity')
+                if save_to_redis and RedisMode.is_writing(self.redis_mode):
+                    if which_one == 'table_entry':
                         redis.rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(update))
+                    elif which_one == 'meter_entry' or which_one == 'direct_meter_entry':
+                        redis.rpush(self.redis_keys.METER_ENTRIES, MessageToJson(entity))
 
                 self.convert_entity(entity, from_p4info_helper=from_p4info_helper)
             else:
@@ -372,7 +377,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             update.CopyFrom(parsed_update_object)
             self.Write(request, None, redis_p4info_helper, save_to_redis = False)
 
-        for protobuf_message_json_object in redis.lrange(self.redis_keys.COUNTER_METER_ENTRIES, 0, -1):
+        for protobuf_message_json_object in itertools.chain(redis.lrange(self.redis_keys.COUNTER_METER_ENTRIES, 0, -1),
+                                                            redis.lrange(self.redis_keys.METER_ENTRIES, 0, -1),
+                                                            ):
             entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
             print(entity)
 
@@ -389,17 +396,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         redis.delete(self.redis_keys.COUNTER_METER_ENTRIES)
         redis.delete(self.redis_keys.HEARTBEAT)
 
-    def save_counters_and_meters_to_redis(self) -> None:
+    def save_counters_state_to_redis(self) -> None:
         request = p4runtime_pb2.ReadRequest()
         request.device_id = self.target_switch.connection.device_id
-        entity = request.entities.add()
-        entity.meter_entry.meter_id = 0
-
-        # BMV does not support table_id = 0 for direct meter and counter
-        for direct_meter in self.from_p4info_helper.p4info.direct_meters:
-            entity = request.entities.add()
-            entity.direct_meter_entry.table_entry.table_id = direct_meter.direct_table_id
-            self.convert_entity(entity)
 
         for direct_counter in self.from_p4info_helper.p4info.direct_counters:
             entity = request.entities.add()
