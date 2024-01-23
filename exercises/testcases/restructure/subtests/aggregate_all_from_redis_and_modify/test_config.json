@@ -2,6 +2,7 @@
   "load_redis_json": true,
   "file_overrides": {
     "topology.json": "topology_all.json",
-    "proxy_config.json": "proxy_config_all_with_redis_read.json"
+    "proxy_config.json": "proxy_config_all_with_redis_read.json",
+    "validator.py": "validator_for_counters.py"
   }
 }
