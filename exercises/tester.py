@@ -399,7 +399,7 @@ def process_cmdline_testcase_name(cmdline_input: str):
             assert_folder_existence(f'testcases/{splitted_testcase[0]}')
 
         if len(splitted_testcase) > 1:
-            assert_folder_existence(f'testcases/{splitted_testcase[0]}/{splitted_testcase[1]}')
+            assert_folder_existence(f'testcases/{splitted_testcase[0]}/subtests/{splitted_testcase[1]}')
 
         return ret
 
