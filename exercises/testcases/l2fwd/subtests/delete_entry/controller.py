@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-import grpc
 
-from common.controller_helper import create_experimental_model_forwards
+from common.controller_helper import create_experimental_model_forwards, ControllerExceptionHandling
 from common.high_level_switch_connection import HighLevelSwitchConnection
-from common.p4runtime_lib.error_utils import printGrpcError
-from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 
-def config_not_aggregated_controller():
+with ControllerExceptionHandling():
+    create_experimental_model_forwards()
     s3 = HighLevelSwitchConnection(2, 'basic_part1', '60053')
     s4 = HighLevelSwitchConnection(3, 'basic_part2', '60054')
 
@@ -48,16 +46,3 @@ def config_not_aggregated_controller():
         action_name="MyIngress.set_port",
         )
     s4.connection.WriteTableEntry(table_entry)
-
-
-if __name__ == '__main__':
-    try:
-        create_experimental_model_forwards()
-        config_not_aggregated_controller()
-    except KeyboardInterrupt:
-        print(" Shutting down.")
-    except grpc.RpcError as e:
-        printGrpcError(e)
-
-    ShutdownAllSwitchConnections()
-

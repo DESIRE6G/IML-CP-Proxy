@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from typing import List
 
+import grpc
+
 from common.high_level_switch_connection import HighLevelSwitchConnection
+from common.p4runtime_lib.error_utils import printGrpcError
 from common.p4runtime_lib.helper import P4InfoHelper
-from common.p4runtime_lib.switch import SwitchConnection
+from common.p4runtime_lib.switch import SwitchConnection, ShutdownAllSwitchConnections
 
 
 def dump_table_rules(p4info_helper: P4InfoHelper, sw: SwitchConnection) -> None:
@@ -143,3 +146,18 @@ def init_l2fwd_table_rules_for_both_directions(s1: HighLevelSwitchConnection, s2
     table_entry = s2.p4info_helper.buildTableEntry(table_name="MyIngress.ipv4_lpm", match_fields={"hdr.ipv4.dstAddr": ('10.0.2.2', 32)}, action_name="MyIngress.ipv4_forward", action_params={"dstAddr": '08:00:00:00:02:22', "port": 2})
     s1.connection.WriteTableEntry(table_entry)
     s2.connection.WriteTableEntry(table_entry)
+
+
+class ControllerExceptionHandling:
+    def __enter__(self):
+        pass
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        if isinstance(exc_value, KeyboardInterrupt):
+            print('KeyboardInterrupt occured, shutting down.')
+            ShutdownAllSwitchConnections()
+            return True
+        elif isinstance(exc_value, grpc.RpcError):
+            printGrpcError(exc_value)
+            ShutdownAllSwitchConnections()
+            raise Exception('GRPC Error occured')
