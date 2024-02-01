@@ -262,30 +262,27 @@ def run_test_cases(test_cases_to_run):
                 wait_for_output('^Proxy is ready', proxy_pane_name)
             except TimeoutError:
                 print(f'{COLOR_RED_BG}Proxy is failed to startup{COLOR_END}')
-                tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
-                with open(f'{TARGET_TEST_FOLDER}/logs/proxy.log') as log_f:
-                    print(f'{COLOR_RED_BG} --- Proxy output --- {COLOR_END}')
-                    print(log_f.read())
-                    print(f'{COLOR_RED_BG} --- Proxy output end --- {COLOR_END}')
-                    raise Exception('Proxy is failed to startup')
+                dump_proxy_output()
 
             # Start Controller
             if config.get('start_controller', default=True):
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
-                tmux_shell('./run_controller.sh', controller_pane_name)
-                wait_for_output(f'{TARGET_TEST_FOLDER}\$\s*$', controller_pane_name)
+                if config.get('ongoing_controller', False):
+                    tmux_shell('python3 controller.py', controller_pane_name)
+                    try:
+                        wait_for_output('^Controller is ready', controller_pane_name)
+                    except TimeoutError:
+                        dump_controller_output()
 
-                with open(f'{TARGET_TEST_FOLDER}/.controller_exit_code') as f:
-                    exit_code = f.read().strip()
-                    if exit_code != '0':
-                        print(f'{COLOR_RED_BG}Controller exited with non-zero code!{COLOR_END}')
-                        tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
-                        with open(f'{TARGET_TEST_FOLDER}/logs/controller.log') as log_f:
-                            print(f'{COLOR_RED_BG} --- Controller output --- {COLOR_END}')
-                            print(log_f.read())
-                            print(f'{COLOR_RED_BG} --- Controller output end --- {COLOR_END}')
-                            raise Exception('Controller exited with non-zero code')
+                else:
+                    tmux_shell('./run_controller.sh', controller_pane_name)
+                    wait_for_output(f'{TARGET_TEST_FOLDER}\$\s*$', controller_pane_name)
 
+                    with open(f'{TARGET_TEST_FOLDER}/.controller_exit_code') as f:
+                        exit_code = f.read().strip()
+                        if exit_code != '0':
+                            print(f'{COLOR_RED_BG}Controller exited with non-zero code!{COLOR_END}')
+                            dump_controller_output()
 
             if active_test_modes['ping']:
                 tmux_shell(f'h1 ping h2', mininet_pane_name)
@@ -367,6 +364,24 @@ def run_test_cases(test_cases_to_run):
         print(f'{COLOR_GREEN}----------------------------------')
         print('All tests were passed successfully')
         print(f'----------------------------------{COLOR_END}')
+
+
+def dump_proxy_output():
+    tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
+    with open(f'{TARGET_TEST_FOLDER}/logs/proxy.log') as log_f:
+        print(f'{COLOR_RED_BG} --- Proxy output --- {COLOR_END}')
+        print(log_f.read())
+        print(f'{COLOR_RED_BG} --- Proxy output end --- {COLOR_END}')
+        raise Exception('Proxy is failed to startup')
+
+
+def dump_controller_output():
+    tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
+    with open(f'{TARGET_TEST_FOLDER}/logs/controller.log') as log_f:
+        print(f'{COLOR_RED_BG} --- Controller output --- {COLOR_END}')
+        print(log_f.read())
+        print(f'{COLOR_RED_BG} --- Controller output end --- {COLOR_END}')
+        raise Exception('Controller exited with non-zero code')
 
 
 def close_everything_and_save_logs():
