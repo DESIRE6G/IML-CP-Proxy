@@ -79,7 +79,7 @@ def get_last_pane_row(pane_name: str) -> str:
 
 
 def wait_for_output_anywhere(regexp_to_wait_for: str, pane_name: str, try_interval=0.5, max_time=10):
-    wait_for_condition_blocking(lambda: re.search(regexp_to_wait_for, get_pane_output(pane_name)) is not None, try_interval, max_time)
+    wait_for_condition_blocking(lambda: re.search(regexp_to_wait_for, get_pane_output(pane_name)) is not None, f'Cannot find {regexp_to_wait_for} on {pane_name}', try_interval, max_time)
 
 def wait_for_output(regexp_to_wait_for: str, pane_name: str, try_interval=0.5, max_time=10) -> None:
     print(f'Waiting for {regexp_to_wait_for} on {pane_name}')
@@ -124,13 +124,9 @@ def link_all_files_from_folder(from_path, to_path):
         source_path = entry.path
         link_file_with_override(source_path, target_path)
 
-
-
-
-def assert_folder_existence(path):
-    if not os.path.exists(path):
-        raise Exception(f'{path} has to exist')
-
+def assert_folder_existence(path: str) -> None:
+    if not os.path.isdir(path):
+        raise Exception(f'Cannot find a "{path}" folder')
 
 def link_into_folder(path, dst_folder):
     os.link(f'{path}', f'{dst_folder}/{os.path.basename(path)}')
@@ -247,7 +243,8 @@ def run_test_cases(test_cases_to_run):
 
             active_test_modes = {
                 'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
-                'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py') and config.get('run_validator', default=True)
+                'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py') and config.get('run_validator', default=True),
+                'check_controller_exit_code': config.get('ongoing_controller', False)
             }
             active_test_modes['ping'] = not any([active_test_modes[test_mode] for test_mode in active_test_modes])
 
@@ -267,22 +264,16 @@ def run_test_cases(test_cases_to_run):
             # Start Controller
             if config.get('start_controller', default=True):
                 tmux_shell(f'cd {TARGET_TEST_FOLDER}', controller_pane_name)
+                tmux_shell('./run_controller.sh', controller_pane_name)
+
                 if config.get('ongoing_controller', False):
-                    tmux_shell('python3 controller.py', controller_pane_name)
                     try:
                         wait_for_output('^Controller is ready', controller_pane_name)
                     except TimeoutError:
                         dump_controller_output()
-
+                        raise
                 else:
-                    tmux_shell('./run_controller.sh', controller_pane_name)
-                    wait_for_output(f'{TARGET_TEST_FOLDER}\$\s*$', controller_pane_name)
-
-                    with open(f'{TARGET_TEST_FOLDER}/.controller_exit_code') as f:
-                        exit_code = f.read().strip()
-                        if exit_code != '0':
-                            print(f'{COLOR_RED_BG}Controller exited with non-zero code!{COLOR_END}')
-                            dump_controller_output()
+                    wait_and_assert_controller_exit_code()
 
             if active_test_modes['ping']:
                 tmux_shell(f'h1 ping h2', mininet_pane_name)
@@ -348,6 +339,10 @@ def run_test_cases(test_cases_to_run):
                 if exit_code != 0:
                     raise Exception(f'Validation failed')
 
+            if active_test_modes['check_controller_exit_code']:
+                wait_and_assert_controller_exit_code()
+
+
             test_case_printable_name = test_case
             if subtest is not None:
                 test_case_printable_name += f' / {subtest}'
@@ -366,6 +361,16 @@ def run_test_cases(test_cases_to_run):
         print(f'----------------------------------{COLOR_END}')
 
 
+def wait_and_assert_controller_exit_code():
+    wait_for_output(f'{TARGET_TEST_FOLDER}\$\s*$', controller_pane_name)
+    with open(f'{TARGET_TEST_FOLDER}/.controller_exit_code') as f:
+        exit_code = f.read().strip()
+        if exit_code != '0':
+            print(f'{COLOR_RED_BG}Controller exited with non-zero code!{COLOR_END}')
+            dump_controller_output()
+            raise Exception('Controller exited with non-zero code')
+
+
 def dump_proxy_output():
     tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
     with open(f'{TARGET_TEST_FOLDER}/logs/proxy.log') as log_f:
@@ -381,7 +386,6 @@ def dump_controller_output():
         print(f'{COLOR_RED_BG} --- Controller output --- {COLOR_END}')
         print(log_f.read())
         print(f'{COLOR_RED_BG} --- Controller output end --- {COLOR_END}')
-        raise Exception('Controller exited with non-zero code')
 
 
 def close_everything_and_save_logs():
@@ -399,9 +403,6 @@ def close_everything_and_save_logs():
     tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
 
 
-def assert_folder_existence(path: str) -> None:
-    if not os.path.isdir(path):
-        raise Exception(f'Cannot find a "{path}" folder')
 
 def process_cmdline_testcase_name(cmdline_input: str):
     splitted_testcase = cmdline_input.split('/')
