@@ -98,8 +98,12 @@ class ProxyP4ServicerStreamHandlerWorkerThread(Thread):
 
     def run(self) -> None:
         while not self.stopped.is_set():
-            for x in self.servicer.target_switch.connection.stream_msg_resp:
-                self.servicer.stream_queue_from_target.put(x)
+            try:
+                for x in self.servicer.target_switch.connection.stream_msg_resp:
+                    self.servicer.stream_queue_from_target.put(x)
+            except ValueError:
+                print('GRPC stream response failed to get, retrying in 1 sec.')
+                time.sleep(1)
 
     def stop(self) -> None:
         self.stopped.set()
