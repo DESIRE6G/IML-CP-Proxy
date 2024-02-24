@@ -21,11 +21,11 @@ class TestCase(TypedDict):
     subtest: Optional[str]
 
 test_cases : List[TestCase] = [
-    {'name': 'l2fwd','subtest': None},
-    {'name': 'l2fwd','subtest': 'load_from_redis'},
-    {'name': 'l2fwd','subtest': 'simple_forward'},
-    {'name': 'l2fwd','subtest': 'delete_entry'},
-    {'name': 'l2fwd','subtest': 'multiple_update'},
+    {'name': 'l3fwd','subtest': None},
+    {'name': 'l3fwd','subtest': 'load_from_redis'},
+    {'name': 'l3fwd','subtest': 'simple_forward'},
+    {'name': 'l3fwd','subtest': 'delete_entry'},
+    {'name': 'l3fwd','subtest': 'multiple_update'},
     {'name': 'counter','subtest': None},
     {'name': 'counter','subtest': 'load_from_redis'},
     {'name': 'counter','subtest': 'simple_forward'},
@@ -492,8 +492,8 @@ if len(sys.argv) == 1:
 else:
     if sys.argv[1] == 'help':
         print('python tester.py - run all the test cases')
-        print('python tester.py [testcase] - run one test case ([test_name] or [test_name]/[subtest] form, e.g. l2fwd/simple_forward)')
-        print('                              you can use wildcard for subtest to run all of the subtests for a test case e.g.: l2fwd/*')
+        print('python tester.py [testcase] - run one test case ([test_name] or [test_name]/[subtest] form, e.g. l3fwd/simple_forward)')
+        print('                              you can use wildcard for subtest to run all of the subtests for a test case e.g.: l3fwd/*')
         print('python tester.py build [testcase] - prepares the test folder with a testcase')
         print('python tester.py prepare - run the preparations for the actual content of the test folder (e.g. redis fill)')
         print('python tester.py release - create a release folder that contains all the necessary files to run the proxy without symlinks')
@@ -511,7 +511,7 @@ else:
     elif sys.argv[1] == 'release':
         clear_folder('release')
         shutil.copyfile('base/proxy.py', 'release/proxy.py')
-        shutil.copyfile('testcases/l2fwd/proxy_config.json', 'release/proxy_config.json')
+        shutil.copyfile('testcases/l3fwd/proxy_config.json', 'release/proxy_config.json')
         shutil.copytree('common','release/common')
     elif sys.argv[1] == 'saveredis':
         if len(sys.argv) < 3:
