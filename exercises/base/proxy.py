@@ -187,7 +187,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
            from_p4info_helper_inner = self.from_p4info_helper if from_p4info_helper is None else from_p4info_helper
            target_p4info_helper = self.target_switch.p4info_helper
         else:
-           from_p4info_helper_inner = self.target_switch.p4info_helper  if from_p4info_helper is None else from_p4info_helper
+           from_p4info_helper_inner = self.target_switch.p4info_helper if from_p4info_helper is None else from_p4info_helper
            target_p4info_helper = self.from_p4info_helper
         name = self.get_p4_name_from_id(from_p4info_helper_inner, id_type, original_id)
 
@@ -306,7 +306,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         elif which_one == 'digest_entry':
             self.convert_digest_entry(entity.digest_entry, reverse, verbose, from_p4info_helper)
         else:
-            raise Exception(f'Not implemented type for read "{which_one}"')
+            raise Exception(f'Not implemented type for convert_entity "{which_one}"')
 
     def convert_read_request(self,
                              request: p4runtime_pb2.ReadRequest,
@@ -328,7 +328,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         elif which_one == 'direct_meter_entry':
             return p4info_helper.get_tables_name(entity.direct_meter_entry.table_entry.table_id)
         else:
-            raise Exception(f'Not implemented type for read "{which_one}"')
+            raise Exception(f'Not implemented type for get_entity_name "{which_one}"')
 
     def Read(self, request: p4runtime_pb2.ReadRequest, context):
         """Read one or more P4 entities from the target.
