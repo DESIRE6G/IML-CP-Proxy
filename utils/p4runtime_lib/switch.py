@@ -53,11 +53,11 @@ class SwitchConnection(object):
         self.requests_stream.close()
         self.stream_msg_resp.cancel()
 
-    def MasterArbitrationUpdate(self, dry_run=False, **kwargs):
+    def MasterArbitrationUpdate(self, dry_run=False, election_id_low=1, **kwargs):
         request = p4runtime_pb2.StreamMessageRequest()
         request.arbitration.device_id = self.device_id
         request.arbitration.election_id.high = 0
-        request.arbitration.election_id.low = 1
+        request.arbitration.election_id.low = election_id_low
 
         if dry_run:
             print("P4Runtime MasterArbitrationUpdate: ", request)

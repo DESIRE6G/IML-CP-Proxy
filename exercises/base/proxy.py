@@ -40,12 +40,19 @@ def prefix_p4_name(original_p4_name : str, prefix : str) -> str:
 
     return f'{namespace}.{prefix}{table_name}'
 
+class PrefixIsNotPresentException(Exception):
+    pass
+
+
 def remove_prefix_p4_name(prefixed_p4_name : str, prefix : str) -> str:
     if prefixed_p4_name in RESTRICTED_P4_NAMES:
         return prefixed_p4_name
 
     if prefixed_p4_name.startswith(prefix):
         return prefixed_p4_name[len(prefix):]
+
+    if '.' not in prefixed_p4_name:
+        raise PrefixIsNotPresentException()
 
     namespace,p4_name = prefixed_p4_name.split('.')
     if p4_name.startswith(prefix):
@@ -54,10 +61,10 @@ def remove_prefix_p4_name(prefixed_p4_name : str, prefix : str) -> str:
         raise Exception(f'Cannot find prefix "{prefix}" at the begining of the table name "{p4_name}"')
 
 
-def get_pure_table_name(original_table_name : str) -> str:
-    namespace,table_name = original_table_name.split('.')
+def get_pure_p4_name(original_table_name : str) -> str:
+    namespace,p4_name = original_table_name.split('.')
 
-    return f'{table_name}'
+    return f'{p4_name}'
 
 
 class RedisMode(Enum):
@@ -90,23 +97,6 @@ class ProxyP4ServicerHeartbeatWorkerThread(Thread):
         self.stopped.set()
 
 
-class ProxyP4ServicerStreamHandlerWorkerThread(Thread):
-    def __init__(self, servicer) -> None:
-        Thread.__init__(self)
-        self.stopped = Event()
-        self.servicer = servicer
-
-    def run(self) -> None:
-        while not self.stopped.is_set():
-            try:
-                for x in self.servicer.target_switch.connection.stream_msg_resp:
-                    self.servicer.stream_queue_from_target.put(x)
-            except ValueError:
-                print('GRPC stream response failed to get, retrying in 1 sec.')
-                time.sleep(1)
-
-    def stop(self) -> None:
-        self.stopped.set()
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, prefix, from_p4info_path, target_switch: HighLevelSwitchConnection, redis_mode: RedisMode):
@@ -133,18 +123,14 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.heartbeat_worker_thread = ProxyP4ServicerHeartbeatWorkerThread(self)
         self.heartbeat_worker_thread.start()
 
-        self.stream_handler_worker_thread = ProxyP4ServicerStreamHandlerWorkerThread(self)
-        self.stream_handler_worker_thread.start()
 
-        #self.stream_handler_worker_thread = None
         self.stream_queue_from_target = queue.Queue()
+        self.target_switch.subscribe_to_stream_with_queue(self.stream_queue_from_target)
         self.running = True
 
     def stop(self) -> None:
         self.running = False
         self.heartbeat_worker_thread.stop()
-        if self.stream_handler_worker_thread is not None:
-            self.stream_handler_worker_thread.stop()
         if RedisMode.is_writing(self.redis_mode):
             self.save_counters_state_to_redis()
 
@@ -173,21 +159,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.target_switch.connection.client_stub.Write(request)
         return WriteResponse()
 
-
-
-    def convert_id(self,
-                   id_type:str,
-                   original_id: int,
-                   reverse = False,
-                   verbose=True,
-                   from_p4info_helper: P4InfoHelper=None) -> int:
-
-        if not reverse:
-           from_p4info_helper_inner = self.from_p4info_helper if from_p4info_helper is None else from_p4info_helper
-           target_p4info_helper = self.target_switch.p4info_helper
-        else:
-           from_p4info_helper_inner = self.target_switch.p4info_helper  if from_p4info_helper is None else from_p4info_helper
-           target_p4info_helper = self.from_p4info_helper
+    def get_p4_name_from_id(self, from_p4info_helper_inner: P4InfoHelper, id_type: str, original_id: int) -> str:
         if id_type == 'table':
             name = from_p4info_helper_inner.get_tables_name(original_id)
         elif id_type == 'meter':
@@ -202,6 +174,22 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             name = from_p4info_helper_inner.get_digests_name(original_id)
         else:
             raise Exception(f'convert_id cannot handle "{id_type}" id_type')
+        return name
+
+    def convert_id(self,
+                   id_type:str,
+                   original_id: int,
+                   reverse = False,
+                   verbose=True,
+                   from_p4info_helper: P4InfoHelper=None) -> int:
+
+        if not reverse:
+           from_p4info_helper_inner = self.from_p4info_helper if from_p4info_helper is None else from_p4info_helper
+           target_p4info_helper = self.target_switch.p4info_helper
+        else:
+           from_p4info_helper_inner = self.target_switch.p4info_helper  if from_p4info_helper is None else from_p4info_helper
+           target_p4info_helper = self.from_p4info_helper
+        name = self.get_p4_name_from_id(from_p4info_helper_inner, id_type, original_id)
 
         if verbose:
             print(f'name={name}')
@@ -226,7 +214,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             return target_p4info_helper.get_digests_id(new_name)
         else:
             raise Exception(f'convert_id cannot handle "{id_type}" id_type')
-
 
 
     def convert_table_entry(self,
@@ -360,7 +347,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 print(result)
                 for entity in result.entities:
                     entity_name = self.get_entity_name(self.target_switch.p4info_helper,entity)
-                    if get_pure_table_name(entity_name).startswith(self.prefix):
+                    if get_pure_p4_name(entity_name).startswith(self.prefix):
                         self.convert_entity(entity, reverse=True)
                         ret_entity = ret.entities.add()
                         ret_entity.CopyFrom(entity)
@@ -412,8 +399,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
                 while self.running:
                     stream_response = self.stream_queue_from_target.get()
-                    self.convert_stream_response(stream_response)
-                    yield stream_response
+
+                    print('Arrived stream_response_from target')
+                    print(stream_response)
+                    which_one = stream_response.WhichOneof('update')
+                    if which_one == 'digest':
+                        name = self.get_p4_name_from_id(self.target_switch.p4info_helper, 'digest', stream_response.digest.digest_id)
+                        if name.startswith(self.prefix):
+                            self.convert_stream_response(stream_response)
+                            yield stream_response
+                    else:
+                        raise Exception('Only handling digest messages from the dataplane')
             else:
                 raise Exception(f'Unhandled Stream field type {request.WhichOneof}')
 
@@ -483,7 +479,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             for response in self.target_switch.connection.client_stub.Read(request):
                 for entity in response.entities:
                     entity_name = self.get_entity_name(self.target_switch.p4info_helper,entity)
-                    if get_pure_table_name(entity_name).startswith(self.prefix):
+                    if get_pure_p4_name(entity_name).startswith(self.prefix):
                         print(entity)
                         self.convert_entity(entity, reverse=True)
                         pipe.rpush(self.redis_keys.COUNTER_ENTRIES, MessageToJson(entity))
@@ -492,7 +488,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         print(self.redis_keys.HEARTBEAT, time.time())
         redis.set(self.redis_keys.HEARTBEAT, time.time())
-
 
 
 class ProxyServer:

@@ -3,7 +3,8 @@
   "mappings": [
     {
       "target": {
-        "program_name": "mac-learn-aggregated",
+        "reset_dataplane": false,
+        "program_name": "mac-and-state-learn-aggregated",
         "port": 50051,
         "device_id": 0
       },
@@ -12,6 +13,11 @@
           "program_name": "mac-learn",
           "prefix": "NF1_",
           "controller_port": 60051
+        },
+        {
+          "program_name": "state-learn",
+          "prefix": "NF2_",
+          "controller_port": 60052
         }
       ]
     }
