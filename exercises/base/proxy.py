@@ -16,6 +16,8 @@ from p4.v1 import p4runtime_pb2
 from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, Update, WriteResponse, ReadResponse
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 from google.protobuf.json_format import MessageToJson, Parse
+
+from common.p4_name_id_helper import P4NameIdHelper
 from common.p4runtime_lib.helper import P4InfoHelper
 import redis
 
@@ -159,22 +161,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.target_switch.connection.client_stub.Write(request)
         return WriteResponse()
 
-    def get_p4_name_from_id(self, from_p4info_helper_inner: P4InfoHelper, id_type: str, original_id: int) -> str:
-        if id_type == 'table':
-            name = from_p4info_helper_inner.get_tables_name(original_id)
-        elif id_type == 'meter':
-            name = from_p4info_helper_inner.get_meters_name(original_id)
-        elif id_type == 'action':
-            name = from_p4info_helper_inner.get_actions_name(original_id)
-        elif id_type == 'counter':
-            name = from_p4info_helper_inner.get_counters_name(original_id)
-        elif id_type == 'register':
-            name = from_p4info_helper_inner.get_registers_name(original_id)
-        elif id_type == 'digest':
-            name = from_p4info_helper_inner.get_digests_name(original_id)
-        else:
-            raise Exception(f'convert_id cannot handle "{id_type}" id_type')
-        return name
+
 
     def convert_id(self,
                    id_type:str,
@@ -189,7 +176,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         else:
            from_p4info_helper_inner = self.target_switch.p4info_helper if from_p4info_helper is None else from_p4info_helper
            target_p4info_helper = self.from_p4info_helper
-        name = self.get_p4_name_from_id(from_p4info_helper_inner, id_type, original_id)
+        name = P4NameIdHelper.get_p4_name_from_id(from_p4info_helper_inner, id_type, original_id)
 
         if verbose:
             print(f'name={name}')
@@ -315,21 +302,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             self.convert_entity(entity, reverse=False,verbose=verbose)
 
 
-    def get_entity_name(self, p4info_helper: P4InfoHelper, entity: p4runtime_pb2.Entity) -> str:
-        which_one = entity.WhichOneof('entity')
-        if which_one == 'table_entry':
-            return p4info_helper.get_tables_name(entity.table_entry.table_id)
-        elif which_one == 'counter_entry':
-            return p4info_helper.get_counters_name(entity.counter_entry.counter_id)
-        elif which_one == 'direct_counter_entry':
-            return p4info_helper.get_tables_name(entity.direct_counter_entry.table_entry.table_id)
-        elif which_one == 'meter_entry':
-            return p4info_helper.get_meters_name(entity.meter_entry.meter_id)
-        elif which_one == 'direct_meter_entry':
-            return p4info_helper.get_tables_name(entity.direct_meter_entry.table_entry.table_id)
-        else:
-            raise Exception(f'Not implemented type for get_entity_name "{which_one}"')
-
     def Read(self, request: p4runtime_pb2.ReadRequest, context):
         """Read one or more P4 entities from the target.
         """
@@ -346,7 +318,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 print('result:')
                 print(result)
                 for entity in result.entities:
-                    entity_name = self.get_entity_name(self.target_switch.p4info_helper,entity)
+                    entity_name = P4NameIdHelper.get_entity_name(self.target_switch.p4info_helper,entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
                         self.convert_entity(entity, reverse=True)
                         ret_entity = ret.entities.add()
@@ -404,7 +376,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     print(stream_response)
                     which_one = stream_response.WhichOneof('update')
                     if which_one == 'digest':
-                        name = self.get_p4_name_from_id(self.target_switch.p4info_helper, 'digest', stream_response.digest.digest_id)
+                        name = P4NameIdHelper.get_p4_name_from_id(self.target_switch.p4info_helper, 'digest', stream_response.digest.digest_id)
                         if name.startswith(self.prefix):
                             self.convert_stream_response(stream_response)
                             yield stream_response
@@ -478,7 +450,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print('-----------REQUESTEND')
             for response in self.target_switch.connection.client_stub.Read(request):
                 for entity in response.entities:
-                    entity_name = self.get_entity_name(self.target_switch.p4info_helper,entity)
+                    entity_name = P4NameIdHelper.get_entity_name(self.target_switch.p4info_helper,entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
                         print(entity)
                         self.convert_entity(entity, reverse=True)
