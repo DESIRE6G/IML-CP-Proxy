@@ -8,7 +8,7 @@ import signal
 import sys
 import time
 import subprocess
-from typing import TypedDict, List, Optional
+from typing import TypedDict, List, Optional, Any
 import redis
 
 from common.colors import COLOR_YELLOW, COLOR_GREEN, COLOR_ORANGE, COLOR_CYAN, COLOR_END, COLOR_RED_BG, COLOR_YELLOW_BG
@@ -53,11 +53,11 @@ TESTCASE_FOLDER = 'testcases'
 TMUX_WINDOW_NAME = 'proxy_tester'
 necessary_files = ['*.p4', '*.py', '*.json', '*.pcap', 'Makefile']
 
-def tmux(command):
+def tmux(command: str) -> int:
     print(f'{COLOR_YELLOW}COMMAND{COLOR_END}: {command}')
     return subprocess.call(f'tmux {command}', shell=True)
 
-def tmux_shell(command, pane_name = None, wait_command_appear=False):
+def tmux_shell(command: str, pane_name: str=None, wait_command_appear:bool=False) -> int:
     cmd = f'send-keys'
     if pane_name is not None:
        cmd += f' -t {pane_name}'
@@ -101,7 +101,7 @@ controller_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
 
 
-def clear_folder(folder_path):
+def clear_folder(folder_path: str) -> None:
     os.makedirs(folder_path, exist_ok=True)
 
     for entry in os.scandir(folder_path):
@@ -111,7 +111,7 @@ def clear_folder(folder_path):
             shutil.rmtree(entry.path, ignore_errors = True)
 
 
-def link_file_with_override(source_path, target_path):
+def link_file_with_override(source_path: str, target_path: str):
     if os.path.isfile(target_path) or os.path.islink(target_path):
         os.unlink(target_path)
     else:
@@ -119,7 +119,7 @@ def link_file_with_override(source_path, target_path):
     os.link(source_path, target_path)
 
 
-def link_all_files_from_folder(from_path, to_path):
+def link_all_files_from_folder(from_path: str, to_path: str) -> None:
     for entry in os.scandir(from_path):
         target_path = f'{to_path}/{os.path.basename(entry.path)}'
         source_path = entry.path
@@ -129,17 +129,17 @@ def assert_folder_existence(path: str) -> None:
     if not os.path.isdir(path):
         raise Exception(f'Cannot find a "{path}" folder')
 
-def link_into_folder(path, dst_folder):
+def link_into_folder(path: str, dst_folder: str) -> None:
     os.link(f'{path}', f'{dst_folder}/{os.path.basename(path)}')
 
-def copy_prebuilt_files():
+def copy_prebuilt_files() -> None:
     os.makedirs(f'{TARGET_TEST_FOLDER}/build', exist_ok=True)
     for filepath in glob.glob(f'{TARGET_TEST_FOLDER}/*.p4'):
         filename_without_extension = os.path.splitext(os.path.basename(filepath))[0]
         link_into_folder(f'{BUILD_CACHE_FOLDER}/build/{filename_without_extension}.json',f'{TARGET_TEST_FOLDER}/build')
         link_into_folder(f'{BUILD_CACHE_FOLDER}/build/{filename_without_extension}.p4.p4info.txt',f'{TARGET_TEST_FOLDER}/build')
 
-def prepare_test_folder(test_case, subtest=None):
+def prepare_test_folder(test_case: str, subtest:Optional[str]=None):
     clear_folder(TARGET_TEST_FOLDER)
     link_all_files_from_folder('base', TARGET_TEST_FOLDER)
     os.symlink(os.path.realpath('common'), os.path.realpath(f'{TARGET_TEST_FOLDER}/common'))
@@ -167,7 +167,7 @@ def prepare_test_folder(test_case, subtest=None):
 
 
 
-def prepare_enviroment():
+def prepare_environment() -> None:
     config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
     redis_file_path = f"{TARGET_TEST_FOLDER}/redis.json"
     redis.flushdb()
@@ -184,8 +184,8 @@ def prepare_enviroment():
                     redis.set(redis_key, table_obj['string'])
 
 
-class Config():
-    def __init__(self, config_file, ignore_missing_file = False):
+class Config:
+    def __init__(self, config_file: str, ignore_missing_file: bool = False) -> None:
         self.config = {}
         try:
             with open(config_file) as f:
@@ -194,14 +194,14 @@ class Config():
             if not ignore_missing_file:
                 raise e
 
-    def get(self, key, default = None):
+    def get(self, key: str, default = None) -> Any:
         if key in self.config:
             return self.config[key]
 
         return default
 
 
-def run_test_cases(test_cases_to_run):
+def run_test_cases(test_cases_to_run: list):
     success_counter = 0
     for test_case_object in test_cases_to_run:
         print(f'{COLOR_CYAN}============================================================================')
@@ -212,7 +212,7 @@ def run_test_cases(test_cases_to_run):
         try:
             # Copy test case files
             prepare_test_folder(test_case, subtest)
-            prepare_enviroment()
+            prepare_environment()
 
             config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
 
@@ -362,7 +362,7 @@ def run_test_cases(test_cases_to_run):
         print(f'----------------------------------{COLOR_END}')
 
 
-def wait_and_assert_controller_exit_code():
+def wait_and_assert_controller_exit_code() -> None:
     wait_for_output(f'{TARGET_TEST_FOLDER}\$\s*$', controller_pane_name)
     with open(f'{TARGET_TEST_FOLDER}/.controller_exit_code') as f:
         exit_code = f.read().strip()
@@ -372,7 +372,7 @@ def wait_and_assert_controller_exit_code():
             raise Exception('Controller exited with non-zero code')
 
 
-def dump_proxy_output():
+def dump_proxy_output() -> None:
     tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
     with open(f'{TARGET_TEST_FOLDER}/logs/proxy.log') as log_f:
         print(f'{COLOR_RED_BG} --- Proxy output --- {COLOR_END}')
@@ -381,7 +381,7 @@ def dump_proxy_output():
         raise Exception('Proxy is failed to startup')
 
 
-def dump_controller_output():
+def dump_controller_output() -> None:
     tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
     with open(f'{TARGET_TEST_FOLDER}/logs/controller.log') as log_f:
         print(f'{COLOR_RED_BG} --- Controller output --- {COLOR_END}')
@@ -389,7 +389,7 @@ def dump_controller_output():
         print(f'{COLOR_RED_BG} --- Controller output end --- {COLOR_END}')
 
 
-def close_everything_and_save_logs():
+def close_everything_and_save_logs() -> None:
     if (os.path.exists(f'{TARGET_TEST_FOLDER}/logs')):
         tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
         tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
@@ -405,7 +405,7 @@ def close_everything_and_save_logs():
 
 
 
-def process_cmdline_testcase_name(cmdline_input: str):
+def process_cmdline_testcase_name(cmdline_input: str) -> List[TestCase]:
     splitted_testcase = cmdline_input.split('/')
 
     if len(splitted_testcase) > 1 and splitted_testcase[1].strip() == '*':
@@ -433,18 +433,18 @@ def process_cmdline_testcase_name(cmdline_input: str):
         return ret
 
 
-def sigint_handler(signum, frame):
+def sigint_handler(signum, frame) -> None:
     print(f'{COLOR_ORANGE}Ctrl-c was pressed! Cleaning up...{COLOR_END}')
     sys.exit(0)
 
 signal.signal(signal.SIGINT, sigint_handler)
 
 
-def build_up_p4_cache():
+def build_up_p4_cache() -> None:
     print(f'{COLOR_CYAN}--- Building up P4 cache{COLOR_END} --- ')
     os.makedirs(BUILD_CACHE_FOLDER, exist_ok=True)
 
-    def link_with_override(src, dst):
+    def link_with_override(src: str, dst: str) -> None:
         if os.path.exists(dst):
             os.remove(dst)
         os.link(src, dst)
@@ -471,7 +471,7 @@ def build_up_p4_cache():
             sys.exit()
 
 
-def print_all_missing_test_folders_in_test_case_list():
+def print_all_missing_test_folders_in_test_case_list() -> None:
     for folder in (f.path for f in os.scandir('testcases') if f.is_dir()):
         test_name = folder.split(os.sep)[1]
         if not any(x for x in test_cases if x['name'] == test_name):
@@ -507,7 +507,7 @@ else:
         else:
             raise Exception('You cannot use wildcard for building a test case.')
     elif sys.argv[1] == 'prepare':
-        prepare_enviroment()
+        prepare_environment()
     elif sys.argv[1] == 'release':
         clear_folder('release')
         shutil.copyfile('base/proxy.py', 'release/proxy.py')

@@ -539,9 +539,9 @@ for mapping in mappings:
     reset_dataplane = 'reset_dataplane' in target_config and target_config['reset_dataplane']
     mapping_target_switch = HighLevelSwitchConnection(target_config['device_id'], target_config['program_name'], target_config['port'], send_p4info=True, reset_dataplane=reset_dataplane)
     print('On startup the rules on the target are the following')
-    for response in mapping_target_switch.connection.ReadTableEntries():
-        for starter_entity in response.entities:
-            entry = starter_entity.table_entry
+    for table_entry_response in mapping_target_switch.connection.ReadTableEntries():
+        for starter_table_entity in table_entry_response.entities:
+            entry = starter_table_entity.table_entry
             print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
             print(entry)
             print('-----')
