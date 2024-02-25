@@ -19,7 +19,7 @@ from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, Update, Wri
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 from google.protobuf.json_format import MessageToJson, Parse
 
-from common.p4_name_id_helper import P4NameIdHelper, get_pure_p4_name
+from common.p4_name_id_helper import P4NameConverter, get_pure_p4_name
 from common.p4runtime_lib.helper import P4InfoHelper
 import redis
 
@@ -97,7 +97,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.target_switch.subscribe_to_stream_with_queue(self.stream_queue_from_target)
         self.running = True
 
-        self.converter = P4NameIdHelper(self.from_p4info_helper, self.target_switch.p4info_helper, self.prefix)
+        self.converter = P4NameConverter(self.from_p4info_helper, self.target_switch.p4info_helper, self.prefix)
 
     def stop(self) -> None:
         self.running = False
@@ -106,7 +106,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             self.save_counters_state_to_redis()
 
 
-    def Write(self, request, context, from_p4info_helper: P4InfoHelper = None, save_to_redis: bool = True) -> None:
+    def Write(self, request, context, converter: P4NameConverter = None, save_to_redis: bool = True) -> None:
         print('------------------- Write -------------------')
         print(request)
 
@@ -120,7 +120,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     elif which_one == 'meter_entry' or which_one == 'direct_meter_entry':
                         redis.rpush(self.redis_keys.METER_ENTRIES, MessageToJson(entity))
 
-                self.converter.convert_entity(entity, from_p4info_helper=from_p4info_helper)
+                if converter is not None:
+                    converter.convert_entity(entity)
+                else:
+                    self.converter.convert_entity(entity)
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
 
@@ -146,7 +149,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 print('result:')
                 print(result)
                 for entity in result.entities:
-                    entity_name = P4NameIdHelper.get_entity_name(self.target_switch.p4info_helper,entity)
+                    entity_name = P4NameConverter.get_entity_name(self.target_switch.p4info_helper, entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
                         self.converter.convert_entity(entity, reverse=True)
                         ret_entity = ret.entities.add()
@@ -194,7 +197,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     print(stream_response)
                     which_one = stream_response.WhichOneof('update')
                     if which_one == 'digest':
-                        name = P4NameIdHelper.get_p4_name_from_id(self.target_switch.p4info_helper, 'digest', stream_response.digest.digest_id)
+                        name = P4NameConverter.get_p4_name_from_id(self.target_switch.p4info_helper, 'digest', stream_response.digest.digest_id)
                         if name.startswith(self.prefix):
                             self.converter.convert_stream_response(stream_response)
                             yield stream_response
@@ -220,10 +223,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             return
 
         redis_p4info_helper = P4InfoHelper(raw_p4info=raw_p4info)
+        p4name_converter = P4NameConverter(redis_p4info_helper, self.target_switch.p4info_helper, self.prefix)
+
         for protobuf_message_json_object in redis.lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
             parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
             print(parsed_update_object)
-            self._write_update_object(parsed_update_object, redis_p4info_helper)
+            self._write_update_object(parsed_update_object, p4name_converter)
 
         for protobuf_message_json_object in itertools.chain(redis.lrange(self.redis_keys.COUNTER_ENTRIES, 0, -1),
                                                             redis.lrange(self.redis_keys.METER_ENTRIES, 0, -1),
@@ -234,15 +239,15 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             update = p4runtime_pb2.Update()
             update.type = p4runtime_pb2.Update.MODIFY
             update.entity.CopyFrom(entity)
-            self._write_update_object(update, redis_p4info_helper)
+            self._write_update_object(update, p4name_converter)
 
-    def _write_update_object(self, update_object, from_p4info_helper):
+    def _write_update_object(self, update_object, p4name_converter: P4NameConverter):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = self.target_switch.device_id
         request.election_id.low = 1
         update = request.updates.add()
         update.CopyFrom(update_object)
-        self.Write(request, None, from_p4info_helper, save_to_redis=False)
+        self.Write(request, None, p4name_converter, save_to_redis=False)
 
     def delete_redis_entries_for_this_service(self) -> None:
         redis.delete(self.redis_keys.TABLE_ENTRIES)
@@ -268,7 +273,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print('-----------REQUESTEND')
             for response in self.target_switch.connection.client_stub.Read(request):
                 for entity in response.entities:
-                    entity_name = P4NameIdHelper.get_entity_name(self.target_switch.p4info_helper,entity)
+                    entity_name = P4NameConverter.get_entity_name(self.target_switch.p4info_helper, entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
                         print(entity)
                         self.converter.convert_entity(entity, reverse=True)
