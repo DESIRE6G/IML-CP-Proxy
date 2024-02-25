@@ -44,8 +44,8 @@ def get_pure_p4_name(original_table_name : str) -> str:
 
 class P4NameConverter:
     def __init__(self, from_p4info_helper: P4InfoHelper, to_p4info_helper: P4InfoHelper, prefix: str) -> None:
-        self.from_p4info_helper = from_p4info_helper
-        self.to_p4info_helper = to_p4info_helper
+        self.source_p4info_helper = from_p4info_helper
+        self.target_p4info_helper = to_p4info_helper
         self.prefix = prefix
 
     def convert_id(self,
@@ -55,11 +55,11 @@ class P4NameConverter:
                    verbose=True) -> int:
 
         if not reverse:
-           from_p4info_helper_inner = self.from_p4info_helper
-           target_p4info_helper = self.to_p4info_helper
+           from_p4info_helper_inner = self.source_p4info_helper
+           target_p4info_helper = self.target_p4info_helper
         else:
-           from_p4info_helper_inner = self.to_p4info_helper
-           target_p4info_helper = self.from_p4info_helper
+           from_p4info_helper_inner = self.target_p4info_helper
+           target_p4info_helper = self.source_p4info_helper
         name = P4NameConverter.get_p4_name_from_id(from_p4info_helper_inner, id_type, original_id)
 
         if verbose:
@@ -188,6 +188,11 @@ class P4NameConverter:
         else:
             raise Exception(f'Not implemented type for convert_stream_response "{which_one}"')
 
+    def get_target_entity_name(self, entity: p4runtime_pb2.Entity) -> str:
+        return self.__class__.get_entity_name(self.target_p4info_helper, entity)
+
+    def get_target_p4_name_from_id(self, id_type: str, original_id: int) -> str:
+        return self.__class__.get_p4_name_from_id(self.target_p4info_helper, id_type, original_id)
 
     @staticmethod
     def get_entity_name(p4info_helper: P4InfoHelper, entity: p4runtime_pb2.Entity) -> str:

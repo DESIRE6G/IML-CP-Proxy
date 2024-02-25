@@ -149,7 +149,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 print('result:')
                 print(result)
                 for entity in result.entities:
-                    entity_name = P4NameConverter.get_entity_name(self.target_switch.p4info_helper, entity)
+                    entity_name = self.converter.get_target_entity_name(entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
                         self.converter.convert_entity(entity, reverse=True)
                         ret_entity = ret.entities.add()
@@ -197,7 +197,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     print(stream_response)
                     which_one = stream_response.WhichOneof('update')
                     if which_one == 'digest':
-                        name = P4NameConverter.get_p4_name_from_id(self.target_switch.p4info_helper, 'digest', stream_response.digest.digest_id)
+                        name = self.converter.get_target_p4_name_from_id('digest', stream_response.digest.digest_id)
                         if name.startswith(self.prefix):
                             self.converter.convert_stream_response(stream_response)
                             yield stream_response
@@ -273,7 +273,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print('-----------REQUESTEND')
             for response in self.target_switch.connection.client_stub.Read(request):
                 for entity in response.entities:
-                    entity_name = P4NameConverter.get_entity_name(self.target_switch.p4info_helper, entity)
+                    entity_name = self.converter.get_target_entity_name(entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
                         print(entity)
                         self.converter.convert_entity(entity, reverse=True)
