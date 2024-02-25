@@ -7,8 +7,10 @@ import signal
 import sys
 import time
 from concurrent import futures
+from dataclasses import dataclass
 from enum import Enum
 from threading import Thread, Event
+from typing import Dict, List, Optional
 
 import grpc
 from google.protobuf.text_format import MessageToString
@@ -60,10 +62,13 @@ class ProxyP4ServicerHeartbeatWorkerThread(Thread):
     def stop(self) -> None:
         self.stopped.set()
 
-
+@dataclass
+class TargetSwitch:
+    switch_connection: HighLevelSwitchConnection
+    names: Optional[Dict[str, str]] = None
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
-    def __init__(self, prefix, from_p4info_path, target_switch: HighLevelSwitchConnection, redis_mode: RedisMode):
+    def __init__(self, prefix, from_p4info_path, target_switch: List[TargetSwitch], redis_mode: RedisMode):
         self.prefix = prefix
         if prefix.strip() != '':
             redis_prefix = prefix
@@ -81,7 +86,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         self.from_p4info_helper = P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
-        self.target_switch = target_switch
+        self.target_switch = target_switch[0].switch_connection
         self.redis_mode = redis_mode
 
         self.heartbeat_worker_thread = ProxyP4ServicerHeartbeatWorkerThread(self)
@@ -276,18 +281,18 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
 class ProxyServer:
-    def __init__(self, port, prefix, from_p4info_path, target_switch: HighLevelSwitchConnection, redis_mode: RedisMode):
+    def __init__(self, port, prefix, from_p4info_path, target_switches: List[TargetSwitch], redis_mode: RedisMode):
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
-        self.target_switch = target_switch
+        self.target_switches = target_switches
         self.server = None
         self.servicer = None
         self.redis_mode = redis_mode
 
     def start(self) -> None:
         self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switch, self.redis_mode)
+        self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switches, self.redis_mode)
         if RedisMode.is_reading(self.redis_mode):
             self.servicer.fill_from_redis()
         add_P4RuntimeServicer_to_server(self.servicer, self.server)
@@ -313,12 +318,6 @@ proxy_config = ProxyConfig()
 mappings = proxy_config.get_mappings()
 servers = []
 
-def serve(port, prefix, p4info_path, target_switch: HighLevelSwitchConnection, redis_mode: RedisMode):
-    global servers
-    proxy_server = ProxyServer(port, prefix, p4info_path, target_switch, redis_mode)
-    proxy_server.start()
-    servers.append(proxy_server)
-
 for mapping in mappings:
     target_config = mapping['target']
     reset_dataplane = 'reset_dataplane' in target_config and target_config['reset_dataplane']
@@ -330,12 +329,14 @@ for mapping in mappings:
             print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
             print(entry)
             print('-----')
-
+    target_switch = TargetSwitch(mapping_target_switch)
 
     sources = mapping['sources']
     for source in sources:
-        p4_info_path = f"build/{source['program_name']}.p4.p4info.txt"
-        serve(source['controller_port'], prefix=source['prefix'], p4info_path=p4_info_path, target_switch=mapping_target_switch, redis_mode=proxy_config.get_redis_mode())
+        p4info_path = f"build/{source['program_name']}.p4.p4info.txt"
+        proxy_server = ProxyServer(source['controller_port'], source['prefix'], p4info_path, [target_switch], proxy_config.get_redis_mode())
+        proxy_server.start()
+        servers.append(proxy_server)
 
     if 'preload_entries' in mapping:
         for entry in mapping['preload_entries']:
