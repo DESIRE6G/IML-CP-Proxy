@@ -63,12 +63,18 @@ class ProxyP4ServicerHeartbeatWorkerThread(Thread):
         self.stopped.set()
 
 @dataclass
-class TargetSwitch:
-    switch_connection: HighLevelSwitchConnection
+class TargetSwitchConfig:
+    high_level_connection: HighLevelSwitchConnection
+    names: Optional[Dict[str, str]] = None
+
+@dataclass
+class TargetSwitchObject:
+    high_level_connection: HighLevelSwitchConnection
+    converter: P4NameConverter
     names: Optional[Dict[str, str]] = None
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
-    def __init__(self, prefix, from_p4info_path, target_switch: List[TargetSwitch], redis_mode: RedisMode):
+    def __init__(self, prefix: str, from_p4info_path: str, target_switch_configs: List[TargetSwitchConfig], redis_mode: RedisMode) -> None:
         self.prefix = prefix
         if prefix.strip() != '':
             redis_prefix = prefix
@@ -86,7 +92,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         self.from_p4info_helper = P4InfoHelper(from_p4info_path)
         self.requests_stream = IterableQueue()
-        self.target_switch = target_switch[0].switch_connection
         self.redis_mode = redis_mode
 
         self.heartbeat_worker_thread = ProxyP4ServicerHeartbeatWorkerThread(self)
@@ -94,10 +99,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
         self.stream_queue_from_target = queue.Queue()
-        self.target_switch.subscribe_to_stream_with_queue(self.stream_queue_from_target)
+        self.target_switches = []
+        for c in target_switch_configs:
+            converter = P4NameConverter(self.from_p4info_helper, c.high_level_connection.p4info_helper, self.prefix)
+            target_switch = TargetSwitchObject(c.high_level_connection, converter, c.names)
+            target_switch.high_level_connection.subscribe_to_stream_with_queue(self.stream_queue_from_target)
+            self.target_switches.append(target_switch)
+
         self.running = True
 
-        self.converter = P4NameConverter(self.from_p4info_helper, self.target_switch.p4info_helper, self.prefix)
+        self.target_hl_switch_connection = self.target_switches[0].high_level_connection
+        self.converter = self.target_switches[0].converter
 
     def stop(self) -> None:
         self.running = False
@@ -105,14 +117,19 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         if RedisMode.is_writing(self.redis_mode):
             self.save_counters_state_to_redis()
 
+    def get_target_switch(self, entity: p4runtime_pb2.Entity) -> TargetSwitchObject:
+        return self.target_switches[0]
 
     def Write(self, request, context, converter: P4NameConverter = None, save_to_redis: bool = True) -> None:
         print('------------------- Write -------------------')
         print(request)
 
+        target_switch = None
+
         for update in request.updates:
             if update.type == Update.INSERT or update.type == Update.MODIFY or update.type == Update.DELETE:
                 entity = update.entity
+                target_switch = self.get_target_switch(entity)
                 which_one = entity.WhichOneof('entity')
                 if save_to_redis and RedisMode.is_writing(self.redis_mode):
                     if which_one == 'table_entry':
@@ -123,14 +140,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 if converter is not None:
                     converter.convert_entity(entity)
                 else:
-                    self.converter.convert_entity(entity)
+                    target_switch.converter.convert_entity(entity)
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
 
+        if target_switch is None:
+            raise Exception("There is no found target switch")
+
         print('== SENDING')
         print(request)
-        request.device_id = self.target_switch.device_id
-        self.target_switch.connection.client_stub.Write(request)
+        request.device_id = target_switch.high_level_connection.device_id
+        target_switch.high_level_connection.connection.client_stub.Write(request)
         return WriteResponse()
 
     def Read(self, request: p4runtime_pb2.ReadRequest, context):
@@ -142,10 +162,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print('request:')
             print(request)
             self.converter.convert_read_request(request)
-            request.device_id = self.target_switch.device_id
+            request.device_id = self.target_hl_switch_connection.device_id
             print('converted_request:')
             print(request)
-            for result in self.target_switch.connection.client_stub.Read(request):
+            for result in self.target_hl_switch_connection.connection.client_stub.Read(request):
                 print('result:')
                 print(result)
                 for entity in result.entities:
@@ -223,7 +243,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             return
 
         redis_p4info_helper = P4InfoHelper(raw_p4info=raw_p4info)
-        p4name_converter = P4NameConverter(redis_p4info_helper, self.target_switch.p4info_helper, self.prefix)
+        p4name_converter = P4NameConverter(redis_p4info_helper, self.target_hl_switch_connection.p4info_helper, self.prefix)
 
         for protobuf_message_json_object in redis.lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
             parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
@@ -243,7 +263,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def _write_update_object(self, update_object, p4name_converter: P4NameConverter):
         request = p4runtime_pb2.WriteRequest()
-        request.device_id = self.target_switch.device_id
+        request.device_id = self.target_hl_switch_connection.device_id
         request.election_id.low = 1
         update = request.updates.add()
         update.CopyFrom(update_object)
@@ -256,7 +276,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def save_counters_state_to_redis(self) -> None:
         request = p4runtime_pb2.ReadRequest()
-        request.device_id = self.target_switch.connection.device_id
+        request.device_id = self.target_hl_switch_connection.connection.device_id
 
         for direct_counter in self.from_p4info_helper.p4info.direct_counters:
             entity = request.entities.add()
@@ -271,7 +291,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print('-----------REQUEST')
             print(request)
             print('-----------REQUESTEND')
-            for response in self.target_switch.connection.client_stub.Read(request):
+            for response in self.target_hl_switch_connection.connection.client_stub.Read(request):
                 for entity in response.entities:
                     entity_name = self.converter.get_target_entity_name(entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
@@ -286,7 +306,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
 class ProxyServer:
-    def __init__(self, port, prefix, from_p4info_path, target_switches: List[TargetSwitch], redis_mode: RedisMode):
+    def __init__(self, port, prefix, from_p4info_path, target_switches: List[TargetSwitchConfig], redis_mode: RedisMode):
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
@@ -334,7 +354,7 @@ for mapping in mappings:
             print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
             print(entry)
             print('-----')
-    target_switch = TargetSwitch(mapping_target_switch)
+    target_switch = TargetSwitchConfig(mapping_target_switch)
 
     sources = mapping['sources']
     for source in sources:
