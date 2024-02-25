@@ -118,7 +118,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             self.save_counters_state_to_redis()
 
     def get_target_switch(self, entity: p4runtime_pb2.Entity) -> TargetSwitchObject:
-        return self.target_switches[0]
+        entity_name = self.target_switches[0].converter.get_source_entity_name(entity)
+        for target_switch in self.target_switches:
+            if target_switch.names is None or entity_name in target_switch.names:
+                return target_switch
+
+        raise Exception(f'Cannot find a target switch for {entity_name=}')
 
     def Write(self, request, context, converter: P4NameConverter = None, save_to_redis: bool = True) -> None:
         print('------------------- Write -------------------')

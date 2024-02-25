@@ -191,6 +191,9 @@ class P4NameConverter:
     def get_target_entity_name(self, entity: p4runtime_pb2.Entity) -> str:
         return self.__class__.get_entity_name(self.target_p4info_helper, entity)
 
+    def get_source_entity_name(self, entity: p4runtime_pb2.Entity) -> str:
+        return self.__class__.get_entity_name(self.source_p4info_helper, entity)
+
     def get_target_p4_name_from_id(self, id_type: str, original_id: int) -> str:
         return self.__class__.get_p4_name_from_id(self.target_p4info_helper, id_type, original_id)
 
