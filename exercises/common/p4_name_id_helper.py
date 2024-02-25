@@ -210,6 +210,8 @@ class P4NameConverter:
             return p4info_helper.get_meters_name(entity.meter_entry.meter_id)
         elif which_one == 'direct_meter_entry':
             return p4info_helper.get_tables_name(entity.direct_meter_entry.table_entry.table_id)
+        elif which_one == 'digest_entry':
+            return p4info_helper.get_digests_name(entity.digest_entry.digest_id)
         else:
             raise Exception(f'Not implemented type for get_entity_name "{which_one}"')
 
