@@ -1,4 +1,5 @@
 from p4.v1 import p4runtime_pb2
+from typing import Dict, Optional
 
 from common.p4runtime_lib.helper import P4InfoHelper
 
@@ -43,10 +44,11 @@ def get_pure_p4_name(original_table_name : str) -> str:
     return f'{p4_name}'
 
 class P4NameConverter:
-    def __init__(self, from_p4info_helper: P4InfoHelper, to_p4info_helper: P4InfoHelper, prefix: str) -> None:
+    def __init__(self, from_p4info_helper: P4InfoHelper, to_p4info_helper: P4InfoHelper, prefix: str, converts: Optional[Dict[str, str]] = None) -> None:
         self.source_p4info_helper = from_p4info_helper
         self.target_p4info_helper = to_p4info_helper
         self.prefix = prefix
+        self.converts = converts
 
     def convert_id(self,
                    id_type:str,
@@ -61,6 +63,10 @@ class P4NameConverter:
            from_p4info_helper_inner = self.target_p4info_helper
            target_p4info_helper = self.source_p4info_helper
         name = P4NameConverter.get_p4_name_from_id(from_p4info_helper_inner, id_type, original_id)
+
+
+        if self.converts is not None and name in self.converts:
+            name = self.converts[name]
 
         if verbose:
             print(f'name={name}')
