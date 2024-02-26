@@ -24,7 +24,7 @@ from common.p4runtime_lib.helper import P4InfoHelper
 import redis
 
 from common.p4runtime_lib.switch import IterableQueue
-from common.high_level_switch_connection import HighLevelSwitchConnection
+from common.high_level_switch_connection import HighLevelSwitchConnection, StreamMessageResponseWithInfo
 from common.redis_helper import RedisKeys, RedisRecords
 
 logger = logging.getLogger()
@@ -222,16 +222,16 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 yield response
 
                 while self.running:
-                    stream_response = self.stream_queue_from_target.get()
+                    stream_response: StreamMessageResponseWithInfo = self.stream_queue_from_target.get()
 
                     print('Arrived stream_response_from target')
                     print(stream_response)
-                    which_one = stream_response.WhichOneof('update')
+                    which_one = stream_response.message.WhichOneof('update')
                     if which_one == 'digest':
-                        name = self.converter.get_target_p4_name_from_id('digest', stream_response.digest.digest_id)
+                        name = self.converter.get_target_p4_name_from_id('digest', stream_response.message.digest.digest_id)
                         if name.startswith(self.prefix):
-                            self.converter.convert_stream_response(stream_response)
-                            yield stream_response
+                            self.converter.convert_stream_response(stream_response.message)
+                            yield stream_response.message
                     else:
                         raise Exception('Only handling digest messages from the dataplane')
             else:

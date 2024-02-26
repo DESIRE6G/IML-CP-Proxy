@@ -40,7 +40,7 @@ with ControllerExceptionHandling():
         #print(stream_message_response)
         #validator.should_be_equal(s1.p4info_helper.get_digests_id('mac_learn_digest_t'), stream_message_response.digest.digest_id)
         stream_message_response2 = s2_recv_queue.get(block=True, timeout=10)
-        validator.should_be_equal(s2.p4info_helper.get_digests_id('state_learn_digest_t'), stream_message_response2.digest.digest_id)
+        validator.should_be_equal(s2.p4info_helper.get_digests_id('state_learn_digest_t'), stream_message_response2.message.digest.digest_id)
 
     ShutdownAllSwitchConnections()
 

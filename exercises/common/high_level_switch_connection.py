@@ -1,6 +1,7 @@
 import time
+from dataclasses import dataclass
 from queue import Queue
-from typing import Callable
+from typing import Callable, Any, Optional, List
 
 from google.protobuf.json_format import Parse
 from google.protobuf.text_format import MessageToString
@@ -11,8 +12,18 @@ import common.p4runtime_lib.helper
 
 from threading import Thread, Event
 
+@dataclass
+class QueueWithInfo:
+    queue: Queue
+    extra_information: Optional[Any] = None
+
+@dataclass
+class StreamMessageResponseWithInfo:
+    message: p4runtime_pb2.StreamMessageResponse
+    extra_information: Optional[Any] = None
+
 class StreamHandlerWorkerThread(Thread):
-    def __init__(self, switch) -> None:
+    def __init__(self, switch: 'HighLevelSwitchConnection') -> None:
         Thread.__init__(self, daemon=True)
         self.stopped = Event()
         self.switch = switch
@@ -26,7 +37,7 @@ class StreamHandlerWorkerThread(Thread):
                 for q in self.switch.stream_subscribed_queues:
                     copy = p4runtime_pb2.StreamMessageResponse()
                     copy.CopyFrom(x)
-                    q.put(copy)
+                    q.queue.put(StreamMessageResponseWithInfo(copy, q.extra_information))
 
 
     def stop(self) -> None:
@@ -51,7 +62,7 @@ class HighLevelSwitchConnection():
             proto_dump_file=f'logs/port{self.port}-p4runtime-requests.txt')
 
         self.connection.MasterArbitrationUpdate(election_id_low=election_id_low)
-        self.stream_subscribed_queues = []
+        self.stream_subscribed_queues: List[QueueWithInfo] = []
         self.stream_handler_worker_thread = None
 
         if send_p4info:
@@ -76,9 +87,9 @@ class HighLevelSwitchConnection():
         if self.stream_handler_worker_thread is not None:
             self.stream_handler_worker_thread.stop()
 
-    def subscribe_to_stream_with_queue(self, queue: Queue) -> None:
+    def subscribe_to_stream_with_queue(self, queue: Queue, extra_information: Optional[Any] = None) -> None:
         print("subscribe_to_stream_with_queue")
-        self.stream_subscribed_queues.append(queue)
+        self.stream_subscribed_queues.append(QueueWithInfo(queue, extra_information))
         if len(self.stream_subscribed_queues) == 1:
             self.stream_handler_worker_thread = StreamHandlerWorkerThread(self)
             self.stream_handler_worker_thread.start()
