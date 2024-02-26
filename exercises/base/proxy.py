@@ -355,6 +355,12 @@ for mapping in mappings:
     if 'targets' in mapping:
         target_configs_raw += mapping['targets']
 
+    source_configs_raw = []
+    if 'source' in mapping:
+        source_configs_raw.append(mapping['source'])
+    if 'sources' in mapping:
+        source_configs_raw += mapping['sources']
+
     target_switch_configs = []
     for target_config_raw in target_configs_raw:
         reset_dataplane = 'reset_dataplane' in target_config_raw and target_config_raw['reset_dataplane']
@@ -368,8 +374,7 @@ for mapping in mappings:
                 print('-----')
         target_switch_configs.append(TargetSwitchConfig(mapping_target_switch, target_config_raw.get('names')))
 
-    sources = mapping['sources']
-    for source in sources:
+    for source in source_configs_raw:
         p4info_path = f"build/{source['program_name']}.p4.p4info.txt"
         proxy_server = ProxyServer(source['controller_port'], source.get('prefix', ''), p4info_path, target_switch_configs, proxy_config.get_redis_mode())
         proxy_server.start()

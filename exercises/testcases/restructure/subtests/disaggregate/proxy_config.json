@@ -2,7 +2,6 @@
   "redis": "OFF",
   "mappings": [
     {
-      "type": "disaggregation",
       "targets": [
         {
           "program_name": "part1",
@@ -32,12 +31,10 @@
           }
         }
       ],
-      "sources":[
-        {
-          "program_name": "aggregated123",
-          "controller_port": 60051
-        }
-      ]
+      "source": {
+        "program_name": "aggregated123",
+        "controller_port": 60051
+      }
     }
   ]
 }
