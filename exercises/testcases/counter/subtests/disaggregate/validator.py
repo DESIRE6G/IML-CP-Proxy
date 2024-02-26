@@ -5,6 +5,7 @@ import sys
 from common.controller_helper import get_counter_object, get_counter_objects, get_direct_counter_objects
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
+from common.redis_helper import wait_heartbeats_in_redis, compare_redis
 from common.validator_tools import Validator
 
 if __name__ == '__main__':
@@ -59,6 +60,9 @@ if __name__ == '__main__':
     # validator.should_be_equal(counter1packet_objects[0].byte_count, 0)
     validator.should_be_equal(counter2bytes_objects[0].byte_count, counter2_objects[0].byte_count)
     # validator.should_be_equal(counter2bytes_objects[0].packet_count, 0)
+
+    wait_heartbeats_in_redis(['fwd_with_counting_aggregated_'])
+    validator.should_be_true(compare_redis('redis.json'))
 
     ShutdownAllSwitchConnections()
 

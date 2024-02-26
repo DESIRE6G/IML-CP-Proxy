@@ -283,37 +283,39 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def delete_redis_entries_for_this_service(self) -> None:
         redis.delete(self.redis_keys.TABLE_ENTRIES)
         redis.delete(self.redis_keys.COUNTER_ENTRIES)
+        redis.delete(self.redis_keys.METER_ENTRIES)
         redis.delete(self.redis_keys.HEARTBEAT)
 
     def save_counters_state_to_redis(self) -> None:
-        request = p4runtime_pb2.ReadRequest()
-        request.device_id = self.target_hl_switch_connection.connection.device_id
-
-        for direct_counter in self.from_p4info_helper.p4info.direct_counters:
-            entity = request.entities.add()
-            entity.direct_counter_entry.table_entry.table_id = direct_counter.direct_table_id
-            self.converter.convert_entity(entity)
-
-        entity = request.entities.add()
-        entity.counter_entry.counter_id = 0
         with redis.pipeline() as pipe:
             pipe.multi()
             pipe.delete(self.redis_keys.COUNTER_ENTRIES)
-            print('-----------REQUEST')
-            print(request)
-            print('-----------REQUESTEND')
-            for response in self.target_hl_switch_connection.connection.client_stub.Read(request):
-                for entity in response.entities:
-                    entity_name = self.converter.get_target_entity_name(entity)
-                    if get_pure_p4_name(entity_name).startswith(self.prefix):
-                        print(entity)
-                        self.converter.convert_entity(entity, reverse=True)
-                        pipe.rpush(self.redis_keys.COUNTER_ENTRIES, MessageToJson(entity))
+            for target_switch in self.target_switches:
+                request = p4runtime_pb2.ReadRequest()
+                request.device_id = target_switch.high_level_connection.connection.device_id
 
+                for direct_counter in self.from_p4info_helper.p4info.direct_counters:
+                    name = P4NameConverter.get_p4_name_from_id(self.from_p4info_helper, 'table', direct_counter.direct_table_id)
+                    if target_switch.names is None or name in target_switch.names:
+                        entity = request.entities.add()
+                        entity.direct_counter_entry.table_entry.table_id = direct_counter.direct_table_id
+                        target_switch.converter.convert_entity(entity)
+
+                entity = request.entities.add()
+                entity.counter_entry.counter_id = 0
+                print('-----------REQUEST')
+                print(request)
+                print('-----------REQUESTEND')
+                for response in target_switch.high_level_connection.connection.client_stub.Read(request):
+                    for entity in response.entities:
+                        entity_name = target_switch.converter.get_target_entity_name(entity)
+                        if get_pure_p4_name(entity_name).startswith(self.prefix):
+                            print(entity)
+                            target_switch.converter.convert_entity(entity, reverse=True)
+                            pipe.rpush(self.redis_keys.COUNTER_ENTRIES, MessageToJson(entity))
+            pipe.set(self.redis_keys.HEARTBEAT, time.time())
             pipe.execute()
 
-        print(self.redis_keys.HEARTBEAT, time.time())
-        redis.set(self.redis_keys.HEARTBEAT, time.time())
 
 
 class ProxyServer:
