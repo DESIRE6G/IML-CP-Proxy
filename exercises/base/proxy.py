@@ -108,9 +108,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         self.running = True
 
-        self.target_hl_switch_connection = self.target_switches[0].high_level_connection
-        self.converter = self.target_switches[0].converter
-
     def stop(self) -> None:
         self.running = False
         self.heartbeat_worker_thread.stop()
@@ -254,31 +251,35 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             return
 
         redis_p4info_helper = P4InfoHelper(raw_p4info=raw_p4info)
-        p4name_converter = P4NameConverter(redis_p4info_helper, self.target_hl_switch_connection.p4info_helper, self.prefix)
 
-        for protobuf_message_json_object in redis.lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
-            parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
-            print(parsed_update_object)
-            self._write_update_object(parsed_update_object, p4name_converter)
+        for target_switch in self.target_switches:
+            high_level_connection = target_switch.high_level_connection
+            p4name_converter = P4NameConverter(redis_p4info_helper, high_level_connection.p4info_helper, self.prefix)
+            virtual_target_switch_for_load = TargetSwitchObject(high_level_connection, p4name_converter, target_switch.names)
 
-        for protobuf_message_json_object in itertools.chain(redis.lrange(self.redis_keys.COUNTER_ENTRIES, 0, -1),
-                                                            redis.lrange(self.redis_keys.METER_ENTRIES, 0, -1),
-                                                            ):
-            entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
-            print(entity)
+            for protobuf_message_json_object in redis.lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
+                parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
+                print(parsed_update_object)
+                self._write_update_object(parsed_update_object, virtual_target_switch_for_load)
 
-            update = p4runtime_pb2.Update()
-            update.type = p4runtime_pb2.Update.MODIFY
-            update.entity.CopyFrom(entity)
-            self._write_update_object(update, p4name_converter)
+            for protobuf_message_json_object in itertools.chain(redis.lrange(self.redis_keys.COUNTER_ENTRIES, 0, -1),
+                                                                redis.lrange(self.redis_keys.METER_ENTRIES, 0, -1),
+                                                                ):
+                entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
+                print(entity)
 
-    def _write_update_object(self, update_object, p4name_converter: P4NameConverter):
+                update = p4runtime_pb2.Update()
+                update.type = p4runtime_pb2.Update.MODIFY
+                update.entity.CopyFrom(entity)
+                self._write_update_object(update, virtual_target_switch_for_load)
+
+    def _write_update_object(self, update_object, target_switch: TargetSwitchObject):
         request = p4runtime_pb2.WriteRequest()
-        request.device_id = self.target_hl_switch_connection.device_id
+        request.device_id = target_switch.high_level_connection.device_id
         request.election_id.low = 1
         update = request.updates.add()
         update.CopyFrom(update_object)
-        self.Write(request, None, p4name_converter, save_to_redis=False)
+        self.Write(request, None, target_switch.converter, save_to_redis=False)
 
     def delete_redis_entries_for_this_service(self) -> None:
         redis.delete(self.redis_keys.TABLE_ENTRIES)
