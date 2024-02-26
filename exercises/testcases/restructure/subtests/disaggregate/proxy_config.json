@@ -35,8 +35,7 @@
       "sources":[
         {
           "program_name": "aggregated123",
-          "controller_port": 60051,
-          "prefix": ""
+          "controller_port": 60051
         }
       ]
     }

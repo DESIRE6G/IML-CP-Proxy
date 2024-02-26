@@ -371,7 +371,7 @@ for mapping in mappings:
     sources = mapping['sources']
     for source in sources:
         p4info_path = f"build/{source['program_name']}.p4.p4info.txt"
-        proxy_server = ProxyServer(source['controller_port'], source['prefix'], p4info_path, target_switch_configs, proxy_config.get_redis_mode())
+        proxy_server = ProxyServer(source['controller_port'], source.get('prefix', ''), p4info_path, target_switch_configs, proxy_config.get_redis_mode())
         proxy_server.start()
         servers.append(proxy_server)
 
