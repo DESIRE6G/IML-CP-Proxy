@@ -1,0 +1,29 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "targets": [
+        {
+          "program_name": "mac-learn",
+          "port": 50051,
+          "device_id": 0,
+          "names": {
+            "NF1_mac_learn_digest_t": "mac_learn_digest_t"
+          }
+        },
+        {
+          "program_name": "state-learn",
+          "port": 50052,
+          "device_id": 1,
+          "names": {
+            "NF2_state_learn_digest_t": "state_learn_digest_t"
+          }
+        }
+      ],
+      "source": {
+        "program_name": "mac-and-state-learn-aggregated",
+        "controller_port": 60051
+      }
+    }
+  ]
+}

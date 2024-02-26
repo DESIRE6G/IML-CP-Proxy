@@ -56,7 +56,7 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
-    /*
+
     action NF1_mac_learn() {
         digest<NF1_mac_learn_digest_t>(1, {hdr.ethernet.src_addr, standard_metadata.ingress_port});
     }
@@ -72,10 +72,10 @@ control MyIngress(inout headers hdr,
         size = 1024;
         default_action = NF1_mac_learn;
     }
-    */
+
 
     apply {
-        // NF1_smac.apply();
+        NF1_smac.apply();
         digest<NF2_state_learn_digest_t>(1, {hdr.states.state1, hdr.states.state2, hdr.states.state3});
         standard_metadata.egress_spec = 2 - standard_metadata.ingress_port + 1;
     }

@@ -100,10 +100,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         self.stream_queue_from_target = queue.Queue()
         self.target_switches = []
-        for c in target_switch_configs:
+        for target_key, c in enumerate(target_switch_configs):
             converter = P4NameConverter(self.from_p4info_helper, c.high_level_connection.p4info_helper, self.prefix, c.names)
             target_switch = TargetSwitchObject(c.high_level_connection, converter, c.names)
-            target_switch.high_level_connection.subscribe_to_stream_with_queue(self.stream_queue_from_target)
+            target_switch.high_level_connection.subscribe_to_stream_with_queue(self.stream_queue_from_target, target_key)
             self.target_switches.append(target_switch)
 
         self.running = True
@@ -223,14 +223,14 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
                 while self.running:
                     stream_response: StreamMessageResponseWithInfo = self.stream_queue_from_target.get()
-
+                    target_switch = self.target_switches[stream_response.extra_information]
                     print('Arrived stream_response_from target')
                     print(stream_response)
                     which_one = stream_response.message.WhichOneof('update')
                     if which_one == 'digest':
-                        name = self.converter.get_target_p4_name_from_id('digest', stream_response.message.digest.digest_id)
+                        name = target_switch.converter.get_target_p4_name_from_id('digest', stream_response.message.digest.digest_id)
                         if name.startswith(self.prefix):
-                            self.converter.convert_stream_response(stream_response.message)
+                            target_switch.converter.convert_stream_response(stream_response.message)
                             yield stream_response.message
                     else:
                         raise Exception('Only handling digest messages from the dataplane')
