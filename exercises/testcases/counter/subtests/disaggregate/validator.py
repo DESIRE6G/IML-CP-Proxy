@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+from pprint import pprint
+import sys
+
+from common.controller_helper import get_counter_object, get_counter_objects, get_direct_counter_objects
+from common.high_level_switch_connection import HighLevelSwitchConnection
+from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
+from common.validator_tools import Validator
+
+if __name__ == '__main__':
+    s1 = HighLevelSwitchConnection(0, 'fwd_with_counting_aggregated', '60051', send_p4info=False)
+
+
+    counter1_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_packetCounter')
+    counter2_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF2_packetCounter')
+    node1_direct_counter = get_direct_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_ipv4_lpm')
+
+    print('counter1_objects object:')
+    pprint(counter1_objects)
+
+    print('counter2_objects object:')
+    pprint(counter2_objects)
+
+    print('node1_direct_counter')
+    pprint(node1_direct_counter)
+
+    counter1_id = s1.p4info_helper.get_counters_id('MyIngress.NF1_packetCounter')
+    counter2_id = s1.p4info_helper.get_counters_id('MyIngress.NF2_packetCounter')
+    validator = Validator()
+
+    validator.should_be_not_equal(counter1_objects[0].packet_count, 0)
+    validator.should_be_not_equal(counter1_objects[0].byte_count, 0)
+    validator.should_be_equal(node1_direct_counter[0].packet_count,counter1_objects[0].packet_count / 2)
+    validator.should_be_equal(node1_direct_counter[1].packet_count,counter1_objects[0].packet_count / 2)
+
+    validator.should_be_equal(counter1_objects[0].packet_count * 2, counter2_objects[0].packet_count)
+    validator.should_be_equal(counter1_objects[0].byte_count * 2, counter2_objects[0].byte_count)
+
+    validator.should_be_equal(counter1_id, counter1_objects[0].counter_id)
+    validator.should_be_equal(counter2_id, counter2_objects[0].counter_id)
+
+    validator.should_be_equal(counter1_objects[1].packet_count, 0)
+    validator.should_be_equal(counter2_objects[1].packet_count, counter1_objects[0].packet_count)
+
+    validator.should_be_equal(counter2_objects[2].packet_count, 0)
+    validator.should_be_equal(counter1_objects[2].packet_count, counter1_objects[0].packet_count * 2)
+
+    counter1packet_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_packetCounterOnlyPacket')
+    counter2bytes_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF2_packetCounterOnlyBytes')
+
+    print('counter1packet_objects object:')
+    pprint(counter1packet_objects)
+
+    print('counter2bytes_objects object:')
+    pprint(counter2bytes_objects)
+
+    validator.should_be_equal(counter1packet_objects[0].packet_count, counter1_objects[0].packet_count)
+    # BMV looks counts packets and bytes regardless of CounterType
+    # validator.should_be_equal(counter1packet_objects[0].byte_count, 0)
+    validator.should_be_equal(counter2bytes_objects[0].byte_count, counter2_objects[0].byte_count)
+    # validator.should_be_equal(counter2bytes_objects[0].packet_count, 0)
+
+    ShutdownAllSwitchConnections()
+
+    if validator.was_successful():
+        print('Validation succeed')
+    else:
+        print('Validation failed')
+        sys.exit(1)
+
+

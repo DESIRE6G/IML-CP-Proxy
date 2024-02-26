@@ -138,7 +138,7 @@ def get_direct_counter_objects(p4info_helper: P4InfoHelper, sw: SwitchConnection
     return get_direct_counter_objects_by_id(sw, table_name)
 
 
-def init_l2fwd_table_rules_for_both_directions(s1: HighLevelSwitchConnection, s2: HighLevelSwitchConnection):
+def init_l3fwd_table_rules_for_both_directions(s1: HighLevelSwitchConnection, s2: HighLevelSwitchConnection):
     table_entry = s1.p4info_helper.buildTableEntry(table_name="MyIngress.ipv4_lpm", match_fields={"hdr.ipv4.dstAddr": ('10.0.1.1', 32)}, action_name="MyIngress.ipv4_forward", action_params={"dstAddr": '08:00:00:00:01:11', "port": 1})
     s1.connection.WriteTableEntry(table_entry)
     s2.connection.WriteTableEntry(table_entry)

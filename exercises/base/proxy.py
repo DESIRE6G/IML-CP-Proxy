@@ -118,9 +118,13 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             self.save_counters_state_to_redis()
 
     def get_target_switch(self, entity: p4runtime_pb2.Entity) -> TargetSwitchObject:
+        if len(self.target_switches) == 1:
+            return self.target_switches[0]
+
         entity_name = P4NameConverter.get_entity_name(self.from_p4info_helper, entity)
         for target_switch in self.target_switches:
             if target_switch.names is None or entity_name in target_switch.names:
+                print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.port}')
                 return target_switch
 
         raise Exception(f'Cannot find a target switch for {entity_name=}')
@@ -164,19 +168,21 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         print('------------------- Read -------------------')
         if len(request.entities) == 1:
             ret = ReadResponse()
+            entity = request.entities[0]
+            target_switch = self.get_target_switch(entity)
             print('request:')
             print(request)
-            self.converter.convert_read_request(request)
-            request.device_id = self.target_hl_switch_connection.device_id
+            target_switch.converter.convert_read_request(request)
+            request.device_id = target_switch.high_level_connection.device_id
             print('converted_request:')
             print(request)
-            for result in self.target_hl_switch_connection.connection.client_stub.Read(request):
+            for result in target_switch.high_level_connection.connection.client_stub.Read(request):
                 print('result:')
                 print(result)
                 for entity in result.entities:
-                    entity_name = self.converter.get_target_entity_name(entity)
+                    entity_name = target_switch.converter.get_target_entity_name(entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
-                        self.converter.convert_entity(entity, reverse=True)
+                        target_switch.converter.convert_entity(entity, reverse=True)
                         ret_entity = ret.entities.add()
                         ret_entity.CopyFrom(entity)
 

@@ -49,6 +49,8 @@ class P4NameConverter:
         self.target_p4info_helper = to_p4info_helper
         self.prefix = prefix
         self.converts = converts
+        if self.converts is not None:
+            self.reverse_converts = {value: key for key,value in converts.items()}
 
     def convert_id(self,
                    id_type:str,
@@ -65,8 +67,13 @@ class P4NameConverter:
         name = P4NameConverter.get_p4_name_from_id(from_p4info_helper_inner, id_type, original_id)
 
 
-        if self.converts is not None and name in self.converts:
-            name = self.converts[name]
+        if self.converts is not None:
+            if verbose:
+                print(f'before convert name={name}')
+            if reverse and name in self.reverse_converts:
+                name = self.reverse_converts[name]
+            elif not reverse and name in self.converts:
+                name = self.converts[name]
 
         if verbose:
             print(f'name={name}')
