@@ -1,0 +1,39 @@
+{
+  "redis": "ONLY_READ",
+  "mappings": [
+    {
+      "targets": [
+        {
+          "program_name": "fwd_with_counting",
+          "port": 50051,
+          "device_id": 0,
+          "names": {
+            "MyIngress.NF1_ipv4_lpm": "MyIngress.ipv4_lpm",
+            "MyIngress.NF1_directIpCounter": "MyIngress.directIpCounter",
+            "MyIngress.NF1_drop": "MyIngress.drop",
+            "MyIngress.NF1_ipv4_forward": "MyIngress.ipv4_forward",
+            "MyIngress.NF1_packetCounter": "MyIngress.packetCounter",
+            "MyIngress.NF1_packetCounterOnlyPacket": "MyIngress.packetCounterOnlyPacket"
+          }
+        },
+        {
+          "program_name": "fwd_with_counting2",
+          "port": 50052,
+          "device_id": 1,
+          "names": {
+            "MyIngress.NF2_ipv4_lpm": "MyIngress.ipv4_lpm",
+            "MyIngress.NF2_directIpCounter": "MyIngress.directIpCounter",
+            "MyIngress.NF2_drop": "MyIngress.drop",
+            "MyIngress.NF2_ipv4_forward": "MyIngress.ipv4_forward",
+            "MyIngress.NF2_packetCounter": "MyIngress.packetCounter",
+            "MyIngress.NF2_packetCounterOnlyBytes": "MyIngress.packetCounterOnlyBytes"
+          }
+        }
+      ],
+      "source": {
+        "program_name": "fwd_with_counting_aggregated",
+        "controller_port": 60051
+      }
+    }
+  ]
+}

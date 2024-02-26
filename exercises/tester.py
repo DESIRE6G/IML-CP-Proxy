@@ -32,6 +32,7 @@ test_cases : List[TestCase] = [
     {'name': 'counter','subtest': 'write_to_redis'},
     {'name': 'counter','subtest': 'preload'},
     {'name': 'counter','subtest': 'disaggregate'},
+    {'name': 'counter','subtest': 'disaggregate_load_from_redis'},
     {'name': 'restructure','subtest': None},
     {'name': 'restructure','subtest': 'aggregate1'},
     {'name': 'restructure','subtest': 'aggregate_all'},
