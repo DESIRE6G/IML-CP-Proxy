@@ -49,6 +49,7 @@ test_cases : List[TestCase] = [
     {'name': 'direct_meter','subtest': 'preload'},
     {'name': 'digest','subtest': None},
     {'name': 'digest','subtest': 'disaggregate'},
+    {'name': 'l2fwd_disaggregation','subtest': None},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
@@ -245,11 +246,10 @@ def run_test_cases(test_cases_to_run: list):
             except Exception as e:
                 tmux(f'capture-pane -S - -pt {mininet_pane_name}')
                 raise e
-
+            check_controller_exit_code =  config.get('ongoing_controller', False)
             active_test_modes = {
                 'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
-                'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py') and config.get('run_validator', default=True),
-                'check_controller_exit_code': config.get('ongoing_controller', False)
+                'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py') and config.get('run_validator', default=True)
             }
             active_test_modes['ping'] = not any([active_test_modes[test_mode] for test_mode in active_test_modes])
 
@@ -344,7 +344,7 @@ def run_test_cases(test_cases_to_run: list):
                 if exit_code != 0:
                     raise Exception(f'Validation failed')
 
-            if active_test_modes['check_controller_exit_code']:
+            if check_controller_exit_code:
                 wait_and_assert_controller_exit_code()
 
 

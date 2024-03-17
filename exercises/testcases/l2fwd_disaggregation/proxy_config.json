@@ -1,0 +1,32 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "targets": [
+        {
+          "program_name": "l2fwd_smac",
+          "port": 50051,
+          "device_id": 0,
+          "names": {
+            "MyIngress.smac": "MyIngress.smac",
+            "MyIngress.mac_learn": "MyIngress.mac_learn",
+            "mac_learn_digest_t": "mac_learn_digest_t"
+          }
+        },
+        {
+          "program_name": "l2fwd_dmac",
+          "port": 50052,
+          "device_id": 1,
+          "names": {
+            "MyIngress.dmac": "MyIngress.dmac",
+            "MyIngress.forward": "MyIngress.forward"
+          }
+        }
+      ],
+      "source": {
+        "program_name": "l2fwd",
+        "controller_port": 60051
+      }
+    }
+  ]
+}
