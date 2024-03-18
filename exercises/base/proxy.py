@@ -1,5 +1,4 @@
 import itertools
-import json
 import logging
 import os.path
 import queue
@@ -10,7 +9,8 @@ from concurrent import futures
 from dataclasses import dataclass
 from enum import Enum
 from threading import Thread, Event
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+from pydantic import BaseModel
 
 import grpc
 from google.protobuf.text_format import MessageToString
@@ -346,38 +346,51 @@ class ProxyServer:
         self.servicer.stop()
         self.server.stop(grace=None)
 
-class ProxyConfig:
-    def __init__(self, filename = 'proxy_config.json') -> None:
-        with open(filename) as f:
-            self.proxy_config = json.load(f)
+class ProxyConfigTarget(BaseModel):
+    program_name: str
+    port: int
+    device_id: int
+    reset_dataplane: Optional[bool] = False
+    names: Optional[Dict[str,str]] = None
 
-    def get_redis_mode(self) -> RedisMode:
-        return RedisMode(self.proxy_config['redis'])
+class ProxyConfigSource(BaseModel):
+    program_name: str
+    prefix: str = ''
+    controller_port: int
 
-    def get_mappings(self) -> dict:
-        return self.proxy_config['mappings']
+class ProxyConfigPreloadEntry(BaseModel):
+    type: str
+    parameters: Dict[str, Any]
 
-proxy_config = ProxyConfig()
-mappings = proxy_config.get_mappings()
+class ProxyConfigMapping(BaseModel):
+    target: Optional[ProxyConfigTarget] = None
+    targets: List[ProxyConfigTarget] = []
+    source: Optional[ProxyConfigSource] = None
+    sources: List[ProxyConfigSource] = []
+    preload_entries: List[ProxyConfigPreloadEntry] = []
+
+class ProxyConfig(BaseModel):
+    redis: RedisMode
+    mappings: List[ProxyConfigMapping]
+
+with open('proxy_config.json') as f:
+    json_data = f.read()
+    proxy_config = ProxyConfig.model_validate_json(json_data)
+
 servers = []
 
-for mapping in mappings:
-    target_configs_raw = []
-    if 'target' in mapping:
-        target_configs_raw.append(mapping['target'])
-    if 'targets' in mapping:
-        target_configs_raw += mapping['targets']
+for mapping in proxy_config.mappings:
+    target_configs_raw = mapping.targets
+    if mapping.target is not None:
+        target_configs_raw.append(mapping.target)
 
-    source_configs_raw = []
-    if 'source' in mapping:
-        source_configs_raw.append(mapping['source'])
-    if 'sources' in mapping:
-        source_configs_raw += mapping['sources']
+    source_configs_raw = mapping.sources
+    if mapping.source is not None:
+        source_configs_raw.append(mapping.source)
 
     target_switch_configs = []
     for target_config_raw in target_configs_raw:
-        reset_dataplane = 'reset_dataplane' in target_config_raw and target_config_raw['reset_dataplane']
-        mapping_target_switch = HighLevelSwitchConnection(target_config_raw['device_id'], target_config_raw['program_name'], target_config_raw['port'], send_p4info=True, reset_dataplane=reset_dataplane)
+        mapping_target_switch = HighLevelSwitchConnection(target_config_raw.device_id, target_config_raw.program_name, target_config_raw.port, send_p4info=True, reset_dataplane=target_config_raw.reset_dataplane)
         print('On startup the rules on the target are the following')
         for table_entry_response in mapping_target_switch.connection.ReadTableEntries():
             for starter_table_entity in table_entry_response.entities:
@@ -385,35 +398,36 @@ for mapping in mappings:
                 print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
                 print(entry)
                 print('-----')
-        target_switch_configs.append(TargetSwitchConfig(mapping_target_switch, target_config_raw.get('names')))
+        target_switch_configs.append(TargetSwitchConfig(mapping_target_switch, target_config_raw.names))
 
     for source in source_configs_raw:
-        p4info_path = f"build/{source['program_name']}.p4.p4info.txt"
-        proxy_server = ProxyServer(source['controller_port'], source.get('prefix', ''), p4info_path, target_switch_configs, proxy_config.get_redis_mode())
+        p4info_path = f"build/{source.program_name}.p4.p4info.txt"
+        proxy_server = ProxyServer(source.controller_port, source.prefix, p4info_path, target_switch_configs, proxy_config.redis)
         proxy_server.start()
         servers.append(proxy_server)
 
-    if 'preload_entries' in mapping:
+
+    if len(mapping.preload_entries) > 0:
         if len(target_switch_configs) > 1:
             raise Exception('Cannot determine where to preload entries, because there are multiple targets')
 
         target_high_level_connection = target_switch_configs[0].high_level_connection
-        for entry in mapping['preload_entries']:
-            entry_type = entry['type']
+        for entry in mapping.preload_entries:
+            entry_type = entry.type
             if entry_type == 'table':
-                table_entry = target_high_level_connection.p4info_helper.buildTableEntry(**entry['parameters'])
+                table_entry = target_high_level_connection.p4info_helper.buildTableEntry(**entry.parameters)
                 target_high_level_connection.connection.WriteTableEntry(table_entry)
             elif entry_type == 'meter':
-                meter_entry = target_high_level_connection.p4info_helper.buildMeterConfigEntry(**entry['parameters'])
+                meter_entry = target_high_level_connection.p4info_helper.buildMeterConfigEntry(**entry.parameters)
                 target_high_level_connection.connection.WriteMeterEntry(meter_entry)
             elif entry_type == 'direct_meter':
-                meter_entry = target_high_level_connection.p4info_helper.buildDirectMeterConfigEntry(**entry['parameters'])
+                meter_entry = target_high_level_connection.p4info_helper.buildDirectMeterConfigEntry(**entry.parameters)
                 target_high_level_connection.connection.WriteDirectMeterEntry(meter_entry)
             elif entry_type == 'counter':
-                counter_entry = target_high_level_connection.p4info_helper.buildCounterEntry(**entry['parameters'])
+                counter_entry = target_high_level_connection.p4info_helper.buildCounterEntry(**entry.parameters)
                 target_high_level_connection.connection.WriteCountersEntry(counter_entry)
             elif entry_type == 'direct_counter':
-                counter_entry = target_high_level_connection.p4info_helper.buildDirectCounterEntry(**entry['parameters'])
+                counter_entry = target_high_level_connection.p4info_helper.buildDirectCounterEntry(**entry.parameters)
                 target_high_level_connection.connection.WriteDirectCounterEntry(counter_entry)
             else:
                 raise Exception(f'Preload does not handle {entry_type} yet, inform the author to add what you need.')
