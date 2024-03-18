@@ -1,9 +1,7 @@
-import time
 from dataclasses import dataclass
 from queue import Queue
-from typing import Callable, Any, Optional, List
+from typing import Any, Optional, List
 
-from google.protobuf.json_format import Parse
 from google.protobuf.text_format import MessageToString
 from p4.v1 import p4runtime_pb2
 
@@ -45,12 +43,28 @@ class StreamHandlerWorkerThread(Thread):
 
 
 
-class HighLevelSwitchConnection():
-    def __init__(self, device_id: int, filename: str, port=None, send_p4info = True, reset_dataplane=True, election_id_low=1):
+class HighLevelSwitchConnection:
+    def __init__(self,
+                 device_id: int,
+                 filename: str,
+                 port: Optional[int] = None,
+                 send_p4info: bool = True,
+                 reset_dataplane: bool = True,
+                 election_id_low: int=1,
+                 p4info_path: Optional[str] = None,
+                 bmv2_file_path: Optional[str] = None):
         self.device_id = device_id
         self.filename = filename
-        self.p4info_path = f'./build/{self.filename}.p4.p4info.txt'
-        self.bmv2_file_path = f'./build/{self.filename}.json'
+
+        if p4info_path is not None:
+            self.p4info_path = p4info_path
+        else:
+            self.p4info_path = f'./build/{self.filename}.p4.p4info.txt'
+
+        if bmv2_file_path is not None:
+            self.bmv2_file_path = bmv2_file_path
+        else:
+            self.bmv2_file_path = f'./build/{self.filename}.json'
         self.p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(self.p4info_path)
 
         self.port = f'5005{device_id+1}' if port is None else port
