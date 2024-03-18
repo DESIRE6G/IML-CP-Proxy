@@ -448,5 +448,5 @@ try:
         time.sleep(60 * 60)
 except KeyboardInterrupt:
     for server in servers:
-        server.stop(0)
+        server.stop()
 

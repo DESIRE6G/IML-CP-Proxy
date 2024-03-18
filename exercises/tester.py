@@ -394,7 +394,7 @@ def dump_controller_output() -> None:
 
 
 def close_everything_and_save_logs() -> None:
-    if (os.path.exists(f'{TARGET_TEST_FOLDER}/logs')):
+    if os.path.exists(f'{TARGET_TEST_FOLDER}/logs'):
         tmux(f'capture-pane -S - -pt {mininet_pane_name} > {TARGET_TEST_FOLDER}/logs/mininet.log')
         tmux(f'capture-pane -S - -pt {controller_pane_name} > {TARGET_TEST_FOLDER}/logs/controller.log')
         tmux(f'capture-pane -S - -pt {proxy_pane_name} > {TARGET_TEST_FOLDER}/logs/proxy.log')
@@ -410,34 +410,34 @@ def close_everything_and_save_logs() -> None:
 
 
 def process_cmdline_testcase_name(cmdline_input: str) -> List[TestCase]:
-    splitted_testcase = cmdline_input.split('/')
+    splitted_input = cmdline_input.split('/')
 
-    if len(splitted_testcase) > 1 and splitted_testcase[1].strip() == '*':
+    if len(splitted_input) > 1 and splitted_input[1].strip() == '*':
         ret = []
 
-        assert_folder_existence(f'testcases/{splitted_testcase[0]}')
+        assert_folder_existence(f'testcases/{splitted_input[0]}')
 
         for test_case in test_cases:
-            if test_case['name'] == splitted_testcase[0]:
+            if test_case['name'] == splitted_input[0]:
                 ret.append(test_case)
 
         return ret
     else:
         ret = [{
-            'name': splitted_testcase[0],
-            'subtest': splitted_testcase[1] if len(splitted_testcase) > 1 else None
+            'name': splitted_input[0],
+            'subtest': splitted_input[1] if len(splitted_input) > 1 else None
         }]
 
-        if len(splitted_testcase) == 1:
-            assert_folder_existence(f'testcases/{splitted_testcase[0]}')
+        if len(splitted_input) == 1:
+            assert_folder_existence(f'testcases/{splitted_input[0]}')
 
-        if len(splitted_testcase) > 1:
-            assert_folder_existence(f'testcases/{splitted_testcase[0]}/subtests/{splitted_testcase[1]}')
+        if len(splitted_input) > 1:
+            assert_folder_existence(f'testcases/{splitted_input[0]}/subtests/{splitted_input[1]}')
 
         return ret
 
 
-def sigint_handler(signum, frame) -> None:
+def sigint_handler(_signum, _frame) -> None:
     print(f'{COLOR_ORANGE}Ctrl-c was pressed! Cleaning up...{COLOR_END}')
     sys.exit(0)
 
