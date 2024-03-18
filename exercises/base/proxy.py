@@ -373,80 +373,87 @@ class ProxyConfig(BaseModel):
     redis: RedisMode
     mappings: List[ProxyConfigMapping]
 
-with open('proxy_config.json') as f:
-    json_data = f.read()
-    proxy_config = ProxyConfig.model_validate_json(json_data)
-
-servers = []
-
-for mapping in proxy_config.mappings:
-    target_configs_raw = mapping.targets
-    if mapping.target is not None:
-        target_configs_raw.append(mapping.target)
-
-    source_configs_raw = mapping.sources
-    if mapping.source is not None:
-        source_configs_raw.append(mapping.source)
-
-    target_switch_configs = []
-    for target_config_raw in target_configs_raw:
-        mapping_target_switch = HighLevelSwitchConnection(target_config_raw.device_id, target_config_raw.program_name, target_config_raw.port, send_p4info=True, reset_dataplane=target_config_raw.reset_dataplane)
-        print('On startup the rules on the target are the following')
-        for table_entry_response in mapping_target_switch.connection.ReadTableEntries():
-            for starter_table_entity in table_entry_response.entities:
-                entry = starter_table_entity.table_entry
-                print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
-                print(entry)
-                print('-----')
-        target_switch_configs.append(TargetSwitchConfig(mapping_target_switch, target_config_raw.names))
-
-    for source in source_configs_raw:
-        p4info_path = f"build/{source.program_name}.p4.p4info.txt"
-        proxy_server = ProxyServer(source.controller_port, source.prefix, p4info_path, target_switch_configs, proxy_config.redis)
-        proxy_server.start()
-        servers.append(proxy_server)
 
 
-    if len(mapping.preload_entries) > 0:
-        if len(target_switch_configs) > 1:
-            raise Exception('Cannot determine where to preload entries, because there are multiple targets')
+def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[ProxyServer]:
+    servers = []
 
-        target_high_level_connection = target_switch_configs[0].high_level_connection
-        for entry in mapping.preload_entries:
-            entry_type = entry.type
-            if entry_type == 'table':
-                table_entry = target_high_level_connection.p4info_helper.buildTableEntry(**entry.parameters)
-                target_high_level_connection.connection.WriteTableEntry(table_entry)
-            elif entry_type == 'meter':
-                meter_entry = target_high_level_connection.p4info_helper.buildMeterConfigEntry(**entry.parameters)
-                target_high_level_connection.connection.WriteMeterEntry(meter_entry)
-            elif entry_type == 'direct_meter':
-                meter_entry = target_high_level_connection.p4info_helper.buildDirectMeterConfigEntry(**entry.parameters)
-                target_high_level_connection.connection.WriteDirectMeterEntry(meter_entry)
-            elif entry_type == 'counter':
-                counter_entry = target_high_level_connection.p4info_helper.buildCounterEntry(**entry.parameters)
-                target_high_level_connection.connection.WriteCountersEntry(counter_entry)
-            elif entry_type == 'direct_counter':
-                counter_entry = target_high_level_connection.p4info_helper.buildDirectCounterEntry(**entry.parameters)
-                target_high_level_connection.connection.WriteDirectCounterEntry(counter_entry)
-            else:
-                raise Exception(f'Preload does not handle {entry_type} yet, inform the author to add what you need.')
+    for mapping in proxy_config.mappings:
+        target_configs_raw = mapping.targets
+        if mapping.target is not None:
+            target_configs_raw.append(mapping.target)
 
-def sigint_handler(signum, frame):
-    global servers
-    for server in servers:
-        server.stop()
-    sys.exit(0)
+        source_configs_raw = mapping.sources
+        if mapping.source is not None:
+            source_configs_raw.append(mapping.source)
 
-signal.signal(signal.SIGINT, sigint_handler)
+        target_switch_configs = []
+        for target_config_raw in target_configs_raw:
+            mapping_target_switch = HighLevelSwitchConnection(target_config_raw.device_id, target_config_raw.program_name, target_config_raw.port, send_p4info=True, reset_dataplane=target_config_raw.reset_dataplane)
+            print('On startup the rules on the target are the following')
+            for table_entry_response in mapping_target_switch.connection.ReadTableEntries():
+                for starter_table_entity in table_entry_response.entities:
+                    entry = starter_table_entity.table_entry
+                    print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
+                    print(entry)
+                    print('-----')
+            target_switch_configs.append(TargetSwitchConfig(mapping_target_switch, target_config_raw.names))
+
+        for source in source_configs_raw:
+            p4info_path = f"build/{source.program_name}.p4.p4info.txt"
+            proxy_server = ProxyServer(source.controller_port, source.prefix, p4info_path, target_switch_configs, proxy_config.redis)
+            proxy_server.start()
+            servers.append(proxy_server)
+
+        if len(mapping.preload_entries) > 0:
+            if len(target_switch_configs) > 1:
+                raise Exception('Cannot determine where to preload entries, because there are multiple targets')
+
+            target_high_level_connection = target_switch_configs[0].high_level_connection
+            for entry in mapping.preload_entries:
+                entry_type = entry.type
+                if entry_type == 'table':
+                    table_entry = target_high_level_connection.p4info_helper.buildTableEntry(**entry.parameters)
+                    target_high_level_connection.connection.WriteTableEntry(table_entry)
+                elif entry_type == 'meter':
+                    meter_entry = target_high_level_connection.p4info_helper.buildMeterConfigEntry(**entry.parameters)
+                    target_high_level_connection.connection.WriteMeterEntry(meter_entry)
+                elif entry_type == 'direct_meter':
+                    meter_entry = target_high_level_connection.p4info_helper.buildDirectMeterConfigEntry(**entry.parameters)
+                    target_high_level_connection.connection.WriteDirectMeterEntry(meter_entry)
+                elif entry_type == 'counter':
+                    counter_entry = target_high_level_connection.p4info_helper.buildCounterEntry(**entry.parameters)
+                    target_high_level_connection.connection.WriteCountersEntry(counter_entry)
+                elif entry_type == 'direct_counter':
+                    counter_entry = target_high_level_connection.p4info_helper.buildDirectCounterEntry(**entry.parameters)
+                    target_high_level_connection.connection.WriteDirectCounterEntry(counter_entry)
+                else:
+                    raise Exception(f'Preload does not handle {entry_type} yet, inform the author to add what you need.')
+
+    return servers
+
+if __name__ == '__main__':
+    with open('proxy_config.json') as f:
+        json_data = f.read()
+        proxy_config_from_file = ProxyConfig.model_validate_json(json_data)
+
+    proxy_servers = start_servers_by_proxy_config(proxy_config_from_file)
+
+    def sigint_handler(_signum, _frame):
+        global proxy_servers
+        for server_to_stop in proxy_servers:
+            server_to_stop.stop()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, sigint_handler)
 
 
-try:
-    # Important message for the testing system, do not remove :)
-    print('Proxy is ready')
-    while True:
-        time.sleep(60 * 60)
-except KeyboardInterrupt:
-    for server in servers:
-        server.stop()
+    try:
+        # Important message for the testing system, do not remove :)
+        print('Proxy is ready')
+        while True:
+            time.sleep(60 * 60)
+    except KeyboardInterrupt:
+        for server in proxy_servers:
+            server.stop()
 
