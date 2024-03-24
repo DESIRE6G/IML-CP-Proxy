@@ -515,6 +515,7 @@ else:
     elif sys.argv[1] == 'release':
         clear_folder('release')
         shutil.copyfile('base/proxy.py', 'release/proxy.py')
+        shutil.copyfile('requirements.txt', 'release/requirements.txt')
         shutil.copyfile('testcases/l3fwd/proxy_config.json', 'release/proxy_config.json')
         shutil.copytree('common','release/common')
     elif sys.argv[1] == 'saveredis':
