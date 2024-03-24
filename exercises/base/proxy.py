@@ -9,7 +9,7 @@ from concurrent import futures
 from dataclasses import dataclass
 from enum import Enum
 from threading import Thread, Event
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Tuple
 from pydantic import BaseModel, Field, AliasChoices
 
 import grpc
@@ -114,28 +114,33 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         if RedisMode.is_writing(self.redis_mode):
             self.save_counters_state_to_redis()
 
-    def get_target_switch(self, entity: p4runtime_pb2.Entity) -> TargetSwitchObject:
+
+    def get_target_switch_and_index(self, entity: p4runtime_pb2.Entity) -> Tuple[TargetSwitchObject, int]:
         if len(self.target_switches) == 1:
-            return self.target_switches[0]
+            return self.target_switches[0], 0
 
         entity_name = P4NameConverter.get_entity_name(self.from_p4info_helper, entity)
-        for target_switch in self.target_switches:
+        for index, target_switch in enumerate(self.target_switches):
             if target_switch.names is None or entity_name in target_switch.names:
                 print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.port}')
-                return target_switch
+                return target_switch, index
 
         raise Exception(f'Cannot find a target switch for {entity_name=}')
+
+    def get_target_switch(self, entity: p4runtime_pb2.Entity) -> TargetSwitchObject:
+        target_switch, _ = self.get_target_switch_and_index(entity)
+        return target_switch
 
     def Write(self, request, context, converter: P4NameConverter = None, save_to_redis: bool = True) -> None:
         print('------------------- Write -------------------')
         print(request)
 
-        target_switch = None
+        updates_distributed_by_target = [[] for _ in self.target_switches]
 
         for update in request.updates:
             if update.type == Update.INSERT or update.type == Update.MODIFY or update.type == Update.DELETE:
                 entity = update.entity
-                target_switch = self.get_target_switch(entity)
+                target_switch, target_switch_index = self.get_target_switch_and_index(entity)
                 which_one = entity.WhichOneof('entity')
                 if save_to_redis and RedisMode.is_writing(self.redis_mode):
                     if which_one == 'table_entry':
@@ -147,16 +152,18 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     converter.convert_entity(entity)
                 else:
                     target_switch.converter.convert_entity(entity)
+                updates_distributed_by_target[target_switch_index].append(update)
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
 
-        if target_switch is None:
-            raise Exception("There is no found target switch")
+        for target_switch_index, updates in enumerate(updates_distributed_by_target):
+            if len(updates) == 0:
+                continue
 
-        print('== SENDING')
-        print(request)
-        request.device_id = target_switch.high_level_connection.device_id
-        target_switch.high_level_connection.connection.client_stub.Write(request)
+            print(f'== SENDING to target {target_switch_index}')
+            print(updates)
+            self.target_switches[target_switch_index].high_level_connection.connection.WriteUpdates(updates)
+
         return WriteResponse()
 
     def Read(self, request: p4runtime_pb2.ReadRequest, context):

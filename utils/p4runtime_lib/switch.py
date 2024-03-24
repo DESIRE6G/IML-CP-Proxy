@@ -99,6 +99,7 @@ class SwitchConnection(object):
         else:
             self.client_stub.Write(request)
 
+
     def ReadTableEntries(self, table_id=None, dry_run=False):
         request = p4runtime_pb2.ReadRequest()
         request.device_id = self.device_id
@@ -267,6 +268,20 @@ class SwitchConnection(object):
             print("P4Runtime Write:", request)
         else:
             self.client_stub.Write(request)
+
+    def WriteUpdates(self, updates, dry_run=False):
+        request = p4runtime_pb2.WriteRequest()
+        request.device_id = self.device_id
+        request.election_id.low = 1
+        for update in updates:
+            update_in_request = request.updates.add()
+            update_in_request.CopyFrom(update)
+
+        if dry_run:
+            print("P4Runtime Write:", request)
+        else:
+            self.client_stub.Write(request)
+
 
 class GrpcRequestLogger(grpc.UnaryUnaryClientInterceptor,
                         grpc.UnaryStreamClientInterceptor):

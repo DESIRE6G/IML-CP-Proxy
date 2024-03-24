@@ -289,3 +289,17 @@ class P4InfoHelper(object):
             r.instance = replica['instance']
             clone_entry.clone_session_entry.replicas.extend([r])
         return clone_entry
+
+    def buildUpdate(self, entry, update_type = 'INSERT'):
+        update = p4runtime_pb2.Update()
+        if update_type == 'MODIFY':
+            update.type = p4runtime_pb2.Update.MODIFY
+        elif update_type == 'DELETE':
+            update.type = p4runtime_pb2.Update.DELETE
+        else:
+            update.type = p4runtime_pb2.Update.INSERT
+
+        if isinstance(entry, p4runtime_pb2.TableEntry):
+            update.entity.table_entry.CopyFrom(entry)
+
+        return update
