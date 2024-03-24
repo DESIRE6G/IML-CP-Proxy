@@ -1,4 +1,7 @@
 {
   "load_redis_json": false,
-  "ongoing_controller": true
+  "ongoing_controller": true,
+  "file_overrides": {
+    "topology.json": "topology_h1_s1_h2.json"
+  }
 }

@@ -1,6 +1,6 @@
 {
-  "exact_ping_packet_num": 4,
-  "start_controller": false,
+  "load_redis_json": false,
+  "ongoing_controller": true,
   "file_overrides": {
     "topology.json": "topology_h1_s1_s2_h2.json"
   }

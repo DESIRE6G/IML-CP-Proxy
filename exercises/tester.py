@@ -53,6 +53,7 @@ test_cases : List[TestCase] = [
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
+TESTCASE_COMMON_FOLDER = 'testcase_common'
 BUILD_CACHE_FOLDER = '__build_cache'
 TESTCASE_FOLDER = 'testcases'
 TMUX_WINDOW_NAME = 'proxy_tester'
@@ -168,7 +169,13 @@ def prepare_test_folder(test_case: str, subtest:Optional[str]=None):
 
     config = Config(f'{TARGET_TEST_FOLDER}/test_config.json', ignore_missing_file=True)
     for override_target, override_source in config.get('file_overrides', {}).items():
-        link_file_with_override(f'{TESTCASE_FOLDER}/{test_case}/{override_source}', f'{TARGET_TEST_FOLDER}/{override_target}')
+        target_path = f'{TARGET_TEST_FOLDER}/{override_target}'
+        if os.path.exists(path := f'{TESTCASE_FOLDER}/{test_case}/{override_source}'):
+            link_file_with_override(path, target_path)
+        elif os.path.exists(path := f'{TESTCASE_COMMON_FOLDER}/{override_source}'):
+            link_file_with_override(path, target_path)
+        else:
+            raise Exception(f'Cannot found any file for "{override_source} -> {override_target}" override')
 
 
 
