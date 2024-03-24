@@ -441,15 +441,10 @@ def process_cmdline_testcase_name(cmdline_input: str) -> List[TestCase]:
     splitted_input = cmdline_input.split('/')
 
     if len(splitted_input) > 1 and splitted_input[1].strip() == '*':
-        ret = []
-
         assert_folder_existence(f'testcases/{splitted_input[0]}')
-
-        for test_case in test_cases:
-            if test_case['name'] == splitted_input[0]:
-                ret.append(test_case)
-
-        return ret
+        return [test_case for test_case in test_cases if test_case['name'] == splitted_input[0]]
+    if len(splitted_input) > 1 and splitted_input[0].strip() == '*':
+        return [test_case for test_case in test_cases if test_case['subtest'] == splitted_input[1]]
     else:
         ret = [{
             'name': splitted_input[0],
