@@ -9,7 +9,7 @@ from concurrent import futures
 from dataclasses import dataclass
 from enum import Enum
 from threading import Thread, Event
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from pydantic import BaseModel
 
 import grpc
@@ -324,11 +324,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
 class ProxyServer:
-    def __init__(self, port, prefix, from_p4info_path, target_switches: List[TargetSwitchConfig], redis_mode: RedisMode):
+    def __init__(self, port, prefix, from_p4info_path, target_switches: Union[List[TargetSwitchConfig], HighLevelSwitchConnection], redis_mode: RedisMode):
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
-        self.target_switches = target_switches
+        if isinstance(target_switches, list):
+            self.target_switches = target_switches
+        elif isinstance(target_switches, HighLevelSwitchConnection):
+            self.target_switches = [TargetSwitchConfig(target_switches)]
+        else:
+            raise Exception(f'You cannot init target_switches of ProxyServer with "{type(target_switches)}" typed object.')
+
         self.server = None
         self.servicer = None
         self.redis_mode = redis_mode
