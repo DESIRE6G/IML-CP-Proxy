@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from queue import Queue
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Union
 
 from google.protobuf.text_format import MessageToString
 from p4.v1 import p4runtime_pb2
@@ -47,7 +47,7 @@ class HighLevelSwitchConnection:
     def __init__(self,
                  device_id: int,
                  filename: str,
-                 port: Optional[int] = None,
+                 port: Optional[Union[int, str]] = None,
                  send_p4info: bool = True,
                  reset_dataplane: bool = True,
                  election_id_low: int=1,
