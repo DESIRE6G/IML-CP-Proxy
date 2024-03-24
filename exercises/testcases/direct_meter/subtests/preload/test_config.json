@@ -1,8 +1,0 @@
-{
-  "load_redis_json": false,
-  "start_controller": false,
-  "run_validator": false,
-  "file_overrides": {
-    "topology.json": "topology_h1_s1_h2.json"
-  }
-}

@@ -8,6 +8,7 @@ import signal
 import sys
 import time
 import subprocess
+from pprint import pprint
 from typing import TypedDict, List, Optional, Any
 import redis
 
@@ -167,7 +168,7 @@ def prepare_test_folder(test_case: str, subtest:Optional[str]=None):
         assert_folder_existence(subtest_folder_path)
         link_all_files_from_folder(subtest_folder_path, TARGET_TEST_FOLDER)
 
-    config = Config(f'{TARGET_TEST_FOLDER}/test_config.json', ignore_missing_file=True)
+    config = ExtendableConfig(f'{TARGET_TEST_FOLDER}/test_config.json', ignore_missing_file=True)
     for override_target, override_source in config.get('file_overrides', {}).items():
         target_path = f'{TARGET_TEST_FOLDER}/{override_target}'
         if os.path.exists(path := f'{TESTCASE_FOLDER}/{test_case}/{override_source}'):
@@ -180,7 +181,7 @@ def prepare_test_folder(test_case: str, subtest:Optional[str]=None):
 
 
 def prepare_environment() -> None:
-    config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
+    config = ExtendableConfig(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
     redis_file_path = f"{TARGET_TEST_FOLDER}/redis.json"
     redis.flushdb()
     if os.path.isfile(redis_file_path) and config.get('load_redis_json',True):
@@ -196,15 +197,35 @@ def prepare_environment() -> None:
                     redis.set(redis_key, table_obj['string'])
 
 
-class Config:
-    def __init__(self, config_file: str, ignore_missing_file: bool = False) -> None:
+class ExtendableConfig:
+    def __init__(self, config_file_path: str, ignore_missing_file: bool = False) -> None:
         self.config = {}
+
+        def add_postfix_to_filename(path, postfix):
+            folder, filename = os.path.split(path)
+            filename_without_ext, ext = os.path.splitext(filename)
+            new_filename = f"{filename_without_ext}{postfix}{ext}"
+            return os.path.join(folder, new_filename)
+
         try:
-            with open(config_file) as f:
+            with open(config_file_path) as f:
                 self.config = json.load(f)
         except FileNotFoundError as e:
             if not ignore_missing_file:
                 raise e
+        #print('BEFORE EXTEND')
+        #pprint(self.config)
+
+        override_file_path = add_postfix_to_filename(config_file_path, '_extend')
+        if os.path.exists(override_file_path):
+            with open(override_file_path) as f:
+                override_config = json.load(f)
+                #print('OVERRIDE_CONFIG')
+                #pprint(override_config)
+                self.config.update(override_config)
+
+        print('--- CONFIG ---- ')
+        pprint(self.config)
 
     def get(self, key: str, default = None) -> Any:
         if key in self.config:
@@ -226,7 +247,7 @@ def run_test_cases(test_cases_to_run: list):
             prepare_test_folder(test_case, subtest)
             prepare_environment()
 
-            config = Config(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
+            config = ExtendableConfig(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
 
             # Initialize mininet
             for _ in range(3):
