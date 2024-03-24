@@ -11,7 +11,7 @@
         {
           "program_name": "fwd_with_counting",
           "prefix": "",
-          "controller_port": 60051
+          "port": 60051
         }
       ]
     },
@@ -25,7 +25,7 @@
         {
           "program_name": "fwd_with_counting2",
           "prefix": "",
-          "controller_port": 60052
+          "port": 60052
         }
       ]
     }

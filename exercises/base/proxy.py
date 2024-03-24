@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 from threading import Thread, Event
 from typing import Dict, List, Optional, Any, Union
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, AliasChoices
 
 import grpc
 from google.protobuf.text_format import MessageToString
@@ -362,7 +362,7 @@ class ProxyConfigTarget(BaseModel):
 class ProxyConfigSource(BaseModel):
     program_name: str
     prefix: str = ''
-    controller_port: int
+    port: int = Field(validation_alias=AliasChoices('controller_port', 'port'))
 
 class ProxyConfigPreloadEntry(BaseModel):
     type: str
@@ -407,7 +407,7 @@ def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[ProxyServer
 
         for source in source_configs_raw:
             p4info_path = f"build/{source.program_name}.p4.p4info.txt"
-            proxy_server = ProxyServer(source.controller_port, source.prefix, p4info_path, target_switch_configs, proxy_config.redis)
+            proxy_server = ProxyServer(source.port, source.prefix, p4info_path, target_switch_configs, proxy_config.redis)
             proxy_server.start()
             servers.append(proxy_server)
 

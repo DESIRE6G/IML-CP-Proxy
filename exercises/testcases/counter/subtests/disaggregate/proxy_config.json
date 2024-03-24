@@ -32,7 +32,7 @@
       ],
       "source": {
         "program_name": "fwd_with_counting_aggregated",
-        "controller_port": 60051
+        "port": 60051
       }
     }
   ]

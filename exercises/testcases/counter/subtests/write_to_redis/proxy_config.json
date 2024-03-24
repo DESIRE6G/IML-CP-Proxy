@@ -12,12 +12,12 @@
         {
           "program_name": "fwd_with_counting",
           "prefix": "NF1_",
-          "controller_port": 60051
+          "port": 60051
         },
         {
           "program_name": "fwd_with_counting2",
           "prefix": "NF2_",
-          "controller_port": 60052
+          "port": 60052
         }
       ]
     }

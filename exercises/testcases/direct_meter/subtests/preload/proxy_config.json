@@ -12,7 +12,7 @@
         {
           "program_name": "direct_meter",
           "prefix": "NF1_",
-          "controller_port": 60051
+          "port": 60051
         }
       ],
       "preload_entries": [

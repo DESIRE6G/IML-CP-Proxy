@@ -12,12 +12,12 @@
         {
           "program_name": "mac-learn",
           "prefix": "NF1_",
-          "controller_port": 60051
+          "port": 60051
         },
         {
           "program_name": "state-learn",
           "prefix": "NF2_",
-          "controller_port": 60052
+          "port": 60052
         }
       ]
     }

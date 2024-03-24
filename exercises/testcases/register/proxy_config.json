@@ -11,7 +11,7 @@
         {
           "program_name": "register",
           "prefix": "",
-          "controller_port": 60051
+          "port": 60051
         }
       ]
     }

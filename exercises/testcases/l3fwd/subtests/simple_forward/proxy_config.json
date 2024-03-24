@@ -11,7 +11,7 @@
         {
           "program_name": "basic_part1",
           "prefix": "",
-          "controller_port": 60053
+          "port": 60053
         }
       ]
     },
@@ -25,7 +25,7 @@
         {
           "program_name": "basic_part2",
           "prefix": "",
-          "controller_port": 60054
+          "port": 60054
         }
       ]
     }

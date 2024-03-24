@@ -11,12 +11,12 @@
         {
           "program_name": "basic_part1",
           "prefix": "NF1_",
-          "controller_port": 60053
+          "port": 60053
         },
         {
           "program_name": "basic_part2",
           "prefix": "NF2_",
-          "controller_port": 60054
+          "port": 60054
         }
       ]
     }

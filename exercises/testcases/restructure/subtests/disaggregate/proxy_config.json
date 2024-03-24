@@ -33,7 +33,7 @@
       ],
       "source": {
         "program_name": "aggregated123",
-        "controller_port": 60051
+        "port": 60051
       }
     }
   ]

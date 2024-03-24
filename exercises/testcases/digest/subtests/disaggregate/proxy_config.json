@@ -22,7 +22,7 @@
       ],
       "source": {
         "program_name": "mac-and-state-learn-aggregated",
-        "controller_port": 60051
+        "port": 60051
       }
     }
   ]

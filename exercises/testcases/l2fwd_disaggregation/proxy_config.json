@@ -25,7 +25,7 @@
       ],
       "source": {
         "program_name": "l2fwd",
-        "controller_port": 60051
+        "port": 60051
       }
     }
   ]
