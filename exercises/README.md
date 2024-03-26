@@ -1,18 +1,21 @@
 # P4 Runtime Proxy 
 
 The goal of the P4Runtime Proxy is to create a layer between the data and control plane levels.
-Its primary purpose is to be able to rearrange and merge executive units hidden to the control plane without having to modify the control plane.
+Its primary purpose is to be able to rearrange executive units hidden to the control plane without having to modify the control plane.
 Its second purpose is that even if the data plane is rearranged, the control plane does not have to upload the various data again.
 
-The combination of these two goals gives us the opportunity to break down the network functionalities into small elements and instead of having to maintain a larger P4 individual program, we create smaller functions and corresponding controllers and combine them.
+The combination of these two goals gives us the opportunity to 
+1) break down the network functionalities into small elements and instead of having to maintain a larger P4 individual program, we create smaller functions and corresponding controllers and combine them;
+2) break down a complex p4 program to multiple switches.
 Since the Proxy also stores the entries, when a rearrangement takes place, almost nothing is sensible from the control plane and the user side.
 
-## Usage
+## JSON Usage
 
 The proxy can be configured via a JSON file. 
 In this file, you can specify mutiple mappings that configure the operation of the proxy. 
-A mapping contains the target node to which we want to apply the proxy. 
-We will aggregate several basic functions into this node. 
+A mapping contains targets and sources nodes to which we want to apply the proxy. 
+If we have multiple source and one target we will aggregate several basic functions into this node. 
+If we have multiple targets and one source then we will disaggregate the P4 program.
 It also includes the corresponding P4 file and the connection data of the GRPC server. 
 The proxy will connect to it and appear as a controller for the data plane.
 In addition to the target, we must specify the mapping sources and the corresponding p4 files, these sources are the functions which we want to combine. 
@@ -36,12 +39,12 @@ One of the most basic example configurations that combines 2 functions onto one 
         {
           "program_name": "function1",
           "prefix": "NF1_",
-          "controller_port": 60051
+          "port": 60051
         },
         {
           "program_name": "function2",
           "prefix": "NF2_",
-          "controller_port": 60052
+          "port": 60052
         }
       ]
     }
@@ -59,6 +62,22 @@ In production the typical mode is used for Redis is `READWRITE`, but for testing
 | ONLY_WRITE | Does not read on startup, but update                                |
 | ONLY_READ  | Only load entries from redis on startup, but do not save any change |
 | OFF        | Do not use redis entirely                                           |
+
+The configuration can accept `source` for one source, `sources` for mutliple sources. `target` and `targets` similarly handled.
+
+For fully detailed paraméters, you can find `ProxyConfig` Pydantic model in proxy.py that determines the structure of the configuration files or you can find multiple testcases in the repository.
+
+### Preload
+
+The proxy can help you to preload entries in the dataplane on startup. 
+For that you can check the `preload` examples in testcases.
+
+## Use as lib
+
+The Proxy can be used as a lib as well. 
+You can directly create a Pydantic modell and pass it to the `start_servers_by_proxy_config` function.
+
+If you need more detailed control on the tool, you can initiate the `ProxyServer` classes directly, check the source code for more information.
 
 ## Testing enviroment
 
@@ -81,21 +100,33 @@ If the testcase is failed the built testcase is reamins in the `__temporary_test
 ### Examples
 
 Run all the test cases:
+
 ```python tester.py```
 
 Run the l2fwd testcase without subtest:
+
 ```python tester.py l2fwd```
 
 Run the l2fwd testcase simple_forward subtest:
+
 ```python tester.py l2fwd/simple_forward```
 
+You can use asterix as wildcard for testcase and subtest as well:
+
+```python tester.py */preload```
+
+```python tester.py counter/*```
+
 Build the `__temporary_test_folder` for the l2fwd testcase simple_forward subtest:
+
 ```python tester.py l2fwd/simple_forward```
 
 Do a release into the `release` folder that contains all the necessary files to run the proxy without symlinks:
+
 ```python release```
 
 Reload redis information for the actually built test folder:
+
 ```python prepare```
 
 ## Test config
@@ -108,3 +139,17 @@ If you add a `test_config.json` to the test case, you can configure the followin
 | load_redis_json       | Determines if the tester fills up the redis from the redis.json file. | true                |
 | start_controller      | Determines if the tester starts the controller.                       | true                |
 | exact_ping_packet_num | Determines how many ping the tester will send to the h2 node.         | Run until a timeout |
+| file_overrides        | You can give a dict that determines files to use.                     |                     |
+
+To decrease redundancy there are `testcase_common` folder, that files are all copied to the test folder and with the `file_overrides` paramter we can use for example the defined topology there if we add the following config to our `test_config.json`.
+
+```json
+{
+  "file_overrides": {
+    "topology.json": "topology_h1_s1_h2.json"
+  }
+}
+```
+
+If you want to only extend or override some fields of the `test_config.json` placed into the test case folder, you can create a `test_case_extend.json`, that does not override fully the base config.
+This feature is for further redundancy decrease.
