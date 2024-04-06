@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 import grpc
 
@@ -72,7 +72,7 @@ class CounterObject:
 
 
 
-def get_counter_objects_by_id(sw: SwitchConnection, counters_id: int, index=None) -> List[CounterObject]:
+def get_counter_objects_by_id(sw: SwitchConnection, counters_id: Optional[int] = None, index=None) -> List[CounterObject]:
     results = []
     for response in sw.ReadCounters(counters_id, index):
         for entity in response.entities:

@@ -2,7 +2,7 @@
 from pprint import pprint
 import sys
 
-from common.controller_helper import get_counter_object, get_counter_objects, get_direct_counter_objects
+from common.controller_helper import get_counter_object, get_counter_objects, get_direct_counter_objects, get_counter_objects_by_id
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 from common.validator_tools import Validator
@@ -15,6 +15,7 @@ if __name__ == '__main__':
     counter1_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.packetCounter')
     counter2_objects = get_counter_objects(s2.p4info_helper, s2.connection, 'MyIngress.packetCounter')
     node1_direct_counter = get_direct_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.ipv4_lpm')
+    counter1_all_objects = get_counter_objects_by_id(s1.connection, None)
 
     print('counter1_objects object:')
     pprint(counter1_objects)
@@ -25,9 +26,18 @@ if __name__ == '__main__':
     print('node1_direct_counter')
     pprint(node1_direct_counter)
 
+    print('id=0 request for counter for s1')
+    pprint(counter1_all_objects)
+
+
     counter1_id = s1.p4info_helper.get_counters_id('MyIngress.packetCounter')
     counter2_id = s2.p4info_helper.get_counters_id('MyIngress.packetCounter')
+    counter1_packet_only_id = s1.p4info_helper.get_counters_id('MyIngress.packetCounterOnlyPacket')
     validator = Validator()
+
+    validator.should_be_equal(counter1_all_objects[0:3], counter1_objects)
+    validator.should_be_equal(counter1_all_objects[3].counter_id, counter1_packet_only_id)
+
 
     validator.should_be_not_equal(counter1_objects[0].packet_count, 0)
     validator.should_be_not_equal(counter1_objects[0].byte_count, 0)
