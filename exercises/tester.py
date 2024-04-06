@@ -11,6 +11,7 @@ import subprocess
 from pprint import pprint
 from typing import TypedDict, List, Optional, Any
 import redis
+from pydantic import BaseModel
 
 from common.colors import COLOR_YELLOW, COLOR_GREEN, COLOR_ORANGE, COLOR_CYAN, COLOR_END, COLOR_RED_BG, COLOR_YELLOW_BG
 from common.redis_helper import save_redis_to_json_file
@@ -58,6 +59,13 @@ TESTCASE_COMMON_FOLDER = 'testcase_common'
 BUILD_CACHE_FOLDER = '__build_cache'
 TESTCASE_FOLDER = 'testcases'
 TMUX_WINDOW_NAME = 'proxy_tester'
+TESTCASE_JSON_FILENAME = 'testcase.json'
+TESTCASE_JSON_FILE_PATH = os.path.join(TARGET_TEST_FOLDER, TESTCASE_JSON_FILENAME)
+
+class TestcaseDescriptor(BaseModel):
+    test_case: str
+    subtest: Optional[str] = None
+
 necessary_files = ['*.p4', '*.py', '*.json', '*.pcap', 'Makefile']
 
 def tmux(command: str) -> int:
@@ -148,6 +156,9 @@ def copy_prebuilt_files() -> None:
 
 def prepare_test_folder(test_case: str, subtest:Optional[str]=None):
     clear_folder(TARGET_TEST_FOLDER)
+    with open(TESTCASE_JSON_FILE_PATH, 'wt') as f:
+        descriptor = TestcaseDescriptor(test_case=test_case, subtest=subtest)
+        f.write(descriptor.model_dump_json(indent=4))
     link_all_files_from_folder('base', TARGET_TEST_FOLDER)
     os.symlink(os.path.realpath('common'), os.path.realpath(f'{TARGET_TEST_FOLDER}/common'))
 
@@ -514,8 +525,16 @@ def print_all_missing_test_folders_in_test_case_list() -> None:
 
 if len(sys.argv) == 1:
     build_up_p4_cache()
-    run_test_cases(test_cases)
-    print_all_missing_test_folders_in_test_case_list()
+    try:
+        if os.path.exists(TESTCASE_JSON_FILE_PATH):
+            with open(TESTCASE_JSON_FILE_PATH, 'r') as f:
+                testcase_config = TestcaseDescriptor.model_validate_json(f.read())
+
+            index_of_testcase = [tc_i for tc_i, tc_v in enumerate(test_cases) if testcase_config.test_case == tc_v['name'] and testcase_config.subtest == tc_v['subtest']][0]
+            test_cases = test_cases[index_of_testcase:] + test_cases[:index_of_testcase]
+    finally:
+        run_test_cases(test_cases)
+        print_all_missing_test_folders_in_test_case_list()
 else:
     if sys.argv[1] == 'help':
         print('python tester.py - run all the test cases')
