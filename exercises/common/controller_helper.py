@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Optional
+from p4.v1 import p4runtime_pb2
 
 import grpc
 
@@ -70,17 +71,20 @@ class CounterObject:
     packet_count: int
     byte_count: int
 
+    @classmethod
+    def from_proto_entry(cls, counter_entry: p4runtime_pb2.CounterEntry) -> 'CounterObject':
+        return cls(
+                counter_id=counter_entry.counter_id,
+                packet_count=counter_entry.data.packet_count,
+                byte_count=counter_entry.data.byte_count,
+            )
 
 
 def get_counter_objects_by_id(sw: SwitchConnection, counters_id: Optional[int] = None, index=None) -> List[CounterObject]:
     results = []
     for response in sw.ReadCounters(counters_id, index):
         for entity in response.entities:
-            new_obj = CounterObject(
-                counter_id=entity.counter_entry.counter_id,
-                packet_count=entity.counter_entry.data.packet_count,
-                byte_count=entity.counter_entry.data.byte_count,
-            )
+            new_obj = CounterObject.from_proto_entry(entity.counter_entry)
             results.append(new_obj)
 
     return results

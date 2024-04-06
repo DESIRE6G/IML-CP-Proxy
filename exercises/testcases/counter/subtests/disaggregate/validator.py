@@ -2,7 +2,9 @@
 from pprint import pprint
 import sys
 
-from common.controller_helper import get_counter_object, get_counter_objects, get_direct_counter_objects, get_counter_objects_by_id
+from p4.v1 import p4runtime_pb2
+
+from common.controller_helper import get_counter_object, get_counter_objects, get_direct_counter_objects, get_counter_objects_by_id, CounterObject
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 from common.redis_helper import wait_heartbeats_in_redis, compare_redis
@@ -72,6 +74,22 @@ if __name__ == '__main__':
     # validator.should_be_equal(counter1packet_objects[0].byte_count, 0)
     validator.should_be_equal(counter2bytes_objects[0].byte_count, counter2_objects[0].byte_count)
     # validator.should_be_equal(counter2bytes_objects[0].packet_count, 0)
+
+
+    request = p4runtime_pb2.ReadRequest()
+    request.device_id = s1.device_id
+    entity = request.entities.add()
+    entity.counter_entry.counter_id = counter1_id
+    entity = request.entities.add()
+    entity.counter_entry.counter_id = counter2_id
+    response_list = []
+    for response in s1.connection.client_stub.Read(request):
+        for entity in response.entities:
+            response_list.append(CounterObject.from_proto_entry(entity.counter_entry))
+
+    validator.should_be_equal(response_list[:3], counter1_objects)
+    validator.should_be_equal(response_list[3:], counter2_objects)
+
 
     wait_heartbeats_in_redis(['fwd_with_counting_aggregated_'])
     validator.should_be_true(compare_redis('redis.json'))
