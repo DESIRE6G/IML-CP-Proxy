@@ -186,12 +186,6 @@ class P4NameConverter:
         else:
             raise Exception(f'Not implemented type for convert_entity "{which_one}"')
 
-    def convert_read_request(self,
-                             request: p4runtime_pb2.ReadRequest,
-                             verbose: bool=True) -> None:
-        for entity in request.entities:
-            self.convert_entity(entity, reverse=False,verbose=verbose)
-
 
     def convert_digest_list(self, digest: p4runtime_pb2.DigestList) -> None:
         digest.digest_id = self.convert_id('digest', digest.digest_id, reverse=True)
