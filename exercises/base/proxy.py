@@ -259,13 +259,14 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 raise Exception(f'Unhandled Stream field type {request.WhichOneof}')
 
     def Capabilities(self, request: p4runtime_pb2.CapabilitiesRequest, context):
-        # missing associated documentation comment in .proto file
-        print('Capabilities')
-        print(request)
-        print(context)
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        versions = []
+        for target_switch in self.target_switches:
+            versions.append(target_switch.high_level_connection.connection.client_stub.Capabilities(request))
+
+        if not all(version == versions[0] for version in versions):
+            raise Exception(f'The underlying api versions not match to each other. Versions from dataplane: {versions}')
+
+        return versions[0]
 
     def fill_from_redis(self) -> None:
         print('FILLING FROM REDIS')
