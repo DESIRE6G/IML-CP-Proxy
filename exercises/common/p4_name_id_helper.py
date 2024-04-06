@@ -20,6 +20,8 @@ def prefix_p4_name(original_p4_name : str, prefix : str) -> str:
 class PrefixIsNotPresentException(Exception):
     pass
 
+class EntityCannotHaveZeroId(Exception):
+    pass
 
 def remove_prefix_p4_name(prefixed_p4_name : str, prefix : str) -> str:
     if prefixed_p4_name in RESTRICTED_P4_NAMES:
@@ -212,19 +214,25 @@ class P4NameConverter:
 
     @staticmethod
     def get_entity_name(p4info_helper: P4InfoHelper, entity: p4runtime_pb2.Entity) -> str:
+        def assert_non_zero_entity_id_and_return(entity_id: int):
+            if entity_id == 0:
+                raise EntityCannotHaveZeroId()
+
+            return entity_id
+
         which_one = entity.WhichOneof('entity')
         if which_one == 'table_entry':
-            return p4info_helper.get_tables_name(entity.table_entry.table_id)
+            return p4info_helper.get_tables_name(assert_non_zero_entity_id_and_return(entity.table_entry.table_id))
         elif which_one == 'counter_entry':
-            return p4info_helper.get_counters_name(entity.counter_entry.counter_id)
+            return p4info_helper.get_counters_name(assert_non_zero_entity_id_and_return(entity.counter_entry.counter_id))
         elif which_one == 'direct_counter_entry':
-            return p4info_helper.get_tables_name(entity.direct_counter_entry.table_entry.table_id)
+            return p4info_helper.get_tables_name(assert_non_zero_entity_id_and_return(entity.direct_counter_entry.table_entry.table_id))
         elif which_one == 'meter_entry':
-            return p4info_helper.get_meters_name(entity.meter_entry.meter_id)
+            return p4info_helper.get_meters_name(assert_non_zero_entity_id_and_return(entity.meter_entry.meter_id))
         elif which_one == 'direct_meter_entry':
-            return p4info_helper.get_tables_name(entity.direct_meter_entry.table_entry.table_id)
+            return p4info_helper.get_tables_name(assert_non_zero_entity_id_and_return(entity.direct_meter_entry.table_entry.table_id))
         elif which_one == 'digest_entry':
-            return p4info_helper.get_digests_name(entity.digest_entry.digest_id)
+            return p4info_helper.get_digests_name(assert_non_zero_entity_id_and_return(entity.digest_entry.digest_id))
         else:
             raise Exception(f'Not implemented type for get_entity_name "{which_one}"')
 

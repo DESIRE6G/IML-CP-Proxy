@@ -19,7 +19,7 @@ from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, Update, Wri
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 from google.protobuf.json_format import MessageToJson, Parse
 
-from common.p4_name_id_helper import P4NameConverter, get_pure_p4_name
+from common.p4_name_id_helper import P4NameConverter, get_pure_p4_name, EntityCannotHaveZeroId
 from common.p4runtime_lib.helper import P4InfoHelper
 import redis
 
@@ -166,30 +166,40 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         return WriteResponse()
 
-    def Read(self, request: p4runtime_pb2.ReadRequest, context):
+    def Read(self, original_request: p4runtime_pb2.ReadRequest, context):
         """Read one or more P4 entities from the target.
         """
         print('------------------- Read -------------------')
-        if len(request.entities) == 1:
+        if len(original_request.entities) == 1:
             ret = ReadResponse()
-            entity = request.entities[0]
-            target_switch = self.get_target_switch(entity)
-            print('request:')
-            print(request)
-            target_switch.converter.convert_read_request(request)
-            request.device_id = target_switch.high_level_connection.device_id
-            print('converted_request:')
-            print(request)
-            for result in target_switch.high_level_connection.connection.client_stub.Read(request):
-                print('result:')
-                print(result)
-                for entity in result.entities:
-                    entity_name = target_switch.converter.get_target_entity_name(entity)
-                    if get_pure_p4_name(entity_name).startswith(self.prefix):
-                        target_switch.converter.convert_entity(entity, reverse=True)
-                        ret_entity = ret.entities.add()
-                        ret_entity.CopyFrom(entity)
+            entity = original_request.entities[0]
 
+            def add_entries_for_target_switch(target_switch_object: TargetSwitchObject):
+                new_request = p4runtime_pb2.ReadRequest()
+                new_request.CopyFrom(original_request)
+                print('request:')
+                print(new_request)
+                target_switch_object.converter.convert_read_request(new_request)
+                new_request.device_id = target_switch_object.high_level_connection.device_id
+                print('converted_request:')
+                print(new_request)
+                for result in target_switch_object.high_level_connection.connection.client_stub.Read(new_request):
+                    print('result:')
+                    print(result)
+                    for entity in result.entities:
+                        entity_name = target_switch_object.converter.get_target_entity_name(entity)
+                        if get_pure_p4_name(entity_name).startswith(self.prefix):
+                            target_switch_object.converter.convert_entity(entity, reverse=True)
+                            ret_entity = ret.entities.add()
+                            ret_entity.CopyFrom(entity)
+
+            try:
+                target_switch = self.get_target_switch(entity)
+                add_entries_for_target_switch(target_switch)
+            except EntityCannotHaveZeroId:
+                for target_switch_index, target_switch in enumerate(self.target_switches):
+                    print(f'Adding to {target_switch_index} switch')
+                    add_entries_for_target_switch(target_switch)
 
             yield ret
         else:

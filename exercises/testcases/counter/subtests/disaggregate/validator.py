@@ -2,7 +2,7 @@
 from pprint import pprint
 import sys
 
-from common.controller_helper import get_counter_object, get_counter_objects, get_direct_counter_objects
+from common.controller_helper import get_counter_object, get_counter_objects, get_direct_counter_objects, get_counter_objects_by_id
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 from common.redis_helper import wait_heartbeats_in_redis, compare_redis
@@ -15,6 +15,7 @@ if __name__ == '__main__':
     counter1_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_packetCounter')
     counter2_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF2_packetCounter')
     node1_direct_counter = get_direct_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_ipv4_lpm')
+    all_counters = get_counter_objects_by_id(s1.connection, None)
 
     print('counter1_objects object:')
     pprint(counter1_objects)
@@ -25,9 +26,20 @@ if __name__ == '__main__':
     print('node1_direct_counter')
     pprint(node1_direct_counter)
 
+    print('all_counters')
+    pprint(all_counters)
+
     counter1_id = s1.p4info_helper.get_counters_id('MyIngress.NF1_packetCounter')
     counter2_id = s1.p4info_helper.get_counters_id('MyIngress.NF2_packetCounter')
+    counter1_packet_only_id = s1.p4info_helper.get_counters_id('MyIngress.NF1_packetCounterOnlyPacket')
+    counter2_bytes_only_id = s1.p4info_helper.get_counters_id('MyIngress.NF2_packetCounterOnlyBytes')
+
     validator = Validator()
+
+    validator.should_be_equal(all_counters[:3], counter1_objects)
+    validator.should_be_equal(all_counters[3].counter_id, counter1_packet_only_id)
+    validator.should_be_equal(all_counters[4:7], counter2_objects)
+    validator.should_be_equal(all_counters[7].counter_id, counter2_bytes_only_id)
 
     validator.should_be_not_equal(counter1_objects[0].packet_count, 0)
     validator.should_be_not_equal(counter1_objects[0].byte_count, 0)
