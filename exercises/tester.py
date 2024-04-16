@@ -91,9 +91,12 @@ def get_pane_output(pane_name: str) -> str:
 def get_last_pane_row(pane_name: str) -> str:
     output = get_pane_output(pane_name)
     rows = [row for row in output.split('\n') if len(row.strip('\n \t')) > 0]
+    for i in range(1, len(rows)):
+        row = rows[-i]
+        if row.strip() != '':
+            return row
 
-    return rows[-1] if len(rows) > 0 else ''
-
+    return ''
 
 def wait_for_output_anywhere(regexp_to_wait_for: str, pane_name: str, try_interval=0.5, max_time=10):
     wait_for_condition_blocking(lambda: re.search(regexp_to_wait_for, get_pane_output(pane_name)) is not None, f'Cannot find {regexp_to_wait_for} on {pane_name}', try_interval, max_time)
