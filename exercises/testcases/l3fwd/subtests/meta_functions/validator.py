@@ -19,6 +19,15 @@ if __name__ == '__main__':
 
     validator.should_be_equal(api1, api2)
 
+
+    request = p4runtime_pb2.GetForwardingPipelineConfigRequest()
+
+    pipeline_config1 = s1.connection.client_stub.GetForwardingPipelineConfig(request)
+    validator.should_be_equal(pipeline_config1.config.p4info, s1.p4info_helper.p4info)
+
+    pipeline_config2 = s2.connection.client_stub.GetForwardingPipelineConfig(request)
+    validator.should_be_equal(pipeline_config2.config.p4info, s2.p4info_helper.p4info)
+
     ShutdownAllSwitchConnections()
 
     if validator.was_successful():

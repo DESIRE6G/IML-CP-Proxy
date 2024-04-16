@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from enum import Enum
 from threading import Thread, Event
 from typing import Dict, List, Optional, Any, Union, Tuple
+
+import google
 from pydantic import BaseModel, Field, AliasChoices
 
 import grpc
@@ -91,6 +93,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         )
 
         self.from_p4info_helper = P4InfoHelper(from_p4info_path)
+        self.raw_p4info = MessageToString(self.from_p4info_helper.p4info)
         self.requests_stream = IterableQueue()
         self.redis_mode = redis_mode
 
@@ -215,20 +218,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def SetForwardingPipelineConfig(self, request: p4runtime_pb2.SetForwardingPipelineConfigRequest, context):
         # Do not forward p4info just save it, on init we load the p4info
         self.delete_redis_entries_for_this_service()
+        self.raw_p4info = MessageToString(request.config.p4info)
         if RedisMode.is_writing(self.redis_mode):
-            redis.set(self.redis_keys.P4INFO,MessageToString(request.config.p4info))
+            redis.set(self.redis_keys.P4INFO, self.raw_p4info)
 
         return SetForwardingPipelineConfigResponse()
 
     def GetForwardingPipelineConfig(self, request: p4runtime_pb2.GetForwardingPipelineConfigRequest, context):
-        """Gets the current P4 forwarding-pipeline config.
-        """
-        print('GetForwardingPipelineConfig')
-        print(request)
-        print(context)
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        response = p4runtime_pb2.GetForwardingPipelineConfigResponse()
+        google.protobuf.text_format.Merge(self.raw_p4info, response.config.p4info)
+        return response
+
 
     def StreamChannel(self, request_iterator, context):
         for request in request_iterator:
@@ -270,12 +270,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def fill_from_redis(self) -> None:
         print('FILLING FROM REDIS')
-        raw_p4info = redis.get(self.redis_keys.P4INFO)
-        if raw_p4info is None:
+        self.raw_p4info = redis.get(self.redis_keys.P4INFO)
+        if self.raw_p4info is None:
             print('Fillig from redis failed, because p4info cannot be found in redis')
             return
 
-        redis_p4info_helper = P4InfoHelper(raw_p4info=raw_p4info)
+        redis_p4info_helper = P4InfoHelper(raw_p4info=self.raw_p4info)
 
         for target_switch in self.target_switches:
             high_level_connection = target_switch.high_level_connection
