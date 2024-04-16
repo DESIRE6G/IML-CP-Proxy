@@ -116,6 +116,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.heartbeat_worker_thread.stop()
         if RedisMode.is_writing(self.redis_mode):
             self.save_counters_state_to_redis()
+        for target_switch in self.target_switches:
+            target_switch.high_level_connection.unsubscribe_from_stream_with_queue(self.stream_queue_from_target)
 
 
     def get_target_switch_and_index(self, entity: p4runtime_pb2.Entity) -> Tuple[TargetSwitchObject, int]:

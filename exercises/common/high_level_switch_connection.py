@@ -8,7 +8,8 @@ from p4.v1 import p4runtime_pb2
 import common.p4runtime_lib.bmv2
 import common.p4runtime_lib.helper
 
-from threading import Thread, Event
+from threading import Thread, Event, Lock
+
 
 @dataclass
 class QueueWithInfo:
@@ -29,13 +30,14 @@ class StreamHandlerWorkerThread(Thread):
     def run(self) -> None:
         while not self.stopped.is_set():
             for x in self.switch.connection.stream_msg_resp:
-                print('>>>>>>>>>>>>>')
-                print(x)
-                print(self.switch.stream_subscribed_queues)
-                for q in self.switch.stream_subscribed_queues:
-                    copy = p4runtime_pb2.StreamMessageResponse()
-                    copy.CopyFrom(x)
-                    q.queue.put(StreamMessageResponseWithInfo(copy, q.extra_information))
+                with self.switch.stream_subscribed_queues_lock:
+                    print('>>>>>>>>>>>>>')
+                    print(x)
+                    print(self.switch.stream_subscribed_queues)
+                    for q in self.switch.stream_subscribed_queues:
+                        copy = p4runtime_pb2.StreamMessageResponse()
+                        copy.CopyFrom(x)
+                        q.queue.put(StreamMessageResponseWithInfo(copy, q.extra_information))
 
 
     def stop(self) -> None:
@@ -77,6 +79,7 @@ class HighLevelSwitchConnection:
 
         self.connection.MasterArbitrationUpdate(election_id_low=election_id_low)
         self.stream_subscribed_queues: List[QueueWithInfo] = []
+        self.stream_subscribed_queues_lock = Lock()
         self.stream_handler_worker_thread = None
 
         if send_p4info:
@@ -103,7 +106,16 @@ class HighLevelSwitchConnection:
 
     def subscribe_to_stream_with_queue(self, queue: Queue, extra_information: Optional[Any] = None) -> None:
         print("subscribe_to_stream_with_queue")
-        self.stream_subscribed_queues.append(QueueWithInfo(queue, extra_information))
+        with self.stream_subscribed_queues_lock:
+            self.stream_subscribed_queues.append(QueueWithInfo(queue, extra_information))
+
         if len(self.stream_subscribed_queues) == 1:
             self.stream_handler_worker_thread = StreamHandlerWorkerThread(self)
             self.stream_handler_worker_thread.start()
+
+    def unsubscribe_from_stream_with_queue(self, queue: Queue) -> None:
+        with self.stream_subscribed_queues_lock:
+            def filter_func(x: QueueWithInfo) -> bool:
+                return x.queue == queue
+
+            self.stream_subscribed_queues = filter(filter_func, self.stream_subscribed_queues)
