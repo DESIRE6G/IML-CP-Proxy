@@ -71,9 +71,6 @@ def are_packets_equal(packet1, packet2) -> bool:
 def is_packet_in(packet_to_find, packet_list) -> bool:
     return any([are_packets_equal(packet, packet_to_find) for packet in packet_list])
 
-import difflib
-
-
 def compare_packet_lists(packets_arrived, packets_expected):
     output_object = {'success':None,'extra_packets':[], 'missing_packets':[], 'ordered_compare': []}
     for pkt_arrived in packets_arrived:
@@ -88,25 +85,33 @@ def compare_packet_lists(packets_arrived, packets_expected):
 
 
     for packet_index in range(len(packets_arrived)):
-        actual_packet_arrived = str(packets_arrived[packet_index])
+        actual_packet_arrived = packets_arrived[packet_index]
+        actual_packet_arrived_str = str(actual_packet_arrived)
         if packet_index < len(packets_expected):
-            actual_packet_expected = str(packets_expected[packet_index])
+            actual_packet_expected = packets_expected[packet_index]
+            actual_packet_expected_str = str(packets_expected[packet_index])
         else:
-            actual_packet_expected = ''
+            actual_packet_expected = None
+            actual_packet_expected_str = ''
 
-        actual_packet_arrived_colored, diff_flags = diff_strings(actual_packet_arrived, actual_packet_expected)
+        actual_packet_arrived_colored, diff_flags = diff_strings(actual_packet_arrived_str, actual_packet_expected_str)
+        dump_actual_packet_arrived_colored, dump_diff_flags = diff_strings(repr(actual_packet_arrived), repr(actual_packet_expected))
 
         logging.debug(f'--- [Packet {packet_index}] ---')
-        logging.debug(f'Expected: {actual_packet_expected}')
-        logging.debug(f'Arrived:  {actual_packet_arrived}')
+        logging.debug(f'Expected: {actual_packet_expected_str}')
+        logging.debug(f'Arrived:  {actual_packet_arrived_str}')
         logging.debug(f'          {diff_flags}')
 
         output_object['ordered_compare'].append({
-            'expected':actual_packet_expected,
-            'arrived':actual_packet_arrived,
+            'expected':actual_packet_expected_str,
+            'arrived':actual_packet_arrived_str,
             'arrived_colored':actual_packet_arrived_colored,
             'diff_string': diff_flags,
-            'ok': actual_packet_expected == actual_packet_arrived
+            'dump_expected': repr(actual_packet_expected),
+            'dump_arrived': repr(actual_packet_arrived),
+            'dump_arrived_colored': dump_actual_packet_arrived_colored,
+            'dump_diff_string': dump_diff_flags,
+            'ok': actual_packet_expected_str == actual_packet_arrived_str
         })
 
     output_object['success'] = len(output_object['extra_packets']) == 0 and len(output_object['missing_packets']) == 0
@@ -131,6 +136,14 @@ if __name__ == '__main__':
     logging.debug('Waiting for .pcap_send_finished')
     while t.running and not os.path.exists('.pcap_send_finished'):
         time.sleep(0.25)
+
+    logging.debug('Waiting to arrive one package')
+    wait_counter = 0
+    while len(packets_arrived) == 0 and wait_counter < 50:
+        wait_counter += 1
+        time.sleep(0.1)
+
+    time.sleep(1)
 
     logging.debug('Done, removing .pcap_send_finished')
     os.remove('.pcap_send_finished')

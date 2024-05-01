@@ -362,6 +362,9 @@ def run_test_cases(test_cases_to_run: list):
                                     print(f'{COLOR_GREEN}OK{COLOR_END}')
                                 else:
                                     print(f'          {compare["diff_string"]}')
+                                    print(f'Dump Expected: {compare["dump_expected"]}')
+                                    print(f'Dump Arrived:  {compare["dump_arrived_colored"]}')
+                                    print(f'               {compare["dump_diff_string"]}')
 
                         raise Exception(f'Pcap test failed, check the logs above or the test_output.json for more details')
                 print(f'{COLOR_GREEN}PCAP Test successful{COLOR_END}')
