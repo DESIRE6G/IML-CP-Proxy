@@ -53,6 +53,7 @@ test_cases : List[TestCase] = [
     {'name': 'digest','subtest': None},
     {'name': 'digest','subtest': 'disaggregate'},
     {'name': 'l2fwd_disaggregation','subtest': None},
+    {'name': 'balancer','subtest': None},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
@@ -536,9 +537,11 @@ if len(sys.argv) == 1:
         if os.path.exists(TESTCASE_JSON_FILE_PATH):
             with open(TESTCASE_JSON_FILE_PATH, 'r') as f:
                 testcase_config = TestcaseDescriptor.model_validate_json(f.read())
-
-            index_of_testcase = [tc_i for tc_i, tc_v in enumerate(test_cases) if testcase_config.test_case == tc_v['name'] and testcase_config.subtest == tc_v['subtest']][0]
-            test_cases = test_cases[index_of_testcase:] + test_cases[:index_of_testcase]
+            try:
+                index_of_testcase = [tc_i for tc_i, tc_v in enumerate(test_cases) if testcase_config.test_case == tc_v['name'] and testcase_config.subtest == tc_v['subtest']][0]
+                test_cases = test_cases[index_of_testcase:] + test_cases[:index_of_testcase]
+            except IndexError:
+                pass
     finally:
         run_test_cases(test_cases)
         print_all_missing_test_folders_in_test_case_list()
