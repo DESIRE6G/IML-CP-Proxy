@@ -56,14 +56,14 @@ class Balancer:
         target_switch = self.nodes[target_node].switch
 
         entries = []
-        for table_name in ["MyIngress.ipv4_lpm"]:
+        for table in source_switch.p4info_helper.p4info.tables:
             request = p4runtime_pb2.ReadRequest()
             request.device_id = source_switch.device_id
             entity = request.entities.add()
             table_entry = entity.table_entry
-            table_entry.table_id = source_switch.p4info_helper.get_tables_id(table_name)
+            table_entry.table_id = table.preamble.id
             table_entry.match.extend([
-                source_switch.p4info_helper.get_match_field_pb(table_name, "hdr.ipv4.srcAddr", (ip, 32))
+                source_switch.p4info_helper.get_match_field_pb(table.preamble.name, "hdr.ipv4.srcAddr", (ip, 32))
             ])
 
             for response in source_switch.connection.client_stub.Read(request):
