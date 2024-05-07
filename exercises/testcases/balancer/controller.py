@@ -52,9 +52,36 @@ class Balancer:
             self.move_to_new_target(ip, source_node, target_node)
 
     def move_to_new_target(self, ip: str, source_node: int, target_node: int):
+        source_switch = self.nodes[source_node].switch
+        target_switch = self.nodes[target_node].switch
+
+        entries = []
+        for table_name in ["MyIngress.ipv4_lpm"]:
+            request = p4runtime_pb2.ReadRequest()
+            request.device_id = source_switch.device_id
+            entity = request.entities.add()
+            table_entry = entity.table_entry
+            table_entry.table_id = source_switch.p4info_helper.get_tables_id(table_name)
+            table_entry.match.extend([
+                source_switch.p4info_helper.get_match_field_pb(table_name, "hdr.ipv4.srcAddr", (ip, 32))
+            ])
+
+            for response in source_switch.connection.client_stub.Read(request):
+                for entity in response.entities:
+                    entries.append(entity.table_entry)
+
+
+        for entry in entries:
+            target_switch.connection.WriteTableEntry(entry)
+
         target_port = self.nodes[target_node].port
         new_entry = self.create_balancer_entry(ip, target_port)
         self.balancer_switch.connection.WriteTableEntry(new_entry, update_type='MODIFY')
+
+        for entry in entries:
+            source_switch.connection.WriteTableEntry(entry, update_type='DELETE')
+
+
 
 
 with ControllerExceptionHandling():
@@ -66,14 +93,12 @@ with ControllerExceptionHandling():
     balancer.add_node(s2, 2)
     balancer.add_node(s3, 3)
 
-    balancer.set_target_node('10.0.1.13', 0)
+    balancer.set_target_node('10.0.1.13', 1)
     balancer.set_target_node('10.0.1.25', 0)
 
     balancer.load_entries()
 
-    balancer.set_target_node('10.0.1.25', 1)
-
-    table_entry = s2.p4info_helper.buildTableEntry(
+    table_entry = s3.p4info_helper.buildTableEntry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.srcAddr": ('10.0.1.13', 32)
@@ -82,9 +107,9 @@ with ControllerExceptionHandling():
         action_params={
             "port": 2
         })
-    s2.connection.WriteTableEntry(table_entry)
+    s3.connection.WriteTableEntry(table_entry)
 
-    table_entry = s3.p4info_helper.buildTableEntry(
+    table_entry = s2.p4info_helper.buildTableEntry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.srcAddr": ('10.0.1.25', 32)
@@ -93,8 +118,10 @@ with ControllerExceptionHandling():
         action_params={
             "port": 2
         })
-    s3.connection.WriteTableEntry(table_entry)
+    s2.connection.WriteTableEntry(table_entry)
 
+    balancer.set_target_node('10.0.1.13', 0)
+    balancer.set_target_node('10.0.1.25', 1)
 
     # Fill Flagger for nodes
     table_entry = s2.p4info_helper.buildTableEntry(
