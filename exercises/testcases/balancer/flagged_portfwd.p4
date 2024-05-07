@@ -85,8 +85,7 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
-    action set_port(egressSpec_t port, macAddr_t dstAddr) {
-        hdr.ethernet.dstAddr = dstAddr;
+    action set_port(egressSpec_t port) {
         standard_metadata.egress_spec = port;
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
     }
@@ -103,8 +102,28 @@ control MyIngress(inout headers hdr,
         default_action = NoAction();
     }
 
+    action set_flag(bit<8> flag) {
+        if(flag != 0) {
+            hdr.flags.flag1 = flag;
+        }
+    }
+
+    table flagger {
+        key = {
+            hdr.ipv4.srcAddr: lpm;
+        }
+        actions = {
+            set_flag;
+            NoAction;
+        }
+        size = 1024;
+        default_action = NoAction();
+    }
+
+
     apply {
         ipv4_lpm.apply();
+        flagger.apply();
     }
 }
 
