@@ -53,7 +53,7 @@ test_cases : List[TestCase] = [
     {'name': 'digest','subtest': None},
     {'name': 'digest','subtest': 'disaggregate'},
     {'name': 'l2fwd_disaggregation','subtest': None},
-    {'name': 'balancer','subtest': None},
+    {'name': 'balancer','subtest': 'fixed_traffic'},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
