@@ -6,42 +6,22 @@ import logging
 import time
 from pathlib import Path
 
-from common.colors import COLOR_RED, COLOR_END
+from common.logging_helper import configure_logger_with_common_settings
+from common.traffic_helper import get_eth0_interface
 from common.validator_tools import diff_strings
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler("logs/receive.log"),
-        logging.StreamHandler()
-    ]
-)
-
+configure_logger_with_common_settings('receive.log')
 
 from scapy.all import (
     IP,
     Ether,
     IPOption,
-    ShortField,
-    get_if_list,
-    sniff,
     rdpcap,
     wrpcap,
     AsyncSniffer
 )
 
-def get_if():
-    ifs=get_if_list()
-    iface=None
-    for i in get_if_list():
-        if "eth0" in i:
-            iface=i
-            break;
-    if not iface:
-        logging.error("Cannot find eth0 interface")
-        exit(1)
-    return iface
+iface = get_eth0_interface()
 
 packets_arrived = []
 def handle_pkt(pkt):

@@ -1,39 +1,20 @@
 #!/usr/bin/env python3
-import random
-import socket
 import sys
 from pathlib import Path
 import logging
 
-from scapy.all import IP, TCP, Ether, get_if_hwaddr, get_if_list, sendp, rdpcap
+from scapy.all import sendp, rdpcap
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler("logs/send.log"),
-        logging.StreamHandler()
-    ]
-)
+from common.logging_helper import configure_logger_with_common_settings
+from common.traffic_helper import get_eth0_interface
 
-
-def get_if():
-    ifs=get_if_list()
-    iface=None
-    for i in get_if_list():
-        if "eth0" in i:
-            iface=i
-            break
-    if not iface:
-        print("Cannot find eth0 interface")
-        exit(1)
-    return iface
+configure_logger_with_common_settings('send.log')
 
 if len(sys.argv)<2:
     print('pass 1 arguments: input_file')
     exit(1)
 
-iface = get_if()
+iface = get_eth0_interface()
 
 packets = rdpcap(sys.argv[1])
 for pkt in packets:
