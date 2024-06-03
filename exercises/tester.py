@@ -293,6 +293,7 @@ def run_test_cases(test_cases_to_run: list):
             check_controller_exit_code =  config.get('ongoing_controller', False)
             active_test_modes = {
                 'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
+                'pcap_generator': os.path.exists(f'{TARGET_TEST_FOLDER}/test_send.py'),
                 'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py') and config.get('run_validator', default=True)
             }
             active_test_modes['ping'] = not any([active_test_modes[test_mode] for test_mode in active_test_modes])
@@ -330,7 +331,7 @@ def run_test_cases(test_cases_to_run: list):
                 wait_for_output('^64 bytes from', mininet_pane_name)
                 print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END}')
 
-            if active_test_modes['pcap']:
+            if active_test_modes['pcap'] or active_test_modes['pcap_generator']:
                 tmux_shell('h2 python receive.py test_h2_expected.pcap > receive.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
                 wait_for_output('^mininet>', mininet_pane_name)
                 print('Waiting for .pcap_receive_started')
@@ -345,7 +346,12 @@ def run_test_cases(test_cases_to_run: list):
                 print('Removing .pcap_receive_started')
                 os.remove(f'{TARGET_TEST_FOLDER}/.pcap_receive_started')
 
-                tmux_shell('h1 python send.py test_h1_input.pcap', mininet_pane_name)
+                if active_test_modes['pcap']:
+                    tmux_shell('h1 python send.py test_h1_input.pcap', mininet_pane_name)
+                elif active_test_modes['pcap_generator']:
+                    tmux_shell('h1 python test_send.py', mininet_pane_name)
+                else:
+                    raise Exception('I do not know what to send.')
                 wait_for_output('^mininet>', mininet_pane_name)
 
                 wait_for_condition_blocking(lambda: os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_finished'))
