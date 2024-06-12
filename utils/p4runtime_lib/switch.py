@@ -189,7 +189,7 @@ class SwitchConnection(object):
             for response in self.client_stub.Read(request):
                 yield response
 
-    def ReadMeters(self, meter_id=None, dry_run=False):
+    def ReadMeters(self, meter_id=None, index=None, dry_run=False):
         request = p4runtime_pb2.ReadRequest()
         request.device_id = self.device_id
         entity = request.entities.add()
@@ -198,6 +198,9 @@ class SwitchConnection(object):
             meter_entry.meter_id = meter_id
         else:
             meter_entry.meter_id = 0
+
+        if index is not None:
+            meter_entry.index.index = index
 
         if dry_run:
             print("P4Runtime Read:", request)
