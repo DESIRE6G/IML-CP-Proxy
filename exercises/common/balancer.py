@@ -49,8 +49,10 @@ class Balancer:
             self.user[ip] = BalancerUser(target_node=target_node)
         else:
             source_node = self.user[ip].target_node
-            self.user[ip].target_node = target_node
-            self.move_to_new_target(ip, source_node, target_node)
+
+            if source_node != target_node:
+                self.user[ip].target_node = target_node
+                self.move_to_new_target(ip, source_node, target_node)
 
     def move_to_new_target(self, ip: str, source_node: int, target_node: int):
         source_switch = self.nodes[source_node].switch

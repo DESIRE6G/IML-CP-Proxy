@@ -35,6 +35,7 @@ header ipv4_t {
 
 struct metadata {
     egressSpec_t port;
+    bit<32> meter_tag;
 }
 
 header flags_t {
@@ -48,6 +49,10 @@ struct headers {
     flags_t    flags;
 }
 
+struct color_change_digest_t {
+    ip4Addr_t src_addr;
+    bit<32>  meter_tag;
+}
 
 /*************************************************************************
 *********************** P A R S E R  ***********************************
@@ -84,6 +89,7 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
+    meter(1, MeterType.packets) my_meter;
 
     action set_port(egressSpec_t port) {
         standard_metadata.egress_spec = port;
@@ -103,6 +109,8 @@ control MyIngress(inout headers hdr,
 
     apply {
         ipv4_lpm.apply();
+        my_meter.execute_meter<bit<32>>(0, meta.meter_tag);
+        digest<color_change_digest_t>(1, {hdr.ipv4.srcAddr, meta.meter_tag});
     }
 }
 

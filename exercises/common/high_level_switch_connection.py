@@ -31,9 +31,9 @@ class StreamHandlerWorkerThread(Thread):
         while not self.stopped.is_set():
             for x in self.switch.connection.stream_msg_resp:
                 with self.switch.stream_subscribed_queues_lock:
-                    print('>>>>>>>>>>>>>')
-                    print(x)
-                    print(self.switch.stream_subscribed_queues)
+                    # print('>>>>>>>>>>>>>')
+                    # print(x)
+                    # print(self.switch.stream_subscribed_queues)
                     for q in self.switch.stream_subscribed_queues:
                         copy = p4runtime_pb2.StreamMessageResponse()
                         copy.CopyFrom(x)
