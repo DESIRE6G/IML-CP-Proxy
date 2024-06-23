@@ -242,8 +242,8 @@ class ExtendableConfig:
                 #pprint(override_config)
                 self.config.update(override_config)
 
-        print('--- CONFIG ---- ')
-        pprint(self.config)
+        #print('--- CONFIG ---- ')
+        #pprint(self.config)
 
     def get(self, key: str, default = None) -> Any:
         if key in self.config:
@@ -345,8 +345,6 @@ def run_test_cases(test_cases_to_run: list):
                         print(f.read())
                         print('-------------------------')
                     raise
-                print('Removing .pcap_receive_started')
-                os.remove(f'{TARGET_TEST_FOLDER}/.pcap_receive_started')
 
                 if active_test_modes['pcap']:
                     tmux_shell('h1 python send.py test_h1_input.pcap', mininet_pane_name)
