@@ -36,12 +36,14 @@ def send_one_packet(choosen_source_id: int, route_flag: int) -> None:
     packet_index += 1
 
 
+send_one_packet(1, 10) # 0
 send_one_packet(0, 10) # 0
 time.sleep(1)
 send_one_packet(0, 10) # 0
 time.sleep(0.1)
 send_one_packet(0, 10) # 1
 time.sleep(0.1)
+send_one_packet(1, 10) # 0
 send_one_packet(0, 11) # 1
 time.sleep(0.1)
 send_one_packet(0, 11) # 0
@@ -49,6 +51,7 @@ time.sleep(1)
 send_one_packet(0, 11) # 0
 time.sleep(1)
 send_one_packet(0, 10) # 0
+send_one_packet(1, 10) # 0
 
 
 wrpcap('test_h2_expected.pcap', output)

@@ -89,7 +89,7 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-    meter(1, MeterType.packets) my_meter;
+    direct_meter<bit<32>>(MeterType.packets) my_meter;
 
     action set_port(egressSpec_t port) {
         standard_metadata.egress_spec = port;
@@ -105,11 +105,12 @@ control MyIngress(inout headers hdr,
         }
         size = 1024;
         default_action = NoAction();
+        meters = my_meter;
     }
 
     apply {
         ipv4_lpm.apply();
-        my_meter.execute_meter<bit<32>>(0, meta.meter_tag);
+        my_meter.read(meta.meter_tag);
         digest<color_change_digest_t>(1, {hdr.ipv4.srcAddr, meta.meter_tag});
     }
 }

@@ -12,9 +12,6 @@ with ControllerExceptionHandling():
     s2 = HighLevelSwitchConnection(1, 'flagged_portfwd', '50052')
     s3 = HighLevelSwitchConnection(2, 'flagged_portfwd', '50053')
 
-    meter_entry = s1.p4info_helper.buildMeterConfigEntry('my_meter',cir=1,cburst=1,pir=20,pburst=20)
-    s1.connection.WriteMeterEntry(meter_entry)
-
     balancer = Balancer(s1)
     balancer.add_node(s2, 2)
     balancer.add_node(s3, 3)
@@ -29,7 +26,18 @@ with ControllerExceptionHandling():
             "port": 2
         })
     s2.connection.WriteTableEntry(table_entry)
+    table_entry = s2.p4info_helper.buildTableEntry(
+        table_name="MyIngress.ipv4_lpm",
+        match_fields={
+            "hdr.ipv4.srcAddr": ('10.0.1.25', 32)
+        },
+        action_name="MyIngress.set_port",
+        action_params={
+            "port": 2
+        })
+    s2.connection.WriteTableEntry(table_entry)
     balancer.set_target_node('10.0.1.13', 0)
+    balancer.set_target_node('10.0.1.25', 0)
     balancer.load_entries()
 
     # Fill Flagger for nodes
