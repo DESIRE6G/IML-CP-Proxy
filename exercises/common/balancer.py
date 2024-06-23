@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import List, Dict
 
 from p4.v1 import p4runtime_pb2
@@ -17,13 +18,19 @@ class BalancerUser:
     target_node: int
 
 
+class BalancerMode(Enum):
+    METER_MODE = 'METER_MODE'
+    COUNTER_MODE = 'COUNTER_MODE'
+
 class Balancer:
     def __init__(self,
-        balancer_switch: HighLevelSwitchConnection
-        ) -> None:
+                 balancer_switch: HighLevelSwitchConnection,
+                 mode: BalancerMode = BalancerMode.METER_MODE
+                 ) -> None:
         self.balancer_switch = balancer_switch
         self.nodes: List[BalancerNodeTarget] = []
         self.user: Dict[str, BalancerUser] = {}
+        self.mode = mode
 
     def add_node(self, node_switch: HighLevelSwitchConnection, port: int) -> None:
         self.nodes.append(BalancerNodeTarget(switch=node_switch, port=port))
@@ -35,11 +42,12 @@ class Balancer:
 
             table_entry = self.create_balancer_entry(ip, node_target.port)
             s1.connection.WriteTableEntry(table_entry)
-            meter_entry = s1.p4info_helper.buildDirectMeterConfigEntry('MyIngress.ipv4_lpm',
-            {
-                "hdr.ipv4.srcAddr": (ip, 32)
-            },cir=1,cburst=1,pir=20,pburst=20)
-            s1.connection.WriteDirectMeterEntry(meter_entry)
+            if self.mode == BalancerMode.METER_MODE:
+                meter_entry = s1.p4info_helper.buildDirectMeterConfigEntry('MyIngress.ipv4_lpm',
+                {
+                    "hdr.ipv4.srcAddr": (ip, 32)
+                },cir=1,cburst=1,pir=20,pburst=20)
+                s1.connection.WriteDirectMeterEntry(meter_entry)
 
     def create_balancer_entry(self, ip: str, target_port: int) -> p4runtime_pb2.TableEntry:
         return self.balancer_switch.p4info_helper.buildTableEntry(
