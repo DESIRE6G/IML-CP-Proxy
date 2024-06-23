@@ -4,6 +4,7 @@ import sys
 import time
 from pathlib import Path
 import logging
+from typing import Union
 
 from scapy.all import sendp, IP, TCP, Ether, wrpcap
 
@@ -23,15 +24,18 @@ output = []
 
 packet_index = 0
 
-def send_one_packet(choosen_source_id: int, route_flag: int) -> None:
+def send_one_packet(choosen_source_id: int, route_flag: Union[int,None]) -> None:
     global packet_index
     source_ip = source_ips[choosen_source_id]
     pkt = Ether(src=source_mac, dst=dst_mac)
     pkt = pkt / IP(src=source_ip, dst=destination_ip) / bytes([packet_index, 0])
     sendp(pkt, iface=iface, verbose=False)
     logging.debug(f'Sent {repr(pkt)}')
-    pkt = Ether(src=source_mac, dst=dst_mac)
-    pkt = pkt / IP(src=source_ip, dst=destination_ip) / bytes([packet_index, route_flag])
+    if route_flag is not None:
+        pkt = Ether(src=source_mac, dst=dst_mac)
+        pkt = pkt / IP(src=source_ip, dst=destination_ip) / bytes([packet_index, route_flag])
+    else:
+        pkt = Ether(src=source_mac, dst=dst_mac, type=0xffff)
     output.append(pkt)
     packet_index += 1
 
@@ -41,9 +45,9 @@ send_one_packet(0, 10) # 0
 time.sleep(1)
 send_one_packet(0, 10) # 0
 time.sleep(0.1)
-send_one_packet(0, 10) # 1
+send_one_packet(0, None) # 1
 time.sleep(0.1)
-send_one_packet(1, 10) # 0
+send_one_packet(1, None) # 0
 send_one_packet(0, 11) # 1
 time.sleep(0.1)
 send_one_packet(0, 11) # 0

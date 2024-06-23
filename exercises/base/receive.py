@@ -39,6 +39,9 @@ def convert_packet_to_dump_object(pkt):
 
 
 def are_packets_equal(packet1, packet2) -> bool:
+    if packet1[Ether].type == 0xffff or packet2[Ether].type == 0xffff:
+        return True
+
     if IP in packet1 and IP in packet2:
         packet1[IP].ttl = 64
         packet2[IP].ttl = 64
@@ -67,15 +70,21 @@ def compare_packet_lists(packets_arrived, packets_expected):
     for packet_index in range(len(packets_arrived)):
         actual_packet_arrived = packets_arrived[packet_index]
         actual_packet_arrived_str = str(actual_packet_arrived)
+        wildcard_expected = False
         if packet_index < len(packets_expected):
             actual_packet_expected = packets_expected[packet_index]
+            wildcard_expected = actual_packet_expected[Ether].type == 0xffff
             actual_packet_expected_str = str(packets_expected[packet_index])
         else:
             actual_packet_expected = None
             actual_packet_expected_str = ''
 
-        actual_packet_arrived_colored, diff_flags = diff_strings(actual_packet_arrived_str, actual_packet_expected_str)
-        dump_actual_packet_arrived_colored, dump_diff_flags = diff_strings(repr(actual_packet_arrived), repr(actual_packet_expected))
+        if not wildcard_expected:
+            actual_packet_arrived_colored, diff_flags = diff_strings(actual_packet_arrived_str, actual_packet_expected_str)
+            dump_actual_packet_arrived_colored, dump_diff_flags = diff_strings(repr(actual_packet_arrived), repr(actual_packet_expected))
+        else:
+            actual_packet_arrived_colored, diff_flags = actual_packet_arrived_str, ''
+            dump_actual_packet_arrived_colored, dump_diff_flags = repr(actual_packet_arrived), ''
 
         logging.debug(f'--- [Packet {packet_index}] ---')
         logging.debug(f'Expected: {actual_packet_expected_str}')
