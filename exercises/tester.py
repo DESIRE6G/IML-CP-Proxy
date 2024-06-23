@@ -319,7 +319,7 @@ def run_test_cases(test_cases_to_run: list):
 
                 if config.get('ongoing_controller', False):
                     try:
-                        wait_for_output('^Controller is ready', controller_pane_name)
+                        wait_for_condition_blocking(lambda : os.path.exists(f'{TARGET_TEST_FOLDER}/.controller_ready'))
                     except TimeoutError:
                         dump_controller_output()
                         raise

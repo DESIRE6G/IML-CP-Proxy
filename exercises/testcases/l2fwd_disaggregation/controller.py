@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import queue
 import sys
+from pathlib import Path
 
 from common.controller_helper import ControllerExceptionHandling
 from common.high_level_switch_connection import HighLevelSwitchConnection
@@ -28,8 +29,7 @@ with ControllerExceptionHandling():
 
     mac_digest_id = s1.p4info_helper.get_digests_id('mac_learn_digest_t')
     s1.connection.WriteDigest(mac_digest_id)
-    # Important message for the testing system, do not remove :)
-    print('Controller is ready')
+    Path('.controller_ready').touch()
 
     valid_ids = {mac_digest_id: False}
 

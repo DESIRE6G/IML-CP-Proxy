@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import queue
 import sys
+from pathlib import Path
 
 from common.controller_helper import ControllerExceptionHandling
 from common.high_level_switch_connection import HighLevelSwitchConnection
@@ -30,8 +31,7 @@ with ControllerExceptionHandling():
 
     #s1.connection.WriteDigest(s1.p4info_helper.get_digests_id('mac_learn_digest_t'))
     s2.connection.WriteDigest(s2.p4info_helper.get_digests_id('state_learn_digest_t'))
-    # Important message for the testing system, do not remove :)
-    print('Controller is ready')
+    Path('.controller_ready').touch()
 
 
     for i in range(5):

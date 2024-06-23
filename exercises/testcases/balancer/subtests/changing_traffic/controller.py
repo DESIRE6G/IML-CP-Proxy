@@ -2,6 +2,7 @@
 import ipaddress
 import queue
 import time
+from pathlib import Path
 
 from common.balancer import Balancer
 from common.controller_helper import ControllerExceptionHandling
@@ -79,8 +80,7 @@ with ControllerExceptionHandling():
     s1_recv_queue = queue.Queue()
     s1.subscribe_to_stream_with_queue(s1_recv_queue)
     s1.connection.WriteDigest(s1.p4info_helper.get_digests_id('color_change_digest_t'))
-    # Important message for the testing system, do not remove :)
-    print('Controller is ready')
+    Path('.controller_ready').touch()
 
     try:
         while True:
