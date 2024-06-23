@@ -85,6 +85,7 @@ def compare_packet_lists(packets_arrived, packets_expected):
         else:
             actual_packet_arrived_colored, diff_flags = actual_packet_arrived_str, ''
             dump_actual_packet_arrived_colored, dump_diff_flags = repr(actual_packet_arrived), ''
+            actual_packet_expected_str = actual_packet_arrived_str
 
         logging.debug(f'--- [Packet {packet_index}] ---')
         logging.debug(f'Expected: {actual_packet_expected_str}')
