@@ -40,22 +40,20 @@ def send_one_packet(choosen_source_id: int, route_flag: Union[int,None]) -> None
     packet_index += 1
 
 
-send_one_packet(1, 10) # 0
-send_one_packet(0, 10) # 0
+send_one_packet(1, 10)
+send_one_packet(0, 10)
 time.sleep(1)
-send_one_packet(0, 10) # 0
+send_one_packet(0, 10)
 time.sleep(0.1)
-send_one_packet(0, None) # 1
-time.sleep(0.1)
-send_one_packet(1, None) # 0
-send_one_packet(0, 11) # 1
-time.sleep(0.1)
-send_one_packet(0, 11) # 0
+send_one_packet(0, None)
+send_one_packet(1, 10)
+send_one_packet(0, None)
+send_one_packet(0, 11)
 time.sleep(1)
-send_one_packet(0, 11) # 0
+send_one_packet(0, 11)
 time.sleep(1)
-send_one_packet(0, 10) # 0
-send_one_packet(1, 10) # 0
+send_one_packet(0, 10)
+send_one_packet(1, 10)
 
 
 wrpcap('test_h2_expected.pcap', output)

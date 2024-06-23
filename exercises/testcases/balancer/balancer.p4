@@ -35,7 +35,6 @@ header ipv4_t {
 
 struct metadata {
     egressSpec_t port;
-    bit<32> meter_tag;
 }
 
 header flags_t {
@@ -93,6 +92,9 @@ control MyIngress(inout headers hdr,
 
     action set_port(egressSpec_t port) {
         standard_metadata.egress_spec = port;
+        bit<32> meter_tag;
+        my_meter.read(meter_tag);
+        digest<color_change_digest_t>(1, {hdr.ipv4.srcAddr, meter_tag});
     }
 
     table ipv4_lpm {
@@ -110,8 +112,6 @@ control MyIngress(inout headers hdr,
 
     apply {
         ipv4_lpm.apply();
-        my_meter.read(meta.meter_tag);
-        digest<color_change_digest_t>(1, {hdr.ipv4.srcAddr, meta.meter_tag});
     }
 }
 
