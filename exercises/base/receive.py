@@ -23,17 +23,6 @@ from scapy.all import (
 
 iface = get_eth0_interface()
 
-packets_arrived = []
-def handle_pkt(pkt):
-    packets_arrived.append(pkt)
-    packet_readable = pkt.show2(dump=True)
-    logging.debug(f'Arrived {repr(pkt)}')
-    with open("output.txt", "a") as f:
-        f.write(packet_readable)
-
-    sys.stdout.flush()
-
-
 def convert_packet_to_dump_object(pkt):
     return {'raw':str(pkt), 'dump':pkt.__repr__()}
 
@@ -115,6 +104,15 @@ if __name__ == '__main__':
     iface = ifaces[0]
     logging.debug(f"sniffing on {iface}")
     sys.stdout.flush()
+    packets_arrived = []
+    def handle_pkt(pkt):
+        packets_arrived.append(pkt)
+        packet_readable = pkt.show2(dump=True)
+        logging.debug(f'Arrived {repr(pkt)}')
+        with open("output.txt", "a") as f:
+            f.write(packet_readable)
+
+        sys.stdout.flush()
 
     t = AsyncSniffer(iface = iface, prn = lambda x: handle_pkt(x))
     t.start()
