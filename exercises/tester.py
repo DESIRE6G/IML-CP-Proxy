@@ -14,6 +14,7 @@ import redis
 from pydantic import BaseModel
 
 from common.colors import COLOR_YELLOW, COLOR_GREEN, COLOR_ORANGE, COLOR_CYAN, COLOR_END, COLOR_RED_BG, COLOR_YELLOW_BG
+from common.model.test_output import TestOutput
 from common.redis_helper import save_redis_to_json_file
 from common.sync import wait_for_condition_blocking
 
@@ -363,24 +364,24 @@ def run_test_cases(test_cases_to_run: list):
                 wait_for_condition_blocking(lambda: os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_finished'))
 
                 with open(f'{TARGET_TEST_FOLDER}/test_output.json', 'r') as f:
-                    test_output = json.load(f)
-                    if not test_output['success']:
-                        if 'ordered_compare' in test_output:
+                    test_output = TestOutput.model_validate_json(f.read())
+                    if not test_output.success:
+                        if test_output.ordered_compare is not None:
                             print(f'{COLOR_RED_BG}PCAP Test failed{COLOR_END}')
-                            for i, compare in enumerate(test_output['ordered_compare']):
+                            for i, compare in enumerate(test_output.ordered_compare):
                                 print(f'--- [Packet {i}] ---')
-                                print(f'Expected: {compare["expected"]}')
-                                print(f'Arrived:  {compare["arrived_colored"]}')
+                                print(f'Expected: {compare.expected}')
+                                print(f'Arrived:  {compare.arrived_colored}')
                                 if compare['ok']:
                                     print(f'{COLOR_GREEN}OK{COLOR_END}')
                                 else:
-                                    print(f'          {compare["diff_string"]}')
-                                    print(f'Dump Expected: {compare["dump_expected"]}')
-                                    print(f'Dump Arrived:  {compare["dump_arrived_colored"]}')
-                                    print(f'               {compare["dump_diff_string"]}')
+                                    print(f'          {compare.diff_string}')
+                                    print(f'Dump Expected: {compare.dump_expected}')
+                                    print(f'Dump Arrived:  {compare.dump_arrived_colored}')
+                                    print(f'               {compare.dump_diff_string}')
 
-                        if 'message' in test_output:
-                            print(test_output['message'])
+                        if test_output is not None:
+                            print(test_output.message)
 
                         raise Exception(f'Pcap test failed, check the logs above or the test_output.json for more details')
                 print(f'{COLOR_GREEN}PCAP Test successful{COLOR_END}')
