@@ -132,7 +132,7 @@ class SwitchConnection(object):
             for response in self.client_stub.Read(request):
                 yield response
 
-    def WriteCountersEntry(self, counter_entry, dry_run = False):
+    def WriteCountersEntry(self, counter_entry, dry_run = False, verbose = False):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = self.device_id
         request.election_id.low = 1
@@ -142,10 +142,11 @@ class SwitchConnection(object):
         if dry_run:
             print("P4Runtime Write:", request)
         else:
-            print(request)
+            if verbose:
+                print(request)
             self.client_stub.Write(request)
 
-    def WriteDirectCounterEntry(self, direct_counter_entry, dry_run = False):
+    def WriteDirectCounterEntry(self, direct_counter_entry, dry_run = False, verbose = False):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = self.device_id
         request.election_id.low = 1
@@ -155,7 +156,8 @@ class SwitchConnection(object):
         if dry_run:
             print("P4Runtime Write:", request)
         else:
-            print(request)
+            if verbose:
+                print(request)
             self.client_stub.Write(request)
 
     def ReadDirectCounters(self, table_id=None, dry_run=False):
