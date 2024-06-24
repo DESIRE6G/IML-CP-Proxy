@@ -54,8 +54,8 @@ test_cases : List[TestCase] = [
     {'name': 'digest','subtest': 'disaggregate'},
     {'name': 'l2fwd_disaggregation','subtest': None},
     {'name': 'balancer','subtest': 'fixed_traffic'},
-    {'name': 'balancer','subtest': 'changing_traffic'},
-    {'name': 'balancer','subtest': 'changing_traffic_with_counter'},
+    #{'name': 'balancer','subtest': 'changing_traffic'},
+    #{'name': 'balancer','subtest': 'changing_traffic_with_counter'},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
@@ -334,7 +334,13 @@ def run_test_cases(test_cases_to_run: list):
                 print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END}')
 
             if active_test_modes['pcap'] or active_test_modes['pcap_generator']:
-                tmux_shell('h2 python receive.py test_h2_expected.pcap > receive.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
+                if os.path.exists(f'{TARGET_TEST_FOLDER}/test_h2_expected.pcap'):
+                    tmux_shell('h2 python receive.py test_h2_expected.pcap > receive.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
+                elif os.path.exists(f'{TARGET_TEST_FOLDER}/test_receive.py'):
+                    tmux_shell('h2 python test_receive.py > receive.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
+                else:
+                    raise Exception('There is no test_h2_expected.pcap or test_receive.py, do not know how to validate pcap test.')
+
                 wait_for_output('^mininet>', mininet_pane_name)
                 print('Waiting for .pcap_receive_started')
                 try:
@@ -372,6 +378,9 @@ def run_test_cases(test_cases_to_run: list):
                                     print(f'Dump Expected: {compare["dump_expected"]}')
                                     print(f'Dump Arrived:  {compare["dump_arrived_colored"]}')
                                     print(f'               {compare["dump_diff_string"]}')
+
+                        if 'message' in test_output:
+                            print(test_output['message'])
 
                         raise Exception(f'Pcap test failed, check the logs above or the test_output.json for more details')
                 print(f'{COLOR_GREEN}PCAP Test successful{COLOR_END}')

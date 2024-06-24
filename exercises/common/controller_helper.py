@@ -125,7 +125,6 @@ def get_direct_counter_objects(s1: HighLevelSwitchConnection, table_name: str) -
             match_type = match_field.match_type
             if len(table_entry.match) > 1:
                 raise Exception('Only supported simple matches')
-            print(table_entry)
 
             if match_type == p4info_pb2.MatchField.LPM:
                 match_object = LPMMatchObject(table_entry.match[0].lpm.value, table_entry.match[0].lpm.prefix_len)

@@ -81,7 +81,7 @@ with ControllerExceptionHandling():
 
     Path('.controller_ready').touch()
 
-    for _ in range(6):
+    for _ in range(10):
         counter_objects = get_direct_counter_objects(s1, 'MyIngress.ipv4_lpm')
         pprint(counter_objects)
         for counter_object in counter_objects:
@@ -89,11 +89,13 @@ with ControllerExceptionHandling():
             counter_entry = s1.p4info_helper.buildDirectCounterEntry(
                 table_name= "MyIngress.ipv4_lpm",
                 match_fields= {
-                  "hdr.ipv4.srcAddr": (ip, 32)
+                  "hdr.ipv4.srcAddr": ip
                 },
                 packet_count= 0,
                 byte_count= 0
             )
+            target_route =  1 if counter_object.packet_count > 1 else 0
+            print(f'Zero counters and set route to {target_route}')
             s1.connection.WriteDirectCounterEntry(counter_entry)
-            balancer.set_target_node(str(ipaddress.ip_address(ip)), 1 if counter_object.packet_count > 1 else 0)
+            balancer.set_target_node(str(ipaddress.ip_address(ip)),target_route)
         time.sleep(1)
