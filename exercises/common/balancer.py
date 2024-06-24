@@ -45,14 +45,14 @@ class Balancer:
             if self.mode == BalancerMode.METER_MODE:
                 meter_entry = s1.p4info_helper.buildDirectMeterConfigEntry('MyIngress.ipv4_lpm',
                 {
-                    "hdr.ipv4.srcAddr": (ip, 32)
+                    "hdr.ipv4.srcAddr": ip
                 },cir=1,cburst=1,pir=20,pburst=20)
                 s1.connection.WriteDirectMeterEntry(meter_entry)
 
     def create_balancer_entry(self, ip: str, target_port: int) -> p4runtime_pb2.TableEntry:
         return self.balancer_switch.p4info_helper.buildTableEntry(
             table_name="MyIngress.ipv4_lpm",
-            match_fields={"hdr.ipv4.srcAddr": (ip, 32)},
+            match_fields={"hdr.ipv4.srcAddr": ip},
             action_name="MyIngress.set_port",
             action_params={"port": target_port}
         )

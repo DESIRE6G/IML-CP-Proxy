@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from p4.config.v1 import p4info_pb2
 from p4.v1 import p4runtime_pb2
@@ -102,35 +102,48 @@ class LPMMatchObject:
     prefix_length_in_bits: int
 
 @dataclass
+class ExactMatchObject:
+    value: bytes
+
+@dataclass
 class DirectCounterObject:
     table_id: int
     packet_count: int
     byte_count: int
     match_type: p4info_pb2.MatchField
-    match: LPMMatchObject
+    match: Union[LPMMatchObject, ExactMatchObject]
 
-def get_direct_counter_objects_by_id(s1: HighLevelSwitchConnection, table_id: int) -> List[DirectCounterObject]:
+
+def get_direct_counter_objects(s1: HighLevelSwitchConnection, table_name: str) -> List[DirectCounterObject]:
+    table_id = s1.p4info_helper.get_tables_id(table_name)
     results = []
     sw = s1.connection
     for response in sw.ReadDirectCounters(table_id):
         for entity in response.entities:
             table_entry = entity.direct_counter_entry.table_entry
+            match_field = s1.p4info_helper.get_match_field(table_name)
+            match_type = match_field.match_type
+            if len(table_entry.match) > 1:
+                raise Exception('Only supported simple matches')
             print(table_entry)
-            #sw..get_match_field(table_name, match_field_name)
+
+            if match_type == p4info_pb2.MatchField.LPM:
+                match_object = LPMMatchObject(table_entry.match[0].lpm.value, table_entry.match[0].lpm.prefix_len)
+            elif match_type == p4info_pb2.MatchField.EXACT:
+                match_object = ExactMatchObject(table_entry.match[0].exact.value)
+            else:
+                raise Exception(f'Unhandled match type for {table_name} is {match_type}')
+
             new_obj = DirectCounterObject(
                 table_id=table_entry.table_id,
                 packet_count=entity.direct_counter_entry.data.packet_count,
                 byte_count=entity.direct_counter_entry.data.byte_count,
-                match_type=p4info_pb2.MatchField.LPM,
-                match=LPMMatchObject(table_entry.match[0].lpm.value, table_entry.match[0].lpm.prefix_len)
+                match_type=match_type,
+                match=match_object
             )
             results.append(new_obj)
 
     return results
-
-def get_direct_counter_objects(s1: HighLevelSwitchConnection, table_name: str) -> List[DirectCounterObject]:
-    table_name = s1.p4info_helper.get_tables_id(table_name)
-    return get_direct_counter_objects_by_id(s1, table_name)
 
 
 def init_l3fwd_table_rules_for_both_directions(s1: HighLevelSwitchConnection, s2: HighLevelSwitchConnection):

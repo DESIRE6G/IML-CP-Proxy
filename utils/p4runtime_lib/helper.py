@@ -85,6 +85,12 @@ class P4InfoHelper(object):
         for t in self.p4info.tables:
             pre = t.preamble
             if pre.name == table_name:
+                if name is None and id is None:
+                    if len(t.match_fields) == 1:
+                        return t.match_fields[0]
+                    else:
+                        raise Exception('You have to set id or name for match field if there are multiple match_fields')
+
                 for mf in t.match_fields:
                     if name is not None:
                         if mf.name == name:

@@ -99,7 +99,7 @@ control MyIngress(inout headers hdr,
 
     table ipv4_lpm {
         key = {
-            hdr.ipv4.srcAddr: lpm;
+            hdr.ipv4.srcAddr: exact;
         }
         actions = {
             set_port;
