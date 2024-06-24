@@ -82,7 +82,7 @@ with ControllerExceptionHandling():
     Path('.controller_ready').touch()
 
     for _ in range(6):
-        counter_objects = get_direct_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.ipv4_lpm')
+        counter_objects = get_direct_counter_objects(s1, 'MyIngress.ipv4_lpm')
         pprint(counter_objects)
         for counter_object in counter_objects:
             ip = int.from_bytes(counter_object.match.value, 'big')

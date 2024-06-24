@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
+
+from p4.config.v1 import p4info_pb2
 from p4.v1 import p4runtime_pb2
 
 import grpc
@@ -89,25 +91,9 @@ def get_counter_objects_by_id(sw: SwitchConnection, counters_id: Optional[int] =
 
     return results
 
-def get_counter_object_by_id(sw: SwitchConnection, counters_id: int, index: int) -> CounterObject:
-    results = get_counter_objects_by_id(sw, counters_id, index)
-
-    if len(results) > 1:
-        raise Exception(f'More than one result arrived for counter read!')
-
-    return results[0]
-
-def get_counter_object(p4info_helper: P4InfoHelper, sw: SwitchConnection, counter_name: str, index: int) -> CounterObject:
-    counters_id = p4info_helper.get_counters_id(counter_name)
-    return get_counter_object_by_id(sw, counters_id, index)
-
-def get_counter_objects(p4info_helper: P4InfoHelper, sw: SwitchConnection, counter_name: str) -> List[CounterObject]:
-    counters_id = p4info_helper.get_counters_id(counter_name)
-    return get_counter_objects_by_id(sw, counters_id)
-
-
-def get_counter(p4info_helper: P4InfoHelper, sw: SwitchConnection, counter_name: str, index: int):
-    return get_counter_object(p4info_helper, sw, counter_name, index)
+def get_counter_objects(s1: HighLevelSwitchConnection, counter_name: str) -> List[CounterObject]:
+    counters_id = s1.p4info_helper.get_counters_id(counter_name)
+    return get_counter_objects_by_id(s1.connection, counters_id)
 
 
 @dataclass
@@ -120,26 +106,31 @@ class DirectCounterObject:
     table_id: int
     packet_count: int
     byte_count: int
+    match_type: p4info_pb2.MatchField
     match: LPMMatchObject
 
-def get_direct_counter_objects_by_id(sw: SwitchConnection, table_id: int) -> List[DirectCounterObject]:
+def get_direct_counter_objects_by_id(s1: HighLevelSwitchConnection, table_id: int) -> List[DirectCounterObject]:
     results = []
+    sw = s1.connection
     for response in sw.ReadDirectCounters(table_id):
         for entity in response.entities:
             table_entry = entity.direct_counter_entry.table_entry
+            print(table_entry)
+            #sw..get_match_field(table_name, match_field_name)
             new_obj = DirectCounterObject(
                 table_id=table_entry.table_id,
                 packet_count=entity.direct_counter_entry.data.packet_count,
                 byte_count=entity.direct_counter_entry.data.byte_count,
+                match_type=p4info_pb2.MatchField.LPM,
                 match=LPMMatchObject(table_entry.match[0].lpm.value, table_entry.match[0].lpm.prefix_len)
             )
             results.append(new_obj)
 
     return results
 
-def get_direct_counter_objects(p4info_helper: P4InfoHelper, sw: SwitchConnection, table_name: str) -> List[DirectCounterObject]:
-    table_name = p4info_helper.get_tables_id(table_name)
-    return get_direct_counter_objects_by_id(sw, table_name)
+def get_direct_counter_objects(s1: HighLevelSwitchConnection, table_name: str) -> List[DirectCounterObject]:
+    table_name = s1.p4info_helper.get_tables_id(table_name)
+    return get_direct_counter_objects_by_id(s1, table_name)
 
 
 def init_l3fwd_table_rules_for_both_directions(s1: HighLevelSwitchConnection, s2: HighLevelSwitchConnection):

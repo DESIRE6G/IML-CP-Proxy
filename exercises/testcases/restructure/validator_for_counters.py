@@ -12,9 +12,9 @@ if __name__ == '__main__':
     s2 = HighLevelSwitchConnection(1, 'part2', '60052', send_p4info=False)
     s3 = HighLevelSwitchConnection(2, 'part3', '60053', send_p4info=False)
 
-    counter1_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.packetCounter1')
-    counter2_objects = get_counter_objects(s2.p4info_helper, s2.connection, 'MyIngress.packetCounter2')
-    counter3_objects = get_counter_objects(s3.p4info_helper, s3.connection, 'MyIngress.packetCounter3')
+    counter1_objects = get_counter_objects(s1, 'MyIngress.packetCounter1')
+    counter2_objects = get_counter_objects(s2, 'MyIngress.packetCounter2')
+    counter3_objects = get_counter_objects(s3, 'MyIngress.packetCounter3')
 
 
     print('counter1_objects object:')

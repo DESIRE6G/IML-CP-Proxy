@@ -4,7 +4,7 @@ import sys
 
 from p4.v1 import p4runtime_pb2
 
-from common.controller_helper import get_counter_object, get_counter_objects, get_direct_counter_objects, get_counter_objects_by_id, CounterObject
+from common.controller_helper import get_counter_objects, get_direct_counter_objects, get_counter_objects_by_id, CounterObject
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 from common.redis_helper import wait_heartbeats_in_redis, compare_redis
@@ -14,9 +14,9 @@ if __name__ == '__main__':
     s1 = HighLevelSwitchConnection(0, 'fwd_with_counting_aggregated', '60051', send_p4info=False)
 
 
-    counter1_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_packetCounter')
-    counter2_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF2_packetCounter')
-    node1_direct_counter = get_direct_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_ipv4_lpm')
+    counter1_objects = get_counter_objects(s1, 'MyIngress.NF1_packetCounter')
+    counter2_objects = get_counter_objects(s1, 'MyIngress.NF2_packetCounter')
+    node1_direct_counter = get_direct_counter_objects(s1, 'MyIngress.NF1_ipv4_lpm')
     all_counters = get_counter_objects_by_id(s1.connection, None)
 
     print('counter1_objects object:')
@@ -60,8 +60,8 @@ if __name__ == '__main__':
     validator.should_be_equal(counter2_objects[2].packet_count, 0)
     validator.should_be_equal(counter1_objects[2].packet_count, counter1_objects[0].packet_count * 2)
 
-    counter1packet_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_packetCounterOnlyPacket')
-    counter2bytes_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF2_packetCounterOnlyBytes')
+    counter1packet_objects = get_counter_objects(s1, 'MyIngress.NF1_packetCounterOnlyPacket')
+    counter2bytes_objects = get_counter_objects(s1, 'MyIngress.NF2_packetCounterOnlyBytes')
 
     print('counter1packet_objects object:')
     pprint(counter1packet_objects)

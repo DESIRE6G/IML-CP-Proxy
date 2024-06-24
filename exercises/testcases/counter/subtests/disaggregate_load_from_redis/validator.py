@@ -5,7 +5,7 @@ from pprint import pprint
 
 import redis
 
-from common.controller_helper import CounterObject, get_counter_object, get_counter_objects, get_direct_counter_objects
+from common.controller_helper import get_counter_objects, get_direct_counter_objects
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 from common.validator_tools import Validator
@@ -19,9 +19,9 @@ if __name__ == '__main__':
     counter2_id = s1.p4info_helper.get_counters_id('MyIngress.NF2_packetCounter')
 
     time.sleep(0.5)
-    counter1_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_packetCounter')
-    counter2_objects = get_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF2_packetCounter')
-    node1_direct_counter = get_direct_counter_objects(s1.p4info_helper, s1.connection, 'MyIngress.NF1_ipv4_lpm')
+    counter1_objects = get_counter_objects(s1, 'MyIngress.NF1_packetCounter')
+    counter2_objects = get_counter_objects(s1, 'MyIngress.NF2_packetCounter')
+    node1_direct_counter = get_direct_counter_objects(s1, 'MyIngress.NF1_ipv4_lpm')
 
     print('counter1_objects object:')
     pprint(counter1_objects)
