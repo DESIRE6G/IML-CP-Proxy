@@ -36,7 +36,7 @@ class Balancer:
     def add_node(self, node_switch: HighLevelSwitchConnection, port: int) -> None:
         self.nodes.append(BalancerNodeTarget(switch=node_switch, port=port))
 
-    def load_entries(self):
+    def load_entries(self) -> None:
         for ip, user in self.user.items():
             node_target = self.nodes[user.target_node]
             s1 = self.balancer_switch

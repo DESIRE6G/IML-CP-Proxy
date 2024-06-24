@@ -8,7 +8,6 @@ import signal
 import sys
 import time
 import subprocess
-from pprint import pprint
 from typing import TypedDict, List, Optional, Any
 import redis
 from pydantic import BaseModel
@@ -220,7 +219,7 @@ class ExtendableConfig:
     def __init__(self, config_file_path: str, ignore_missing_file: bool = False) -> None:
         self.config = {}
 
-        def add_postfix_to_filename(path, postfix):
+        def add_postfix_to_filename(path: str, postfix: str) -> str:
             folder, filename = os.path.split(path)
             filename_without_ext, ext = os.path.splitext(filename)
             new_filename = f"{filename_without_ext}{postfix}{ext}"
@@ -551,8 +550,8 @@ if len(sys.argv) == 1:
     build_up_p4_cache()
     try:
         if os.path.exists(TESTCASE_JSON_FILE_PATH):
-            with open(TESTCASE_JSON_FILE_PATH, 'r') as f:
-                testcase_config = TestcaseDescriptor.model_validate_json(f.read())
+            with open(TESTCASE_JSON_FILE_PATH, 'r') as testcase_json_file:
+                testcase_config = TestcaseDescriptor.model_validate_json(testcase_json_file.read())
             try:
                 index_of_testcase = [tc_i for tc_i, tc_v in enumerate(test_cases) if testcase_config.test_case == tc_v['name'] and testcase_config.subtest == tc_v['subtest']][0]
                 test_cases = test_cases[index_of_testcase:] + test_cases[:index_of_testcase]

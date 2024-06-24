@@ -105,8 +105,7 @@ def compare_packet_lists(packets_arrived, packets_expected):
 
 class PacketReceiver:
     def __enter__(self):
-        ifaces = [i for i in os.listdir('/sys/class/net/') if 'eth' in i]
-        iface = ifaces[0]
+        iface = get_eth0_interface()
         logging.debug(f"sniffing on {iface}")
         sys.stdout.flush()
         packets_arrived = []

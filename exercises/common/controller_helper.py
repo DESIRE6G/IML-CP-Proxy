@@ -156,7 +156,7 @@ def init_l3fwd_table_rules_for_both_directions(s1: HighLevelSwitchConnection, s2
 
 
 class ControllerExceptionHandling:
-    def __enter__(self):
+    def __enter__(self) -> None:
         pass
 
     def __exit__(self, exc_type, exc_value, exc_tb):
