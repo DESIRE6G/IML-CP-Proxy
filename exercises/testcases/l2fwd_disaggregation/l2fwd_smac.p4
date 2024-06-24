@@ -12,9 +12,9 @@ typedef bit<9>  egressSpec_t;
 typedef bit<48> macAddr_t;
 
 header ethernet_t {
-    macAddr_t dst_addr;
-    macAddr_t src_addr;
-    bit<16>   ether_type;
+    macAddr_t dstAddr;
+    macAddr_t srcAddr;
+    bit<16>   etherType;
 }
 
 struct metadata {
@@ -26,7 +26,7 @@ struct headers {
 }
 
 struct mac_learn_digest_t {
-    macAddr_t    src_addr;
+    macAddr_t    srcAddr;
     egressSpec_t port;
 }
 
@@ -65,12 +65,12 @@ control MyIngress(inout headers hdr,
                   inout standard_metadata_t standard_metadata) {
 
     action mac_learn() {
-        digest<mac_learn_digest_t>(1, {hdr.ethernet.src_addr, standard_metadata.ingress_port});
+        digest<mac_learn_digest_t>(1, {hdr.ethernet.srcAddr, standard_metadata.ingress_port});
     }
 
     table smac {
         key = {
-            hdr.ethernet.src_addr: exact;
+            hdr.ethernet.srcAddr: exact;
         }
         actions = {
             mac_learn;

@@ -12,9 +12,9 @@ typedef bit<9>  egressSpec_t;
 typedef bit<48> macAddr_t;
 
 header ethernet_t {
-    macAddr_t dst_addr;
-    macAddr_t src_addr;
-    bit<16>   ether_type;
+    macAddr_t dstAddr;
+    macAddr_t srcAddr;
+    bit<16>   etherType;
 }
 
 struct metadata {
@@ -65,7 +65,7 @@ control MyIngress(inout headers hdr,
 
     table dmac {
         key = {
-            hdr.ethernet.dst_addr: exact;
+            hdr.ethernet.dstAddr: exact;
         }
         actions = {
             forward;

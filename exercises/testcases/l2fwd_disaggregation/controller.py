@@ -16,7 +16,7 @@ with ControllerExceptionHandling():
     table_entry = s1.p4info_helper.buildTableEntry(
         table_name="MyIngress.dmac",
         match_fields={
-            "hdr.ethernet.dst_addr": '08:00:00:00:02:22'
+            "hdr.ethernet.dstAddr": '08:00:00:00:02:22'
         },
         action_name="MyIngress.forward",
         action_params={
@@ -42,14 +42,14 @@ with ControllerExceptionHandling():
     table_entry = s1.p4info_helper.buildTableEntry(
         table_name="MyIngress.smac",
         match_fields={
-            "hdr.ethernet.src_addr": mac_str
+            "hdr.ethernet.srcAddr": mac_str
         },
         action_name="NoAction")
     s1.connection.WriteTableEntry(table_entry)
     table_entry = s1.p4info_helper.buildTableEntry(
         table_name="MyIngress.dmac",
         match_fields={
-            "hdr.ethernet.dst_addr": mac_str
+            "hdr.ethernet.dstAddr": mac_str
         },
         action_name="MyIngress.forward",
         action_params={

@@ -49,7 +49,7 @@ struct headers {
 }
 
 struct color_change_digest_t {
-    ip4Addr_t src_addr;
+    ip4Addr_t srcAddr;
     bit<32>  meter_tag;
 }
 
