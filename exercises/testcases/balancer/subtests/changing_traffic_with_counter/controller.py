@@ -89,7 +89,7 @@ with ControllerExceptionHandling():
             counter_entry = s1.p4info_helper.buildDirectCounterEntry(
                 table_name= "MyIngress.ipv4_lpm",
                 match_fields= {
-                  "hdr.ipv4.srcAddr": ip
+                  "hdr.ipv4.srcAddr": (ip, 32)
                 },
                 packet_count= 0,
                 byte_count= 0

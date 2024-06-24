@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Dict
 
+from p4.config.v1 import p4info_pb2
 from p4.v1 import p4runtime_pb2
 
 from common.high_level_switch_connection import HighLevelSwitchConnection
@@ -73,14 +74,25 @@ class Balancer:
 
         entries = []
         for table in source_switch.p4info_helper.p4info.tables:
+            if len(table.match_fields) != 1:
+                continue
+
+            match_field = table.match_fields[0]
+            match_type = match_field.match_type
             request = p4runtime_pb2.ReadRequest()
             request.device_id = source_switch.device_id
+
             entity = request.entities.add()
             table_entry = entity.table_entry
             table_entry.table_id = table.preamble.id
-            table_entry.match.extend([
-                source_switch.p4info_helper.get_match_field_pb(table.preamble.name, "hdr.ipv4.srcAddr", (ip, 32))
-            ])
+            if match_type == p4info_pb2.MatchField.EXACT:
+                table_entry.match.extend([
+                    source_switch.p4info_helper.get_match_field_pb(table.preamble.name, "hdr.ipv4.srcAddr", ip)
+                ])
+            elif match_type == p4info_pb2.MatchField.LPM:
+                table_entry.match.extend([
+                    source_switch.p4info_helper.get_match_field_pb(table.preamble.name, "hdr.ipv4.srcAddr", (ip, 32))
+                ])
 
             for response in source_switch.connection.client_stub.Read(request):
                 for entity in response.entities:
