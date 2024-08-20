@@ -1,8 +1,8 @@
 {
   "load_redis_json": false,
-  "exact_ping_packet_num": 10,
-  "run_validator": false,
   "file_overrides": {
-    "controller.py": "disaggregate_controller.py"
+    "controller.py": "disaggregate_controller.py",
+    "validator.py": "disaggregate_validator.py",
+    "redis.json": "disaggregate_redis.json"
   }
 }

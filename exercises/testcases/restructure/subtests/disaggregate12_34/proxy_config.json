@@ -1,5 +1,5 @@
 {
-  "redis": "OFF",
+  "redis": "ONLY_WRITE",
   "mappings": [
     {
       "targets": [
@@ -11,7 +11,9 @@
             "MyIngress.part1_state_set": "MyIngress.part1_state_set",
             "MyIngress.part1_state_setter": "MyIngress.part1_state_setter",
             "MyIngress.part2_state_set": "MyIngress.part2_state_set",
-            "MyIngress.part2_state_setter": "MyIngress.part2_state_setter"
+            "MyIngress.part2_state_setter": "MyIngress.part2_state_setter",
+            "MyIngress.part1_packetCounter1": "MyIngress.packetCounter1",
+            "MyIngress.part1_packetCounter2": "MyIngress.packetCounter2"
           }
         },
         {
@@ -19,6 +21,7 @@
           "port": 50052,
           "device_id": 1,
           "names": {
+            "MyIngress.part3_packetCounter1": "MyIngress.packetCounter3",
             "MyIngress.part3_state_set": "MyIngress.part3_state_set",
             "MyIngress.part3_state_setter": "MyIngress.part3_state_setter",
             "MyIngress.part4_state_set": "MyIngress.part4_state_set",
