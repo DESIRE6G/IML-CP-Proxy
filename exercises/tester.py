@@ -45,6 +45,7 @@ test_cases : List[TestCase] = [
     {'name': 'restructure','subtest': 'direct_entry_set'},
     {'name': 'restructure','subtest': 'preload'},
     {'name': 'restructure','subtest': 'disaggregate'},
+    {'name': 'restructure','subtest': 'disaggregate1_2_34'},
     {'name': 'restructure','subtest': 'disaggregate1_234'},
     {'name': 'restructure','subtest': 'disaggregate12_34'},
     {'name': 'meter','subtest': None},
