@@ -42,6 +42,20 @@
           "port": 60053
         }
       ]
+    },
+    {
+      "target": {
+        "program_name": "part4",
+        "port": 50054,
+        "device_id": 3
+      },
+      "sources": [
+        {
+          "program_name": "part4",
+          "prefix": "",
+          "port": 60054
+        }
+      ]
     }
   ]
 }

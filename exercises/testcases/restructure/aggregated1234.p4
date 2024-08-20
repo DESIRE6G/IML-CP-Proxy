@@ -14,6 +14,7 @@ header states_t {
     bit<8>    state1;
     bit<8>    state2;
     bit<8>    state3;
+    bit<8>    state4;
 }
 
 struct metadata {
@@ -97,6 +98,21 @@ control MyIngress(inout headers hdr,
         size = 1024;
     }
 
+    action part4_state_set(bit<8> newState) {
+        hdr.states.state4 = newState;
+    }
+
+    table part4_state_setter {
+        key = {
+            hdr.ethernet.dstAddr: exact;
+        }
+        actions = {
+            part4_state_set;
+            NoAction;
+        }
+        size = 1024;
+    }
+
 
     apply {
         part1_state_setter.apply();
@@ -108,6 +124,7 @@ control MyIngress(inout headers hdr,
         part3_packetCounter3.count((bit<32>) 0);
         part3_packetCounter3.count((bit<32>) 0);
         part3_packetCounter3.count((bit<32>) 0);
+        part4_state_setter.apply();
         standard_metadata.egress_spec = 2;
     }
 }

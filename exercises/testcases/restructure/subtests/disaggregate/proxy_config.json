@@ -29,10 +29,19 @@
             "MyIngress.part3_state_set": "MyIngress.state_set",
             "MyIngress.part3_state_setter": "MyIngress.state_setter"
           }
+        },
+        {
+          "program_name": "part4",
+          "port": 50054,
+          "device_id": 3,
+          "names": {
+            "MyIngress.part4_state_set": "MyIngress.state_set",
+            "MyIngress.part4_state_setter": "MyIngress.state_setter"
+          }
         }
       ],
       "source": {
-        "program_name": "aggregated123",
+        "program_name": "aggregated1234",
         "port": 60051
       }
     }

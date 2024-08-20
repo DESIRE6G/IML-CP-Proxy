@@ -3,7 +3,7 @@
   "mappings": [
     {
       "target": {
-        "program_name": "aggregated123",
+        "program_name": "aggregated1234",
         "port": 50051,
         "device_id": 0
       },
@@ -22,6 +22,11 @@
           "program_name": "part3",
           "prefix": "part3_",
           "port": 60053
+        },
+        {
+          "program_name": "part4",
+          "prefix": "part4_",
+          "port": 60054
         }
       ],
       "preload_entries": [
@@ -61,6 +66,19 @@
             "action_name": "MyIngress.part3_state_set",
             "action_params": {
               "newState": 88
+            }
+          }
+        },
+        {
+          "type": "table",
+          "parameters": {
+            "table_name": "MyIngress.part4_state_setter",
+            "match_fields": {
+              "hdr.ethernet.dstAddr": "08:00:00:00:02:22"
+            },
+            "action_name": "MyIngress.part4_state_set",
+            "action_params": {
+              "newState": 61
             }
           }
         }

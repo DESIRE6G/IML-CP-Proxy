@@ -47,18 +47,33 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
-    counter(1, CounterType.packets_and_bytes) packetCounter3;
+    counter(1, CounterType.packets_and_bytes) part3_packetCounter3;
 
-    action state_set(bit<8> newState) {
+    action part3_state_set(bit<8> newState) {
         hdr.states.state3 = newState;
     }
 
-    table state_setter {
+    table part3_state_setter {
         key = {
             hdr.ethernet.dstAddr: exact;
         }
         actions = {
-            state_set;
+            part3_state_set;
+            NoAction;
+        }
+        size = 1024;
+    }
+
+    action part4_state_set(bit<8> newState) {
+        hdr.states.state4 = newState;
+    }
+
+    table part4_state_setter {
+        key = {
+            hdr.ethernet.dstAddr: exact;
+        }
+        actions = {
+            part4_state_set;
             NoAction;
         }
         size = 1024;
@@ -66,10 +81,11 @@ control MyIngress(inout headers hdr,
 
 
     apply {
-        state_setter.apply();
-        packetCounter3.count((bit<32>) 0);
-        packetCounter3.count((bit<32>) 0);
-        packetCounter3.count((bit<32>) 0);
+        part3_state_setter.apply();
+        part3_packetCounter3.count((bit<32>) 0);
+        part3_packetCounter3.count((bit<32>) 0);
+        part3_packetCounter3.count((bit<32>) 0);
+        part4_state_setter.apply();
         standard_metadata.egress_spec = 2;
     }
 }

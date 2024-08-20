@@ -14,6 +14,7 @@ header states_t {
     bit<8>    state1;
     bit<8>    state2;
     bit<8>    state3;
+    bit<8>    state4;
 }
 
 struct metadata {

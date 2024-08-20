@@ -8,6 +8,6 @@ destination_mac = '08:00:00:00:02:22'
 input = []
 expected = []
 for packet_index in range(10):
-    expected.append( Ether(src=source_mac, dst=destination_mac) / bytes([66, 80, 89]))
+    expected.append( Ether(src=source_mac, dst=destination_mac) / bytes([66, 80, 89, 61]))
 
 wrpcap('test_h2_expected.pcap', expected)

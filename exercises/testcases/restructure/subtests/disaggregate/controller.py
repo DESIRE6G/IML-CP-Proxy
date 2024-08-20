@@ -4,7 +4,7 @@ from common.controller_helper import ControllerExceptionHandling
 from common.high_level_switch_connection import HighLevelSwitchConnection
 
 with ControllerExceptionHandling():
-    s1 = HighLevelSwitchConnection(0, 'aggregated123', '60051')
+    s1 = HighLevelSwitchConnection(0, 'aggregated1234', '60051')
     updates = []
     updates.append(s1.p4info_helper.buildUpdate(s1.p4info_helper.buildTableEntry(
         table_name="MyIngress.part1_state_setter",
@@ -34,6 +34,16 @@ with ControllerExceptionHandling():
         action_name="MyIngress.part3_state_set",
         action_params={
             "newState": 88
+        })))
+
+    updates.append(s1.p4info_helper.buildUpdate(s1.p4info_helper.buildTableEntry(
+        table_name="MyIngress.part4_state_setter",
+        match_fields={
+            'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
+        },
+        action_name="MyIngress.part4_state_set",
+        action_params={
+            "newState": 61
         })))
 
     s1.connection.WriteUpdates(updates)

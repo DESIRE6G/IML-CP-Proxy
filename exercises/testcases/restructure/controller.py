@@ -39,3 +39,15 @@ with ControllerExceptionHandling():
             "newState": 88
         })
     s3.connection.WriteTableEntry(table_entry)
+
+    s4 = HighLevelSwitchConnection(3, 'part4', '60054')
+    table_entry = s4.p4info_helper.buildTableEntry(
+        table_name="MyIngress.state_setter",
+        match_fields={
+            'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
+        },
+        action_name="MyIngress.state_set",
+        action_params={
+            "newState": 61
+        })
+    s4.connection.WriteTableEntry(table_entry)

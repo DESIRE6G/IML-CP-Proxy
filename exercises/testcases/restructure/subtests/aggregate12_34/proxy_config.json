@@ -22,7 +22,7 @@
     },
     {
       "target": {
-        "program_name": "aggregated3",
+        "program_name": "aggregated34",
         "port": 50052,
         "device_id": 1
       },
@@ -31,6 +31,11 @@
           "program_name": "part3",
           "prefix": "part3_",
           "port": 60053
+        },
+        {
+          "program_name": "part4",
+          "prefix": "part4_",
+          "port": 60054
         }
       ]
     }
