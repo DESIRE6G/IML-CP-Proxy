@@ -74,7 +74,7 @@ class RateLimitedP4RuntimeStub:
 
     def heartbeat(self) -> None:
         while True:
-            with lock:
+            with self.lock:
                 self._flush_buffered_commands()
             time.sleep(1)
 
