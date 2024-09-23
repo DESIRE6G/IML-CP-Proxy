@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import functools
 import re
 
 import google.protobuf.text_format
@@ -36,6 +37,10 @@ class P4InfoHelper(object):
             google.protobuf.text_format.Merge(raw_p4info, p4info)
 
         self.p4info = p4info
+
+        for entity_name in ['tables', 'meters', 'actions', 'counters', 'registers', 'digests']:
+            setattr(self, f'get_{entity_name}_id', functools.partial(self.get_id, entity_name))
+            setattr(self, f'get_{entity_name}_name', functools.partial(self.get_name, entity_name))
 
     def get(self, entity_type, name=None, id=None):
         if name is not None and id is not None:
@@ -63,23 +68,6 @@ class P4InfoHelper(object):
 
     def get_alias(self, entity_type, id):
         return self.get(entity_type, id=id).preamble.alias
-
-    def __getattr__(self, attr):
-        # Synthesize convenience functions for name to id lookups for top-level entities
-        # e.g. get_tables_id(name_string) or get_actions_id(name_string)
-        m = re.search("^get_(\w+)_id$", attr)
-        if m:
-            primitive = m.group(1)
-            return lambda name: self.get_id(primitive, name)
-
-        # Synthesize convenience functions for id to name lookups
-        # e.g. get_tables_name(id) or get_actions_name(id)
-        m = re.search("^get_(\w+)_name$", attr)
-        if m:
-            primitive = m.group(1)
-            return lambda id: self.get_name(primitive, id)
-
-        raise AttributeError("%r object has no attribute %r" % (self.__class__, attr))
 
     def get_match_field(self, table_name, name=None, id=None):
         for t in self.p4info.tables:
