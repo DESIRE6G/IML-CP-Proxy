@@ -290,13 +290,15 @@ def run_test_cases(test_cases_to_run: list):
 
             tmux_shell(f'cd {TARGET_TEST_FOLDER}',mininet_pane_name)
             tmux_shell(f'mkdir -p logs',mininet_pane_name)
-            tmux_shell(f'make stop',mininet_pane_name)
-            tmux_shell(f'make run',mininet_pane_name)
-            try:
-                wait_for_output('^mininet>', mininet_pane_name, max_time=30)
-            except Exception as e:
-                tmux(f'capture-pane -S - -pt {mininet_pane_name}')
-                raise e
+            if config.get('start_mininet', True):
+                tmux_shell(f'make stop',mininet_pane_name)
+                tmux_shell(f'make run',mininet_pane_name)
+                try:
+                    wait_for_output('^mininet>', mininet_pane_name, max_time=30)
+                except Exception as e:
+                    tmux(f'capture-pane -S - -pt {mininet_pane_name}')
+                    raise e
+
             check_controller_exit_code =  config.get('ongoing_controller', False)
             active_test_modes = {
                 'pcap': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_input.pcap'),
