@@ -63,34 +63,34 @@ class RateLimitedP4RuntimeStub:
     def __init__(self, channel, max_per_sec: int) -> None:
         self.real_stub = p4runtime_pb2_grpc.P4RuntimeStub(channel)
         self.rate_limiter = RateLimiter(max_per_sec)
-        self.puffered_commands = deque(maxlen=5 * max_per_sec)
+        self.buffered_commands = deque(maxlen=5 * max_per_sec)
         self.lock = threading.Lock()
-        self.heartbeat_thread = threading.Thread(target=self.heartbeat, args=(self.lock,))
+        self.heartbeat_thread = threading.Thread(target=self.heartbeat)
         self.heartbeat_thread.start()
 
         commands = [x for x in dir(self.real_stub) if callable(getattr(self.real_stub, x)) and not x.startswith('_')]
         for command_name in commands:
             setattr(self, command_name, self.command_generate(command_name))
 
-    def heartbeat(self, lock: threading.Lock) -> None:
+    def heartbeat(self) -> None:
         while True:
             with lock:
-                self._flush_puffered_commands()
+                self._flush_buffered_commands()
             time.sleep(1)
 
-    def _flush_puffered_commands(self):
-        while len(self.puffered_commands) > 0 and self.rate_limiter.is_fit_in_the_rate_limit():
-            command = self.puffered_commands.popleft()
+    def _flush_buffered_commands(self):
+        while len(self.buffered_commands) > 0 and self.rate_limiter.is_fit_in_the_rate_limit():
+            command = self.buffered_commands.popleft()
             getattr(self.real_stub, command[0])(*command[1], **command[2])
 
     def command_generate(self, command_name):
         def _inner(*args, **kwargs):
             with self.lock:
-                if len(self.puffered_commands) == 0 and self.rate_limiter.is_fit_in_the_rate_limit():
+                if len(self.buffered_commands) == 0 and self.rate_limiter.is_fit_in_the_rate_limit():
                     return getattr(self.real_stub, command_name)(*args, **kwargs)
                 else:
-                    self.puffered_commands.append((command_name, args, kwargs))
-                self._flush_puffered_commands()
+                    self.buffered_commands.append((command_name, args, kwargs))
+                self._flush_buffered_commands()
         return _inner
 
 class SwitchConnection(object):
