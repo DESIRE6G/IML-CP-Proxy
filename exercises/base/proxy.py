@@ -410,6 +410,7 @@ class ProxyConfigTarget(BaseModel):
     device_id: int
     reset_dataplane: Optional[bool] = False
     names: Optional[Dict[str,str]] = None
+    rate_limit: Optional[int] = None
 
 class ProxyConfigSource(BaseModel):
     program_name: str
@@ -447,7 +448,14 @@ def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[ProxyServer
 
         target_switch_configs = []
         for target_config_raw in target_configs_raw:
-            mapping_target_switch = HighLevelSwitchConnection(target_config_raw.device_id, target_config_raw.program_name, target_config_raw.port, send_p4info=True, reset_dataplane=target_config_raw.reset_dataplane)
+            mapping_target_switch = HighLevelSwitchConnection(
+                target_config_raw.device_id,
+                target_config_raw.program_name,
+                target_config_raw.port,
+                send_p4info=True,
+                reset_dataplane=target_config_raw.reset_dataplane,
+                rate_limit=target_config_raw.rate_limit
+                )
             print('On startup the rules on the target are the following')
             for table_entry_response in mapping_target_switch.connection.ReadTableEntries():
                 for starter_table_entity in table_entry_response.entities:

@@ -12,8 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import functools
+import os
+import threading
+import time
 from abc import abstractmethod
+from collections import deque
 from datetime import datetime
+from enum import Enum
 from queue import Queue
 
 import grpc
@@ -27,10 +33,70 @@ def ShutdownAllSwitchConnections():
     for c in connections:
         c.shutdown()
 
+
+
+class RateLimiter:
+    def __init__(self, max_per_sec: int):
+        self.last_tick = time.time()
+        self.max_per_sec = max_per_sec
+        self.bucket = 0
+
+    def _decrease_bucket_base_on_time(self) -> None:
+        self.bucket -= (time.time() - self.last_tick) * self.max_per_sec
+        if self.bucket < 0:
+            self.bucket = 0
+
+        self.last_tick = time.time()
+
+    def is_fit_in_the_rate_limit(self) -> bool:
+        self._decrease_bucket_base_on_time()
+
+        if self.bucket + 1 < self.max_per_sec:
+            self.bucket += 1
+            return True
+
+        return False
+
+
+
+class RateLimitedP4RuntimeStub:
+    def __init__(self, channel, max_per_sec: int) -> None:
+        self.real_stub = p4runtime_pb2_grpc.P4RuntimeStub(channel)
+        self.rate_limiter = RateLimiter(max_per_sec)
+        self.puffered_commands = deque(maxlen=5 * max_per_sec)
+        self.lock = threading.Lock()
+        self.heartbeat_thread = threading.Thread(target=self.heartbeat, args=(self.lock,))
+        self.heartbeat_thread.start()
+
+        commands = [x for x in dir(self.real_stub) if callable(getattr(self.real_stub, x)) and not x.startswith('_')]
+        for command_name in commands:
+            setattr(self, command_name, self.command_generate(command_name))
+
+    def heartbeat(self, lock: threading.Lock) -> None:
+        while True:
+            with lock:
+                self._flush_puffered_commands()
+            time.sleep(1)
+
+    def _flush_puffered_commands(self):
+        while len(self.puffered_commands) > 0 and self.rate_limiter.is_fit_in_the_rate_limit():
+            command = self.puffered_commands.popleft()
+            getattr(self.real_stub, command[0])(*command[1], **command[2])
+
+    def command_generate(self, command_name):
+        def _inner(*args, **kwargs):
+            with self.lock:
+                if len(self.puffered_commands) == 0 and self.rate_limiter.is_fit_in_the_rate_limit():
+                    return getattr(self.real_stub, command_name)(*args, **kwargs)
+                else:
+                    self.puffered_commands.append((command_name, args, kwargs))
+                self._flush_puffered_commands()
+        return _inner
+
 class SwitchConnection(object):
 
     def __init__(self, name=None, address='127.0.0.1:50051', device_id=0,
-                 proto_dump_file=None):
+                 proto_dump_file=None, rate_limit=None):
         self.name = name
         self.address = address
         self.device_id = device_id
@@ -39,7 +105,10 @@ class SwitchConnection(object):
         if proto_dump_file is not None:
             interceptor = GrpcRequestLogger(proto_dump_file)
             self.channel = grpc.intercept_channel(self.channel, interceptor)
-        self.client_stub = p4runtime_pb2_grpc.P4RuntimeStub(self.channel)
+        if rate_limit is None:
+            self.client_stub = p4runtime_pb2_grpc.P4RuntimeStub(self.channel)
+        else:
+            self.client_stub = RateLimitedP4RuntimeStub(self.channel, max_per_sec=rate_limit)
         self.requests_stream = IterableQueue()
         self.stream_msg_resp = self.client_stub.StreamChannel(iter(self.requests_stream))
         self.proto_dump_file = proto_dump_file
@@ -294,6 +363,7 @@ class GrpcRequestLogger(grpc.UnaryUnaryClientInterceptor,
 
     def __init__(self, log_file):
         self.log_file = log_file
+        os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
         with open(self.log_file, 'w') as f:
             # Clear content if it exists.
             f.write("")

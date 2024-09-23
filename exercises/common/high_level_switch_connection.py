@@ -54,7 +54,9 @@ class HighLevelSwitchConnection:
                  reset_dataplane: bool = True,
                  election_id_low: int=1,
                  p4info_path: Optional[str] = None,
-                 bmv2_file_path: Optional[str] = None):
+                 bmv2_file_path: Optional[str] = None,
+                 rate_limit: Optional[int] = None
+                 ):
         self.device_id = device_id
         self.filename = filename
 
@@ -75,7 +77,9 @@ class HighLevelSwitchConnection:
             name=f's{device_id+1}',
             address=f'127.0.0.1:{self.port}',
             device_id=device_id,
-            proto_dump_file=f'logs/port{self.port}-p4runtime-requests.txt')
+            proto_dump_file=f'logs/port{self.port}-p4runtime-requests.txt',
+            rate_limit=rate_limit
+        )
 
         self.connection.MasterArbitrationUpdate(election_id_low=election_id_low)
         self.stream_subscribed_queues: List[QueueWithInfo] = []

@@ -19,3 +19,4 @@ if __name__ == '__main__':
         })
     for i in range(2000 * 5):
         s1.connection.WriteTableEntry(table_entry)
+        time.sleep(1/10000)
