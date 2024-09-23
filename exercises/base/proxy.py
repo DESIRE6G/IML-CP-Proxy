@@ -13,7 +13,6 @@ from typing import Dict, List, Optional, Any, Union, Tuple
 
 import google
 from pydantic import BaseModel, Field, AliasChoices
-
 import grpc
 from google.protobuf.text_format import MessageToString
 from p4.v1 import p4runtime_pb2
@@ -78,6 +77,7 @@ class TargetSwitchObject:
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, prefix: str, from_p4info_path: str, target_switch_configs: List[TargetSwitchConfig], redis_mode: RedisMode) -> None:
         self.prefix = prefix
+        self.verbose = False
         if prefix.strip() != '':
             redis_prefix = prefix
         else:
@@ -127,7 +127,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         entity_name = P4NameConverter.get_entity_name(self.from_p4info_helper, entity)
         for index, target_switch in enumerate(self.target_switches):
             if target_switch.names is None or entity_name in target_switch.names:
-                print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.port}')
+                if self.verbose:
+                    print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.port}')
                 return target_switch, index
 
         raise Exception(f'Cannot find a target switch for {entity_name=}')
@@ -137,8 +138,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         return target_switch
 
     def Write(self, request, context, converter: P4NameConverter = None, save_to_redis: bool = True) -> None:
-        print('------------------- Write -------------------')
-        print(request)
+        if self.verbose:
+            print('------------------- Write -------------------')
+            print(request)
 
         updates_distributed_by_target = [[] for _ in self.target_switches]
 
@@ -154,9 +156,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                         redis.rpush(self.redis_keys.METER_ENTRIES, MessageToJson(entity))
 
                 if converter is not None:
-                    converter.convert_entity(entity)
+                    converter.convert_entity(entity, verbose=self.verbose)
                 else:
-                    target_switch.converter.convert_entity(entity)
+                    target_switch.converter.convert_entity(entity, verbose=self.verbose)
                 updates_distributed_by_target[target_switch_index].append(update)
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
@@ -164,9 +166,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for target_switch_index, updates in enumerate(updates_distributed_by_target):
             if len(updates) == 0:
                 continue
-
-            print(f'== SENDING to target {target_switch_index}')
-            print(updates)
+            if self.verbose:
+                print(f'== SENDING to target {target_switch_index}')
+                print(updates)
             self.target_switches[target_switch_index].high_level_connection.connection.WriteUpdates(updates)
 
         return WriteResponse()
@@ -174,7 +176,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def Read(self, original_request: p4runtime_pb2.ReadRequest, context):
         """Read one or more P4 entities from the target.
         """
-        print('------------------- Read -------------------')
+        if self.verbose:
+            print('------------------- Read -------------------')
 
         ret = ReadResponse()
         read_entites_by_target_switch = [[] for _ in range(len(self.target_switches))]
@@ -198,18 +201,20 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             for original_read_entity in read_entites_for_target_switch:
                 read_entity = new_request.entities.add()
                 read_entity.CopyFrom(original_read_entity)
-                target_switch_object.converter.convert_entity(read_entity, reverse=False)
+                target_switch_object.converter.convert_entity(read_entity, reverse=False, verbose=self.verbose)
 
-            print(f'Request for switch {target_switch_index}')
-            print(new_request)
+            if self.verbose:
+                print(f'Request for switch {target_switch_index}')
+                print(new_request)
 
             for result in target_switch_object.high_level_connection.connection.client_stub.Read(new_request):
-                print('result:')
-                print(result)
+                if self.verbose:
+                    print('result:')
+                    print(result)
                 for entity in result.entities:
                     entity_name = target_switch_object.converter.get_target_entity_name(entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
-                        target_switch_object.converter.convert_entity(entity, reverse=True)
+                        target_switch_object.converter.convert_entity(entity, reverse=True, verbose=self.verbose)
                         ret_entity = ret.entities.add()
                         ret_entity.CopyFrom(entity)
 
@@ -218,6 +223,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         yield ret
 
     def SetForwardingPipelineConfig(self, request: p4runtime_pb2.SetForwardingPipelineConfigRequest, context):
+        if self.verbose:
+            print('SetForwardingPipelineConfig')
+            logger.info(request)
         # Do not forward p4info just save it, on init we load the p4info
         self.delete_redis_entries_for_this_service()
         self.raw_p4info = MessageToString(request.config.p4info)
@@ -227,13 +235,19 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         return SetForwardingPipelineConfigResponse()
 
     def GetForwardingPipelineConfig(self, request: p4runtime_pb2.GetForwardingPipelineConfigRequest, context):
+        if self.verbose:
+            print('GetForwardingPipelineConfig')
         response = p4runtime_pb2.GetForwardingPipelineConfigResponse()
         google.protobuf.text_format.Merge(self.raw_p4info, response.config.p4info)
         return response
 
 
     def StreamChannel(self, request_iterator, context):
+        if self.verbose:
+            print('StreamChannel')
         for request in request_iterator:
+            if self.verbose:
+                print(request)
             logger.info('StreamChannel message arrived')
             logger.info(request)
             which_one = request.WhichOneof('update')
@@ -242,13 +256,16 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 response.arbitration.device_id = request.arbitration.device_id
                 response.arbitration.election_id.high = 0
                 response.arbitration.election_id.low = 1
+                if self.verbose:
+                    print(f'Sendin back master arbitrage ACK {self.target_switches[0].high_level_connection.p4info_path}')
                 yield response
 
                 while self.running:
                     stream_response: StreamMessageResponseWithInfo = self.stream_queue_from_target.get()
                     target_switch = self.target_switches[stream_response.extra_information]
-                    print('Arrived stream_response_from target')
-                    print(stream_response)
+                    if self.verbose:
+                        print('Arrived stream_response_from target')
+                        print(stream_response)
                     which_one = stream_response.message.WhichOneof('update')
                     if which_one == 'digest':
                         name = target_switch.converter.get_target_p4_name_from_id('digest', stream_response.message.digest.digest_id)
@@ -261,6 +278,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 raise Exception(f'Unhandled Stream field type {request.WhichOneof}')
 
     def Capabilities(self, request: p4runtime_pb2.CapabilitiesRequest, context):
+        if self.verbose:
+            print('Capabilities')
         versions = []
         for target_switch in self.target_switches:
             versions.append(target_switch.high_level_connection.connection.client_stub.Capabilities(request))
@@ -271,10 +290,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         return versions[0]
 
     def fill_from_redis(self) -> None:
-        print('FILLING FROM REDIS')
+        if self.verbose:
+            print('FILLING FROM REDIS')
         self.raw_p4info = redis.get(self.redis_keys.P4INFO)
         if self.raw_p4info is None:
-            print('Fillig from redis failed, because p4info cannot be found in redis')
+            if self.verbose:
+                print('Fillig from redis failed, because p4info cannot be found in redis')
             return
 
         redis_p4info_helper = P4InfoHelper(raw_p4info=self.raw_p4info)
@@ -288,7 +309,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
                 name = p4name_converter.get_source_entity_name(parsed_update_object.entity)
                 if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
-                    print(parsed_update_object)
+                    if self.verbose:
+                        print(parsed_update_object)
                     self._write_update_object(parsed_update_object, virtual_target_switch_for_load)
 
             for protobuf_message_json_object in itertools.chain(redis.lrange(self.redis_keys.COUNTER_ENTRIES, 0, -1),
@@ -297,7 +319,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
                 name = p4name_converter.get_source_entity_name(entity)
                 if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
-                    print(entity)
+                    if self.verbose:
+                        print(entity)
 
                     update = p4runtime_pb2.Update()
                     update.type = p4runtime_pb2.Update.MODIFY
@@ -331,19 +354,15 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     if target_switch.names is None or name in target_switch.names:
                         entity = request.entities.add()
                         entity.direct_counter_entry.table_entry.table_id = direct_counter.direct_table_id
-                        target_switch.converter.convert_entity(entity)
+                        target_switch.converter.convert_entity(entity, verbose=self.verbose)
 
                 entity = request.entities.add()
                 entity.counter_entry.counter_id = 0
-                print('-----------REQUEST')
-                print(request)
-                print('-----------REQUESTEND')
                 for response in target_switch.high_level_connection.connection.client_stub.Read(request):
                     for entity in response.entities:
                         entity_name = target_switch.converter.get_target_entity_name(entity)
                         if get_pure_p4_name(entity_name).startswith(self.prefix):
-                            print(entity)
-                            target_switch.converter.convert_entity(entity, reverse=True)
+                            target_switch.converter.convert_entity(entity, reverse=True, verbose=self.verbose)
                             pipe.rpush(self.redis_keys.COUNTER_ENTRIES, MessageToJson(entity))
             pipe.set(self.redis_keys.HEARTBEAT, time.time())
             pipe.execute()
