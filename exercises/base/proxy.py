@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 from threading import Thread, Event
 from typing import Dict, List, Optional, Any, Union, Tuple
-
+import yappi
 import google
 from pydantic import BaseModel, Field, AliasChoices
 import grpc
@@ -31,6 +31,11 @@ from common.redis_helper import RedisKeys, RedisRecords
 logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
 redis = redis.Redis()
+
+RUN_PERF = False
+
+if RUN_PERF:
+    yappi.start()
 
 
 
@@ -392,6 +397,7 @@ class ProxyServer:
             self.servicer.fill_from_redis()
         add_P4RuntimeServicer_to_server(self.servicer, self.server)
         self.server.add_insecure_port(f'[::]:{self.port}')
+        print(f'Start [::]:{self.port}')
         self.server.start()
 
     def stop(self) -> None:
@@ -504,7 +510,21 @@ if __name__ == '__main__':
         # Important message for the testing system, do not remove :)
         print('Proxy is ready')
         while True:
-            time.sleep(60 * 60)
+            if RUN_PERF:
+                time.sleep(5)
+                threads = yappi.get_thread_stats()
+                for thread in threads[0:1]:
+                    print(
+                        "Function stats for (%s) (%d)" % (thread.name, thread.id)
+                    )  # it is the Thread.__class__.__name__
+                    yappi_stats = yappi.get_func_stats(ctx_id=thread.id)
+
+                    yappi_stats.print_all()
+                    yappi.convert2pstats(yappi_stats.get()).dump_stats('perf2.prof')
+            else:
+                time.sleep(60 * 60)
+
+
     except KeyboardInterrupt:
         for server in proxy_servers:
             server.stop()
