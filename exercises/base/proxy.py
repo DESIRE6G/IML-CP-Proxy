@@ -79,6 +79,42 @@ class TargetSwitchObject:
     converter: P4NameConverter
     names: Optional[Dict[str, str]] = None
 
+
+class RuntimeMeasurer:
+    def __init__(self):
+        self.measurements = {}
+
+    def measure(self, key: str, value: float) -> None:
+        if key not in self.measurements:
+            self.reset(key)
+
+        self.measurements[key]['times'].append(value)
+
+    def get_avg(self, key: str) -> float:
+        if len(self.measurements[key]['times']) == 0:
+            return -1
+
+        return sum(self.measurements[key]['times']) / len(self.measurements[key]['times'])
+
+    def reset(self, key: str) -> None:
+        self.measurements[key] = {
+            'times': []
+        }
+
+
+class Ticker:
+    def __init__(self):
+        self.last_ticks = {}
+
+    def is_tick_passed(self, key: str, time_to_wait: float) -> bool:
+        ret = key not in self.last_ticks or time.time() - self.last_ticks[key] > time_to_wait
+
+        if ret:
+            self.last_ticks[key] = time.time()
+
+        return ret
+
+
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, prefix: str, from_p4info_path: str, target_switch_configs: List[TargetSwitchConfig], redis_mode: RedisMode) -> None:
         self.prefix = prefix
@@ -115,6 +151,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             self.target_switches.append(target_switch)
 
         self.running = True
+        self.runtime_measurer = RuntimeMeasurer()
+        self.ticker = Ticker()
 
     def stop(self) -> None:
         self.running = False
@@ -143,6 +181,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         return target_switch
 
     def Write(self, request, context, converter: P4NameConverter = None, save_to_redis: bool = True) -> None:
+        start_time = time.time()
         if self.verbose:
             print('------------------- Write -------------------')
             print(request)
@@ -175,6 +214,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 print(f'== SENDING to target {target_switch_index}')
                 print(updates)
             self.target_switches[target_switch_index].high_level_connection.connection.WriteUpdates(updates)
+        if self.verbose:
+            self.runtime_measurer.measure('write', time.time() - start_time)
+            if self.ticker.is_tick_passed('write_runtime', 1):
+                print(self.runtime_measurer.get_avg('write'))
+                self.runtime_measurer.reset('write')
 
         return WriteResponse()
 
