@@ -521,14 +521,13 @@ if __name__ == '__main__':
             if RUN_PERF:
                 time.sleep(5)
                 threads = yappi.get_thread_stats()
-                for thread in threads[0:1]:
-                    print(
-                        "Function stats for (%s) (%d)" % (thread.name, thread.id)
-                    )  # it is the Thread.__class__.__name__
+                for thread in threads :
                     yappi_stats = yappi.get_func_stats(ctx_id=thread.id)
 
-                    yappi_stats.print_all()
-                    yappi.convert2pstats(yappi_stats.get()).dump_stats('perf2.prof')
+                    if 'Bmv2SwitchConnection.WriteUpdates' in [stat.name for stat in yappi_stats]:
+                        yappi_stats.print_all()
+                        yappi.convert2pstats(yappi_stats.get()).dump_stats('perf2.prof')
+                        break
             else:
                 time.sleep(60 * 60)
 
