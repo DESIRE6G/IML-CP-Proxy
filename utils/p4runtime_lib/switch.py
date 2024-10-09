@@ -113,6 +113,7 @@ class SwitchConnection(object):
         self.stream_msg_resp = self.client_stub.StreamChannel(iter(self.requests_stream))
         self.proto_dump_file = proto_dump_file
         connections.append(self)
+        self.futures_pit = []
 
     @abstractmethod
     def buildDeviceConfig(self, **kwargs):
@@ -343,7 +344,7 @@ class SwitchConnection(object):
         else:
             self.client_stub.Write(request)
 
-    def WriteUpdates(self, updates, dry_run=False):
+    def WriteUpdates(self, updates, dry_run=False, future=False):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = self.device_id
         request.election_id.low = 1
@@ -354,7 +355,16 @@ class SwitchConnection(object):
         if dry_run:
             print("P4Runtime Write:", request)
         else:
-            self.client_stub.Write(request)
+            if future:
+                self.futures_pit.append(self.client_stub.Write.future(request))
+
+                for fut in self.futures_pit:
+                    if fut.done():
+                        fut.result()
+                self.futures_pit = [fut for fut in self.futures_pit if not fut.done()]
+            else:
+                self.client_stub.Write(request)
+
 
 
 class GrpcRequestLogger(grpc.UnaryUnaryClientInterceptor,
