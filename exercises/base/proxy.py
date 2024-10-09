@@ -7,12 +7,10 @@ import sys
 import time
 from concurrent import futures
 from dataclasses import dataclass
-from enum import Enum
 from threading import Thread, Event
-from typing import Dict, List, Optional, Any, Union, Tuple
+from typing import Dict, List, Optional, Union, Tuple
 import yappi
 import google
-from pydantic import BaseModel, Field, AliasChoices
 import grpc
 from google.protobuf.text_format import MessageToString
 from p4.v1 import p4runtime_pb2
@@ -26,6 +24,7 @@ import redis
 
 from common.p4runtime_lib.switch import IterableQueue
 from common.high_level_switch_connection import HighLevelSwitchConnection, StreamMessageResponseWithInfo
+from common.proxy_config import ProxyConfig, RedisMode
 from common.redis_helper import RedisKeys, RedisRecords
 
 logger = logging.getLogger()
@@ -36,22 +35,6 @@ RUN_PERF = False
 
 if RUN_PERF:
     yappi.start()
-
-
-
-class RedisMode(Enum):
-    READWRITE = 'READWRITE'
-    ONLY_WRITE = 'ONLY_WRITE'
-    ONLY_READ = 'ONLY_READ'
-    OFF = 'OFF'
-
-    @classmethod
-    def is_reading(cls, redis_mode: 'RedisMode') -> bool:
-        return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_READ
-
-    @classmethod
-    def is_writing(cls, redis_mode: 'RedisMode') -> bool:
-        return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_WRITE
 
 
 class ProxyP4ServicerHeartbeatWorkerThread(Thread):
@@ -447,35 +430,6 @@ class ProxyServer:
     def stop(self) -> None:
         self.servicer.stop()
         self.server.stop(grace=None)
-
-class ProxyConfigTarget(BaseModel):
-    program_name: str
-    port: int
-    device_id: int
-    reset_dataplane: Optional[bool] = False
-    names: Optional[Dict[str,str]] = None
-    rate_limit: Optional[int] = None
-
-class ProxyConfigSource(BaseModel):
-    program_name: str
-    prefix: str = ''
-    port: int = Field(validation_alias=AliasChoices('controller_port', 'port'))
-
-class ProxyConfigPreloadEntry(BaseModel):
-    type: str
-    parameters: Dict[str, Any]
-
-class ProxyConfigMapping(BaseModel):
-    target: Optional[ProxyConfigTarget] = None
-    targets: List[ProxyConfigTarget] = []
-    source: Optional[ProxyConfigSource] = None
-    sources: List[ProxyConfigSource] = []
-    preload_entries: List[ProxyConfigPreloadEntry] = []
-
-class ProxyConfig(BaseModel):
-    redis: RedisMode
-    mappings: List[ProxyConfigMapping]
-
 
 
 def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[ProxyServer]:
