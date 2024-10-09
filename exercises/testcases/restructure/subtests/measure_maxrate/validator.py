@@ -9,7 +9,7 @@ from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 from common.redis_helper import compare_redis, wait_heartbeats_in_redis
 
 if __name__ == '__main__':
-    s1 = HighLevelSwitchConnection(0, 'part1', '50051')
+    s1 = HighLevelSwitchConnection(0, 'part1', '60051')
     table_entry = s1.p4info_helper.buildTableEntry(
         table_name="MyIngress.state_setter",
         match_fields={

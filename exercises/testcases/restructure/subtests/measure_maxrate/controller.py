@@ -8,11 +8,14 @@ from typing import List
 
 import grpc
 from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, ReadResponse, WriteResponse
+from pydantic import BaseModel
 
 from common.controller_helper import ControllerExceptionHandling
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from p4.v1 import p4runtime_pb2
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
+
+from common.rates import TickOutputJSON
 
 
 class TickCounter:
@@ -48,6 +51,7 @@ def find_center_average(l: list) -> float:
     return sum(sorted_list[start:end]) / (end - start)
 
 
+
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, to_controller_queue: multiprocessing.Queue) -> None:
         self.write_counter = 0
@@ -56,7 +60,13 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def Write(self, request, context) -> None:
         if self.tick_counter.tick():
-            print(self.tick_counter.ticks_per_sec_list, find_center_average(self.tick_counter.ticks_per_sec_list))
+            output = TickOutputJSON(
+                tick_per_sec_list=self.tick_counter.ticks_per_sec_list,
+                average=find_center_average(self.tick_counter.ticks_per_sec_list)
+            )
+            print(output.tick_per_sec_list, output.average)
+            with open('ticks.json', 'w') as f:
+                f.write(output.model_dump_json(indent=4))
             self.to_controller_queue.put(self.tick_counter.ticks_per_sec_list)
 
         return WriteResponse()
