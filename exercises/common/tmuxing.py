@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import subprocess
+from typing import Optional
 
 from common.colors import COLOR_YELLOW, COLOR_END
 from common.sync import wait_for_condition_blocking
@@ -89,3 +90,20 @@ def assert_folder_existence(path: str) -> None:
 
 def link_into_folder(path: str, dst_folder: str) -> None:
     os.link(f'{path}', f'{dst_folder}/{os.path.basename(path)}')
+
+
+def close_everything_and_save_logs(window_name: str, panes_dict: dict, folder: Optional[str] = None) -> None:
+    if folder is None:
+        logs_folder = 'logs'
+    else:
+        logs_folder = f'{folder}/logs'
+
+    os.makedirs(logs_folder, exist_ok=True)
+    for pane_name, pane_tmux_name in panes_dict.items():
+        tmux(f'capture-pane -S - -pt {pane_tmux_name} > {logs_folder}/{pane_name}.log')
+
+    for pane_name, pane_tmux_name in panes_dict.items():
+        tmux_shell(f'C-c', pane_tmux_name)
+        tmux_shell(f'C-c', pane_tmux_name)
+
+    tmux_shell(f'tmux kill-session -t {window_name}')
