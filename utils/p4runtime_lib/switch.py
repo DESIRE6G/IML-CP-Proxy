@@ -96,13 +96,13 @@ class RateLimitedP4RuntimeStub:
 class SwitchConnection(object):
 
     def __init__(self, name=None, address='127.0.0.1:50051', device_id=0,
-                 proto_dump_file=None, rate_limit=None):
+                 proto_dump_file=None, rate_limit=None, production_mode=False):
         self.name = name
         self.address = address
         self.device_id = device_id
         self.p4info = None
         self.channel = grpc.insecure_channel(self.address)
-        if proto_dump_file is not None:
+        if proto_dump_file is not None and not production_mode:
             interceptor = GrpcRequestLogger(proto_dump_file)
             self.channel = grpc.intercept_channel(self.channel, interceptor)
         if rate_limit is None:
