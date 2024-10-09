@@ -56,7 +56,8 @@ class HighLevelSwitchConnection:
                  p4info_path: Optional[str] = None,
                  bmv2_file_path: Optional[str] = None,
                  rate_limit: Optional[int] = None,
-                 production_mode: bool = True
+                 rate_limiter_buffer_size: Optional[int] = None,
+                 production_mode: bool = True,
                  ):
         self.device_id = device_id
         self.filename = filename
@@ -80,6 +81,7 @@ class HighLevelSwitchConnection:
             device_id=device_id,
             proto_dump_file=f'logs/port{self.port}-p4runtime-requests.txt',
             rate_limit=rate_limit,
+            rate_limiter_buffer_size=rate_limiter_buffer_size,
             production_mode=production_mode
         )
 

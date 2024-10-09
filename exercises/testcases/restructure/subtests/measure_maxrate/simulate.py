@@ -2,11 +2,14 @@ import os
 import shutil
 import time
 
+import numpy as np
+import pandas as pd
+
 from common.colors import COLOR_RED_BG, COLOR_END
 from common.proxy_config import ProxyConfig
 from common.rates import TickOutputJSON
 from common.simulator import Simulator
-from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs
+from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
 simulator = Simulator()
 PROXY_CONFIG_FILENAME = 'proxy_config.json'
@@ -16,20 +19,24 @@ controller_pane_name = f'{TMUX_WINDOW_NAME}:0.0'
 proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
 validator_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
-simulator.add_parameter('rate_limit', [50, None])
+simulator.add_parameter('iteration', [1])
+simulator.add_parameter('rate_limit', [50,500,1000])
+#simulator.add_parameter('rate_limiter_buffer_size', [0, 100, 200, 300, 400, 500, 600,700, 800, 900, 1000, 2000, 3000, 4000, 5000,6000,7000,8000,9000, 10000, 20000, 100000])
+simulator.add_parameter('batch_size', [1,2,3,4,5,6,7,8,9,10])
+simulator.add_parameter('sending_rate', [None])
 
-def measure(rate_limit) -> None:
+def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None) -> float:
     try:
-        print(rate_limit)
         with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
             obj = ProxyConfig.model_validate_json(f.read())
 
         obj.mappings[0].target.rate_limit = rate_limit
+        obj.mappings[0].target.rate_limiter_buffer_size = rate_limiter_buffer_size
 
         with open(PROXY_CONFIG_FILENAME, 'w') as f:
             f.write(obj.model_dump_json(indent=4))
 
-        tmux(f'new -d -s {TMUX_WINDOW_NAME} -x 150')
+        create_tmux_window_with_retry(TMUX_WINDOW_NAME)
         tmux_shell(f'python controller.py', controller_pane_name)
         time.sleep(1)
 
@@ -42,7 +49,11 @@ def measure(rate_limit) -> None:
         except TimeoutError:
             print(f'{COLOR_RED_BG}Proxy is failed to startup{COLOR_END}')
 
-        tmux_shell('python validator.py', validator_pane_name)
+        validator_cmd = f'python validator.py {batch_size}'
+        if sending_rate is not None:
+            validator_cmd += f' {sending_rate}'
+
+        tmux_shell(validator_cmd, validator_pane_name)
 
         time.sleep(10)
 
@@ -58,9 +69,29 @@ def measure(rate_limit) -> None:
         obj = TickOutputJSON.model_validate_json(f.read())
         print(obj.average)
 
-simulator.add_function('measure', measure)
+    return obj.average
+
+simulator.add_function('message_per_sec_mean', measure)
+
+
+def ticks():
+    with open('ticks.json', 'r') as f:
+        obj = TickOutputJSON.model_validate_json(f.read())
+    return obj.tick_per_sec_list
+simulator.add_function('ticks', ticks)
+
+def stdev():
+    with open('ticks.json', 'r') as f:
+        obj = TickOutputJSON.model_validate_json(f.read())
+
+    return obj.stdev
+
+simulator.add_function('stdev', stdev)
+
 try:
     shutil.move(PROXY_CONFIG_FILENAME, BACKUP_PROXY_CONFIG_FILENAME)
-    simulator.run()
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.max_rows', None)
+    print(simulator.run())
 finally:
     shutil.move(BACKUP_PROXY_CONFIG_FILENAME, PROXY_CONFIG_FILENAME)

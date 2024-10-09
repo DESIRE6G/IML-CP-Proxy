@@ -2,9 +2,11 @@
 import multiprocessing
 import queue
 import time
+import numpy as np
+
 from concurrent import futures
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 import grpc
 from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, ReadResponse, WriteResponse
@@ -36,20 +38,19 @@ class TickCounter:
         return False
 
 
-def find_center_average(l: list) -> float:
+def find_center_average_and_stdev(l: list) -> Tuple[float, float]:
     if len(l) == 1:
-        return l[0]
+        return l[0], 0
     if len(l) == 2:
-        return (l[0] + l[1])/2
+        return (l[0] + l[1])/2, 0
     if len(l) == 3:
-        return sorted(l)[1]
+        return sorted(l)[1], 0
 
     sorted_list = sorted(l)
     start = len(l) // 4
     end = len(l) // 4 * 3
 
-    return sum(sorted_list[start:end]) / (end - start)
-
+    return sum(sorted_list[start:end]) / (end - start), np.std(sorted_list[start:end])
 
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
@@ -60,9 +61,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def Write(self, request, context) -> None:
         if self.tick_counter.tick():
+            average, stdev = find_center_average_and_stdev(self.tick_counter.ticks_per_sec_list)
             output = TickOutputJSON(
                 tick_per_sec_list=self.tick_counter.ticks_per_sec_list,
-                average=find_center_average(self.tick_counter.ticks_per_sec_list)
+                average=average,
+                stdev=stdev
             )
             print(output.tick_per_sec_list, output.average)
             with open('ticks.json', 'w') as f:

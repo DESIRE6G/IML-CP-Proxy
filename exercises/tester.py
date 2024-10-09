@@ -15,7 +15,7 @@ from common.colors import COLOR_GREEN, COLOR_ORANGE, COLOR_CYAN, COLOR_END, COLO
 from common.model.test_output import TestOutput
 from common.redis_helper import save_redis_to_json_file
 from common.sync import wait_for_condition_blocking
-from common.tmuxing import tmux, tmux_shell, wait_for_output, clear_folder, link_file_with_override, link_all_files_from_folder, assert_folder_existence, link_into_folder
+from common.tmuxing import tmux, tmux_shell, wait_for_output, clear_folder, link_file_with_override, link_all_files_from_folder, assert_folder_existence, link_into_folder, create_tmux_window_with_retry
 
 redis = redis.Redis()
 class TestCase(TypedDict):
@@ -197,20 +197,7 @@ def run_test_cases(test_cases_to_run: list):
             config = ExtendableConfig(f"{TARGET_TEST_FOLDER}/test_config.json", ignore_missing_file=True)
 
             # Initialize mininet
-            for _ in range(3):
-                exit_code1 = tmux(f'new -d -s {TMUX_WINDOW_NAME} -x 150')
-                print(f'exit_code1={exit_code1}')
-                if exit_code1 == 0:
-                    exit_code2 = tmux(f'select-window -t {TMUX_WINDOW_NAME}')
-                    print(f'exit_code2={exit_code2}')
-                    if exit_code2 == 0:
-                        break
-
-                print('Waiting for retry 1 sec')
-                time.sleep(1)
-                print(f'{COLOR_ORANGE} Retry server init {COLOR_END}')
-            else:
-                raise Exception('Cannot create tmux session!')
+            create_tmux_window_with_retry(TMUX_WINDOW_NAME)
 
             tmux_shell(f'cd {TARGET_TEST_FOLDER}', mininet_pane_name)
             tmux_shell(f'mkdir -p logs', mininet_pane_name)

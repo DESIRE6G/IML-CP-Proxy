@@ -25,6 +25,7 @@ class ProxyConfigTarget(BaseModel):
     reset_dataplane: Optional[bool] = False
     names: Optional[Dict[str,str]] = None
     rate_limit: Optional[int] = None
+    rate_limiter_buffer_size: Optional[int] = None
 
 
 class ProxyConfigSource(BaseModel):

@@ -2,9 +2,10 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from typing import Optional
 
-from common.colors import COLOR_YELLOW, COLOR_END
+from common.colors import COLOR_YELLOW, COLOR_END, COLOR_ORANGE
 from common.sync import wait_for_condition_blocking
 
 
@@ -107,3 +108,20 @@ def close_everything_and_save_logs(window_name: str, panes_dict: dict, folder: O
         tmux_shell(f'C-c', pane_tmux_name)
 
     tmux_shell(f'tmux kill-session -t {window_name}')
+
+
+def create_tmux_window_with_retry(window_name):
+    for _ in range(3):
+        exit_code1 = tmux(f'new -d -s {window_name} -x 150')
+        print(f'exit_code1={exit_code1}')
+        if exit_code1 == 0:
+            exit_code2 = tmux(f'select-window -t {window_name}')
+            print(f'exit_code2={exit_code2}')
+            if exit_code2 == 0:
+                break
+
+        print('Waiting for retry 1 sec')
+        time.sleep(1)
+        print(f'{COLOR_ORANGE} Retry server init {COLOR_END}')
+    else:
+        raise Exception('Cannot create tmux session!')

@@ -452,7 +452,8 @@ def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[ProxyServer
                 target_config_raw.port,
                 send_p4info=True,
                 reset_dataplane=target_config_raw.reset_dataplane,
-                rate_limit=target_config_raw.rate_limit
+                rate_limit=target_config_raw.rate_limit,
+                rate_limiter_buffer_size=target_config_raw.rate_limiter_buffer_size
                 )
             print('On startup the rules on the target are the following')
             for table_entry_response in mapping_target_switch.connection.ReadTableEntries():

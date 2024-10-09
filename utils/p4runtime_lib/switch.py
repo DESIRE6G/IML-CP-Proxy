@@ -21,6 +21,7 @@ from collections import deque
 from datetime import datetime
 from enum import Enum
 from queue import Queue
+from typing import Optional
 
 import grpc
 from p4.tmp import p4config_pb2
@@ -60,10 +61,13 @@ class RateLimiter:
 
 
 class RateLimitedP4RuntimeStub:
-    def __init__(self, channel, max_per_sec: int) -> None:
+    def __init__(self, channel, max_per_sec: int, buffer_size: Optional[int] = None) -> None:
         self.real_stub = p4runtime_pb2_grpc.P4RuntimeStub(channel)
         self.rate_limiter = RateLimiter(max_per_sec)
-        self.buffered_commands = deque(maxlen=5 * max_per_sec)
+
+        self.buffer_size = 5 * max_per_sec if buffer_size is None else buffer_size
+
+        self.buffered_commands = deque(maxlen=self.buffer_size)
         self.lock = threading.Lock()
         self.heartbeat_thread = threading.Thread(target=self.heartbeat)
         self.heartbeat_thread.start()
@@ -96,7 +100,7 @@ class RateLimitedP4RuntimeStub:
 class SwitchConnection(object):
 
     def __init__(self, name=None, address='127.0.0.1:50051', device_id=0,
-                 proto_dump_file=None, rate_limit=None, production_mode=False):
+                 proto_dump_file=None, rate_limit=None, rate_limiter_buffer_size=None, production_mode=False):
         self.name = name
         self.address = address
         self.device_id = device_id
@@ -108,7 +112,7 @@ class SwitchConnection(object):
         if rate_limit is None:
             self.client_stub = p4runtime_pb2_grpc.P4RuntimeStub(self.channel)
         else:
-            self.client_stub = RateLimitedP4RuntimeStub(self.channel, max_per_sec=rate_limit)
+            self.client_stub = RateLimitedP4RuntimeStub(self.channel, max_per_sec=rate_limit, buffer_size=rate_limiter_buffer_size)
         self.requests_stream = IterableQueue()
         self.stream_msg_resp = self.client_stub.StreamChannel(iter(self.requests_stream))
         self.proto_dump_file = proto_dump_file
