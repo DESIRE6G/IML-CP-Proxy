@@ -21,7 +21,7 @@ if __name__ == '__main__':
         action_params={
             "newState":66
         })
-    for i in range(2000 * 20):
+    while True:
         request = p4runtime_pb2.WriteRequest()
         request.device_id = 0
         request.election_id.low = 1
