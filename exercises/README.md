@@ -153,3 +153,12 @@ To decrease redundancy there are `testcase_common` folder, that files are all co
 
 If you want to only extend or override some fields of the `test_config.json` placed into the test case folder, you can create a `test_case_extend.json`, that does not override fully the base config.
 This feature is for further redundancy decrease.
+
+## Install notes
+
+```
+pip3 install --upgrade pip
+python3 -m pip install --upgrade setuptools
+sudo apt-get install python3-dev
+pip3 install --no-cache-dir  --force-reinstall -Iv grpcio==1.65.5
+```
