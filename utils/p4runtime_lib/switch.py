@@ -24,7 +24,6 @@ from queue import Queue
 from typing import Optional
 
 import grpc
-from p4.tmp import p4config_pb2
 from p4.v1 import p4runtime_pb2, p4runtime_pb2_grpc
 
 # List of all active connections
@@ -100,11 +99,12 @@ class RateLimitedP4RuntimeStub:
 class SwitchConnection(object):
 
     def __init__(self, name=None, address='127.0.0.1:50051', device_id=0,
-                 proto_dump_file=None, rate_limit=None, rate_limiter_buffer_size=None, production_mode=False):
+                 proto_dump_file=None, rate_limit=None, rate_limiter_buffer_size=None, production_mode=False, p4_config_support=True):
         self.name = name
         self.address = address
         self.device_id = device_id
         self.p4info = None
+        self.p4_config_support = p4_config_support
         self.channel = grpc.insecure_channel(self.address)
         if proto_dump_file is not None and not production_mode:
             interceptor = GrpcRequestLogger(proto_dump_file)
@@ -121,7 +121,11 @@ class SwitchConnection(object):
 
     @abstractmethod
     def buildDeviceConfig(self, **kwargs):
-        return p4config_pb2.P4DeviceConfig()
+        if self.p4_config_support:
+            from p4.tmp import p4config_pb2
+            return p4config_pb2.P4DeviceConfig()
+        else:
+            return None
 
     def shutdown(self):
         self.requests_stream.close()
@@ -148,7 +152,8 @@ class SwitchConnection(object):
         config = request.config
 
         config.p4info.CopyFrom(p4info)
-        config.p4_device_config = device_config.SerializeToString()
+        if device_config is not None:
+            config.p4_device_config = device_config.SerializeToString()
 
         request.action = p4runtime_pb2.SetForwardingPipelineConfigRequest.VERIFY_AND_COMMIT
         if dry_run:

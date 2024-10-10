@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from p4.tmp import p4config_pb2
+
 
 from .switch import SwitchConnection
 
 
 def buildDeviceConfig(bmv2_json_file_path=None):
+    from p4.tmp import p4config_pb2
     "Builds the device config for BMv2"
     device_config = p4config_pb2.P4DeviceConfig()
     device_config.reassign = True
@@ -28,4 +29,7 @@ def buildDeviceConfig(bmv2_json_file_path=None):
 
 class Bmv2SwitchConnection(SwitchConnection):
     def buildDeviceConfig(self, **kwargs):
-        return buildDeviceConfig(**kwargs)
+        if self.p4_config_support:
+            return buildDeviceConfig(**kwargs)
+        else:
+            return None
