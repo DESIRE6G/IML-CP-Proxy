@@ -487,6 +487,7 @@ else:
         print('python tester.py prepare - run the preparations for the actual content of the test folder (e.g. redis fill)')
         print('python tester.py release - create a release folder that contains all the necessary files to run the proxy without symlinks')
     elif sys.argv[1] == 'build':
+        build_up_p4_cache()
         if len(sys.argv) < 3:
             raise Exception('For build a testcase you need to add 3 parameters')
         test_cases_to_build = process_cmdline_testcase_name(sys.argv[2])
