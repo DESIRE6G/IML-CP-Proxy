@@ -39,7 +39,7 @@ for target in targets:
         return df_original
 
 
-    df_original = load_and_prepare_df('results/simulator_result.csv')
+    df_original = load_and_prepare_df('~/remote-mounts/elte-switch/proxy/p4runtime-proxy/exercises/__temporary_test_folder/results/simulator_result.csv')
 
     output_filename = str(target) + '.png'
 
