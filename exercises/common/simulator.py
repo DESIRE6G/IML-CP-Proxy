@@ -73,7 +73,7 @@ class Simulator:
     ['1hello', '1hello', '1hello', '3hello', '3hello', '3hello']
     """
 
-    def __init__(self, auto_save_dataframe=True, max_core_num=1, verbose=False, max_rerun = 2, add_runtimes = False):
+    def __init__(self, auto_save_dataframe=True, max_core_num=1, verbose=False, max_rerun = 2, add_runtimes = False, results_folder='results'):
         self.parameters = []
         self.functions = []
         self.conditions = []
@@ -85,6 +85,7 @@ class Simulator:
         self.stop_flag = False
         self.add_runtimes = add_runtimes
         self.hidden_functions = []
+        self.results_folder = results_folder
 
     def run(self, run_from=0):
         if self.auto_save_dataframe:
@@ -120,7 +121,7 @@ class Simulator:
             if self.verbose:
                 print(case_counter, "of ", all_case_count, " done")
             if self.auto_save_dataframe:
-                pd.DataFrame(table_data, columns=headers).to_csv('./results/simulator_result.csv',columns=[x for x in headers if x not in self.hidden_functions])
+                pd.DataFrame(table_data, columns=headers).to_csv(f'{self.results_folder}/simulator_result.csv',columns=[x for x in headers if x not in self.hidden_functions])
 
             if self.stop_flag:
                 break
@@ -130,27 +131,23 @@ class Simulator:
             print(headers)
 
         if self.auto_save_dataframe:
-            pd.DataFrame(table_data, columns=headers).to_csv('./results/simulator_result.csv',columns=[x for x in headers if x not in self.hidden_functions])
+            pd.DataFrame(table_data, columns=headers).to_csv(f'{self.results_folder}/simulator_result.csv',columns=[x for x in headers if x not in self.hidden_functions])
 
         return pd.DataFrame(table_data, columns=headers)
 
-    @staticmethod
-    def archive_actual_result_csv():
+    def archive_actual_result_csv(self):
         # import datetime
         import shutil
 
-        os.makedirs('./results', exist_ok=True)
+        os.makedirs(self.results_folder, exist_ok=True)
 
-        archive_folder = "results"
-        # filename = "simulator_result_"+datetime.datetime.now().strftime("%Y-%m-%d_%H:%M")
-        # if os.path.exists(archive_folder+"/"+filename+".csv"):
         filename = "simulator_result"
-        if os.path.exists('./results/simulator_result.csv'):
+        if os.path.exists(f'{self.results_folder}/simulator_result.csv'):
             i = 0
-            while os.path.exists(archive_folder + "/" + filename + "_%s.csv" % i):
+            while os.path.exists(f'{self.results_folder}/{filename}_{i}.csv'):
                 i += 1
             filename += "_" + str(i)
-            shutil.move('./results/simulator_result.csv', archive_folder + "/" + filename + ".csv")
+            shutil.move(f'{self.results_folder}/simulator_result.csv', f'{self.results_folder}/{filename}.csv')
 
     def execute_functions(self, actual_parameters):
         actual_parameters_with_simulator = {'simulator': self}
