@@ -11,7 +11,7 @@ from common.rates import TickOutputJSON
 from common.simulator import Simulator
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
-simulator = Simulator()
+simulator = Simulator(results_folder='../results')
 PROXY_CONFIG_FILENAME = 'proxy_config.json'
 BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
 TMUX_WINDOW_NAME = 'simulate'
@@ -19,24 +19,26 @@ controller_pane_name = f'{TMUX_WINDOW_NAME}:0.0'
 proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
 validator_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
-case = 'buffer_size_changing'
+case = 'batch_size_changing'
 
 if case == 'buffer_size_changing':
+    simulator.add_parameter('sending_rate', [200])
     simulator.add_parameter('iteration', [1])
     simulator.add_parameter('rate_limit', [100])
     simulator.add_parameter('rate_limiter_buffer_size', [0, 100, 500, 100000])
     simulator.add_parameter('batch_size', [1])
-    simulator.add_parameter('sending_rate', [200])
 elif case == 'batch_size_changing':
-    simulator.add_parameter('iteration', [1])
-    simulator.add_parameter('rate_limit', [50,500,1000])
-    simulator.add_parameter('rate_limiter_buffer_size', [0, 100, 200, 300, 400, 500, 600,700, 800, 900, 1000, 2000, 3000, 4000, 5000,6000,7000,8000,9000, 10000, 20000, 100000])
-    simulator.add_parameter('batch_size', [1,2,3,4,5,6,7,8,9,10])
+    simulator.add_parameter('target_port', [50051])
     simulator.add_parameter('sending_rate', [None])
+    simulator.add_parameter('iteration', [1])
+    #simulator.add_parameter('rate_limit', [50,500,1000,2000,None])
+    simulator.add_parameter('rate_limit', [500])
+    simulator.add_parameter('rate_limiter_buffer_size', [None])
+    simulator.add_parameter('batch_size', [1])
 else:
     raise Exception(f'unknown case "{case}"')
-    
-def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None) -> float:
+
+def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None, target_port=None) -> float:
     try:
         with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
             obj = ProxyConfig.model_validate_json(f.read())
@@ -62,7 +64,9 @@ def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None)
 
         validator_cmd = f'python validator.py {batch_size}'
         if sending_rate is not None:
-            validator_cmd += f' {sending_rate}'
+            validator_cmd += f' --rate_limit {sending_rate}'
+        if target_port is not None:
+            validator_cmd += f' --target_port {target_port}'
 
         tmux_shell(validator_cmd, validator_pane_name)
 
