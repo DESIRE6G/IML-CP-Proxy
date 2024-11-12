@@ -26,8 +26,8 @@ class TickCounter:
         self.last_reset = time.time()
         self.ticks_per_sec_list = []
 
-    def tick(self) -> bool:
-        self.counter += 1
+    def tick(self, counter_increment: int = 1) -> bool:
+        self.counter += counter_increment
         now_time = time.time()
         if now_time - self.last_reset > 1:
             self.ticks_per_sec_list.append(self.counter)
@@ -54,23 +54,27 @@ def find_center_average_and_stdev(l: list) -> Tuple[float, float]:
 
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
-    def __init__(self, to_controller_queue: multiprocessing.Queue) -> None:
+    def __init__(self, to_controller_queue: multiprocessing.Queue, servicer_id: str) -> None:
         self.write_counter = 0
+        self.servicer_id = servicer_id
         self.tick_counter = TickCounter()
         self.to_controller_queue = to_controller_queue
 
     def Write(self, request, context) -> None:
-        if self.tick_counter.tick():
+        if self.tick_counter.tick(len(request.updates)):
             average, stdev = find_center_average_and_stdev(self.tick_counter.ticks_per_sec_list)
             output = TickOutputJSON(
                 tick_per_sec_list=self.tick_counter.ticks_per_sec_list,
                 average=average,
                 stdev=stdev
             )
-            print(output.tick_per_sec_list, output.average)
+            #print(output.tick_per_sec_list, output.average)
             with open('ticks.json', 'w') as f:
                 f.write(output.model_dump_json(indent=4))
-            self.to_controller_queue.put(self.tick_counter.ticks_per_sec_list)
+            self.to_controller_queue.put({
+                'servicer_id': self.servicer_id,
+                'ticks':self.tick_counter.ticks_per_sec_list
+            })
 
         return WriteResponse()
 
@@ -103,7 +107,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
 def start_dataplane_simulator(port: int, to_controller_queue: multiprocessing.Queue, stop_event: multiprocessing.Event) -> None:
-    servicer = ProxyP4RuntimeServicer(to_controller_queue)
+    servicer = ProxyP4RuntimeServicer(to_controller_queue, str(port))
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     add_P4RuntimeServicer_to_server(servicer, server)
     server.add_insecure_port(f'[::]:{port}')
@@ -128,8 +132,8 @@ class DataplaneInfoObject:
 with ControllerExceptionHandling():
     dataplanes: List[DataplaneInfoObject] = []
 
-    for i in range(1):
-        to_controller_queue = multiprocessing.Queue()
+    to_controller_queue = multiprocessing.Queue()
+    for i in range(2):
         stop_event = multiprocessing.Event()
         process = multiprocessing.Process(target=start_dataplane_simulator, args=(50051 + i, to_controller_queue, stop_event, ))
         dataplanes.append(
@@ -141,24 +145,12 @@ with ControllerExceptionHandling():
         )
         process.start()
 
-    while True:
-        time.sleep(1)
-
-    '''
     try:
-        is_first = True
         while True:
-            ticks = dataplanes[0].to_controller_queue.get(block=is_first)
+            ticks = to_controller_queue.get()
             print(ticks)
-            is_first = False
-    except queue.Empty:
-        pass
-    try:
-        while True:
-            pass
     except KeyboardInterrupt:
         for dataplane in dataplanes:
             dataplane.stop_event.set()
         for dataplane in dataplanes:
             dataplane.process.join()
-    '''

@@ -3,16 +3,20 @@
   "mappings": [
     {
       "target": {
-        "program_name": "part1",
+        "program_name": "aggregated12",
         "port": 50051,
-        "device_id": 0,
-        "rate_limit": 50
+        "device_id": 0
       },
       "sources": [
         {
           "program_name": "part1",
-          "prefix": "",
+          "prefix": "part1_",
           "port": 60051
+        },
+        {
+          "program_name": "part2",
+          "prefix": "part2_",
+          "port": 60052
         }
       ]
     }

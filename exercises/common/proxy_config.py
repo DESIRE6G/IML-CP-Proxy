@@ -26,6 +26,7 @@ class ProxyConfigTarget(BaseModel):
     names: Optional[Dict[str,str]] = None
     rate_limit: Optional[int] = None
     rate_limiter_buffer_size: Optional[int] = None
+    batch_delay: Optional[float] = None
 
 
 class ProxyConfigSource(BaseModel):

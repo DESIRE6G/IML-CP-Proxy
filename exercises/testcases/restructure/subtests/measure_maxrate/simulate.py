@@ -62,7 +62,7 @@ def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None,
         except TimeoutError:
             print(f'{COLOR_RED_BG}Proxy is failed to startup{COLOR_END}')
 
-        validator_cmd = f'python validator.py {batch_size}'
+        validator_cmd = f'python validator.py --batch_size {batch_size}'
         if sending_rate is not None:
             validator_cmd += f' --rate_limit {sending_rate}'
         if target_port is not None:

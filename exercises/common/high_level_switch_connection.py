@@ -58,6 +58,7 @@ class HighLevelSwitchConnection:
                  rate_limit: Optional[int] = None,
                  rate_limiter_buffer_size: Optional[int] = None,
                  production_mode: bool = True,
+                 batch_delay: Optional[float] = None
                  ):
         self.device_id = device_id
         self.filename = filename
@@ -82,7 +83,8 @@ class HighLevelSwitchConnection:
             proto_dump_file=f'logs/port{self.port}-p4runtime-requests.txt',
             rate_limit=rate_limit,
             rate_limiter_buffer_size=rate_limiter_buffer_size,
-            production_mode=production_mode
+            production_mode=production_mode,
+            batch_delay=batch_delay
         )
 
         self.connection.MasterArbitrationUpdate(election_id_low=election_id_low)

@@ -21,7 +21,7 @@ from collections import deque
 from datetime import datetime
 from enum import Enum
 from queue import Queue
-from typing import Optional
+from typing import Optional, List, Union
 
 import grpc
 from p4.v1 import p4runtime_pb2, p4runtime_pb2_grpc
@@ -79,7 +79,7 @@ class RateLimitedP4RuntimeStub:
         while True:
             with self.lock:
                 self._flush_buffered_commands()
-            time.sleep(1)
+            time.sleep(0.1)
 
     def _flush_buffered_commands(self):
         while len(self.buffered_commands) > 0 and self.rate_limiter.is_fit_in_the_rate_limit():
@@ -96,10 +96,51 @@ class RateLimitedP4RuntimeStub:
                 self._flush_buffered_commands()
         return _inner
 
+
+class Batcher:
+    def __init__(self, callback, delay: Optional[float] = None) -> None:
+        self.callback = callback
+        self.delay = delay
+
+        self.batch_start_ts = None
+        self.batch = []
+
+        self.lock = threading.Lock()
+        self.heartbeat_thread = threading.Thread(target=self.heartbeat)
+        self.heartbeat_thread.start()
+
+    def heartbeat(self) -> None:
+        while True:
+            with self.lock:
+                self._flush_buffered_if_necessary()
+            time.sleep(0.001)
+
+    def add_elements(self, elements: List) -> None:
+        if self.delay is None:
+            self.callback(elements)
+            return
+
+        with self.lock:
+            self.batch.extend(elements)
+
+            if self.batch_start_ts is None:
+                self.batch_start_ts = time.time()
+
+    def _flush_buffered_if_necessary(self) -> None:
+        if self.batch_start_ts is not None and time.time() - self.batch_start_ts > self.delay:
+            self.batch_start_ts = None
+            self.callback(self.batch)
+            self.batch = []
+
+
+
+
 class SwitchConnection(object):
 
     def __init__(self, name=None, address='127.0.0.1:50051', device_id=0,
-                 proto_dump_file=None, rate_limit=None, rate_limiter_buffer_size=None, production_mode=False, p4_config_support=True):
+                 proto_dump_file=None, rate_limit=None, rate_limiter_buffer_size=None,
+                 production_mode=False, p4_config_support=True,
+                 batch_delay: Optional[float] = None):
         self.name = name
         self.address = address
         self.device_id = device_id
@@ -120,6 +161,8 @@ class SwitchConnection(object):
         self.proto_dump_file = proto_dump_file
         connections.append(self)
         self.futures_pit = []
+
+        self.WriteUpdates_batcher = Batcher(self.WriteUpdates_inner, batch_delay)
 
     @abstractmethod
     def buildDeviceConfig(self, **kwargs):
@@ -356,6 +399,12 @@ class SwitchConnection(object):
             self.client_stub.Write(request)
 
     def WriteUpdates(self, updates, dry_run=False):
+        if dry_run:
+            print("P4Runtime Write:", updates)
+        else:
+            self.WriteUpdates_batcher.add_elements(updates)
+
+    def WriteUpdates_inner(self, updates: List[p4runtime_pb2.Entity]):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = self.device_id
         request.election_id.low = 1
@@ -363,18 +412,15 @@ class SwitchConnection(object):
             update_in_request = request.updates.add()
             update_in_request.CopyFrom(update)
 
-        if dry_run:
-            print("P4Runtime Write:", request)
-        else:
-            if self.rate_limit is None:
-                self.futures_pit.append(self.client_stub.Write.future(request))
+        if self.rate_limit is None:
+            self.futures_pit.append(self.client_stub.Write.future(request))
 
-                for fut in self.futures_pit:
-                    if fut.done():
-                        fut.result()
-                self.futures_pit = [fut for fut in self.futures_pit if not fut.done()]
-            else:
-                self.client_stub.Write(request)
+            for fut in self.futures_pit:
+                if fut.done():
+                    fut.result()
+            self.futures_pit = [fut for fut in self.futures_pit if not fut.done()]
+        else:
+            self.client_stub.Write(request)
 
 
 
