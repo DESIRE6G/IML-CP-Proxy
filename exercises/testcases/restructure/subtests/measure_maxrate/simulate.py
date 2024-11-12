@@ -28,16 +28,16 @@ if case == 'buffer_size_changing':
     simulator.add_parameter('rate_limiter_buffer_size', [0, 100, 500, 100000])
     simulator.add_parameter('batch_size', [1])
 elif case == 'batch_size_changing':
-    simulator.add_parameter('target_port', [50051])
+    simulator.add_parameter('target_port', [50051, 60051])
     simulator.add_parameter('sending_rate', [None])
-    simulator.add_parameter('iteration', [1])
     #simulator.add_parameter('rate_limit', [50,500,1000,2000,None])
-    simulator.add_parameter('rate_limit', [500])
+    simulator.add_parameter('rate_limit', [None])
     simulator.add_parameter('rate_limiter_buffer_size', [None])
-    simulator.add_parameter('batch_size', [1])
+    simulator.add_parameter('batch_size', [100, 200, 500, 1000, 2000, 10000])
+    simulator.add_parameter('iteration', [1])
 else:
     raise Exception(f'unknown case "{case}"')
-
+    
 def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None, target_port=None) -> float:
     try:
         with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
@@ -70,7 +70,7 @@ def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None,
 
         tmux_shell(validator_cmd, validator_pane_name)
 
-        time.sleep(10)
+        time.sleep(30)
 
         os.remove(PROXY_CONFIG_FILENAME)
     finally:

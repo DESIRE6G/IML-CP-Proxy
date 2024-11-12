@@ -13,10 +13,10 @@ os.makedirs('images', exist_ok=True)
 
 targets = ['main']
 for target in targets:
-    x_label = 'rate_limiter_buffer_size'
-    grid_x_field = 'batch_size'
-    grid_y_field = 'rate_limit'
-    line_fields = ['iteration']
+    x_label = 'batch_size'
+    grid_x_field = 'sending_rate'
+    grid_y_field = 'sending_rate'
+    line_fields = ['target_port']
     value_field_array = ['message_per_sec_mean']
     plot_type = 'line'
     small = False
@@ -33,14 +33,18 @@ for target in targets:
 
     def load_and_prepare_df(filename):
         df_original = pd.read_csv(filename)
+        print(df_original.dtypes)
         #df_original.drop('ticks', axis=1, inplace=True)
         #df_original = df_original.groupby(['rate_limiter_buffer_size'], as_index=False).mean()
         #print(df_original)
         return df_original
 
 
-    df_original = load_and_prepare_df('~/remote-mounts/elte-switch/proxy/p4runtime-proxy/exercises/__temporary_test_folder/results/simulator_result.csv')
-
+    df_original = load_and_prepare_df('./results/simulator_result.csv')
+    df_original = df_original[df_original['rate_limit'] != 500]
+    df_original = df_original[df_original['iteration'] == 1]
+    df_original['update_per_sec'] = df_original['message_per_sec_mean'] * df_original['batch_size']
+    print(df_original)
     output_filename = str(target) + '.png'
 
     # column | row | line
@@ -155,7 +159,7 @@ for target in targets:
                 has_legend = 1 if x_position == 0 and y_position == 0 else None
                 draw_df = draw_df.sort_values(by=[x_label])
                 # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-                # print(draw_df)
+                print(draw_df)
 
                 if len(draw_df.index):
                     # mean_df = draw_df.groupby(x_label, as_index=False).max()
