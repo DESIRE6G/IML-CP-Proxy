@@ -19,7 +19,7 @@ controller_pane_name = f'{TMUX_WINDOW_NAME}:0.0'
 proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
 validator_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
-case = 'batch_size_changing'
+case = 'batch_delay_test'
 
 if case == 'buffer_size_changing':
     simulator.add_parameter('sending_rate', [200])
@@ -35,16 +35,27 @@ elif case == 'batch_size_changing':
     simulator.add_parameter('rate_limiter_buffer_size', [None])
     simulator.add_parameter('batch_size', [100, 200, 500, 1000, 2000, 10000])
     simulator.add_parameter('iteration', [1])
+elif case == 'batch_delay_test':
+    simulator.add_parameter('rate_limit', [None])
+    simulator.add_parameter('rate_limiter_buffer_size', [None])
+    simulator.add_parameter('sending_rate', [None])
+    simulator.add_parameter('iteration', [1])
+    simulator.add_parameter('batch_size', [1])
+    simulator.add_parameter('batch_delay', [None, 0.0001, 0.001, 0.01, 0.1, 1])
 else:
     raise Exception(f'unknown case "{case}"')
     
-def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None, target_port=None) -> float:
+def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None, target_port=None, batch_delay=None) -> float:
     try:
         with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
             obj = ProxyConfig.model_validate_json(f.read())
 
-        obj.mappings[0].target.rate_limit = rate_limit
-        obj.mappings[0].target.rate_limiter_buffer_size = rate_limiter_buffer_size
+        if rate_limit is not None:
+            obj.mappings[0].target.rate_limit = rate_limit
+        if rate_limiter_buffer_size is not None:
+            obj.mappings[0].target.rate_limiter_buffer_size = rate_limiter_buffer_size
+        if batch_delay is not None:
+            obj.mappings[0].target.batch_delay = batch_delay
 
         with open(PROXY_CONFIG_FILENAME, 'w') as f:
             f.write(obj.model_dump_json(indent=4))
