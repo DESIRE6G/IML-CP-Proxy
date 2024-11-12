@@ -109,6 +109,8 @@ class SwitchConnection(object):
         if proto_dump_file is not None and not production_mode:
             interceptor = GrpcRequestLogger(proto_dump_file)
             self.channel = grpc.intercept_channel(self.channel, interceptor)
+
+        self.rate_limit = rate_limit
         if rate_limit is None:
             self.client_stub = p4runtime_pb2_grpc.P4RuntimeStub(self.channel)
         else:
@@ -353,7 +355,7 @@ class SwitchConnection(object):
         else:
             self.client_stub.Write(request)
 
-    def WriteUpdates(self, updates, dry_run=False, future=False):
+    def WriteUpdates(self, updates, dry_run=False):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = self.device_id
         request.election_id.low = 1
@@ -364,7 +366,7 @@ class SwitchConnection(object):
         if dry_run:
             print("P4Runtime Write:", request)
         else:
-            if future:
+            if self.rate_limit is None:
                 self.futures_pit.append(self.client_stub.Write.future(request))
 
                 for fut in self.futures_pit:
