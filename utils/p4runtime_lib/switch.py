@@ -68,7 +68,7 @@ class RateLimitedP4RuntimeStub:
 
         self.buffered_commands = deque(maxlen=self.buffer_size)
         self.lock = threading.Lock()
-        self.heartbeat_thread = threading.Thread(target=self.heartbeat)
+        self.heartbeat_thread = threading.Thread(target=self.heartbeat, daemon=True)
         self.heartbeat_thread.start()
 
         commands = [x for x in dir(self.real_stub) if callable(getattr(self.real_stub, x)) and not x.startswith('_')]
@@ -106,7 +106,7 @@ class Batcher:
         self.batch = []
 
         self.lock = threading.Lock()
-        self.heartbeat_thread = threading.Thread(target=self.heartbeat)
+        self.heartbeat_thread = threading.Thread(target=self.heartbeat, daemon=True)
         self.heartbeat_thread.start()
 
     def heartbeat(self) -> None:
