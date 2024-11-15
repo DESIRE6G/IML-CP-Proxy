@@ -27,7 +27,7 @@ for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buff
         simulator.add_parameter('rate_limiter_buffer_size', [None])
         simulator.add_parameter('batch_delay', [None])
         simulator.add_parameter('target_port', [50051, 60051])
-    if case == 'fake_proxy':
+    elif case == 'fake_proxy':
         simulator.add_parameter('iteration', [1])
         simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
         simulator.add_parameter('fake_proxy', [True, False])
