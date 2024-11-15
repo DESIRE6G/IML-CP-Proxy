@@ -125,13 +125,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 delay_average=delay_average,
                 delay_stdev=delay_stdev
             )
-            #print(output.tick_per_sec_list, output.average)
             with open('ticks.json', 'w') as f:
                 f.write(output.model_dump_json(indent=4))
             self.to_controller_queue.put({
                 'servicer_id': self.servicer_id,
                 'ticks':self.data_collector.get_list('ticks'),
-                'delays':self.data_collector.get_list('delay')
+                'delay_average':delay_average
             })
             self.average_calculator.reset()
 
