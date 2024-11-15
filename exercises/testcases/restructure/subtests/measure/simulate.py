@@ -21,31 +21,36 @@ for case in ['batch_size_changing']:
     proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
     validator_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
-    if case == 'buffer_size_changing':
+    if case == 'rate_limit_changing':
+        simulator.add_parameter('sending_rate', [None])
+        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('rate_limit', [200 * (i + 1) for i in range(30)])
+        simulator.add_parameter('rate_limiter_buffer_size', [None])
+        simulator.add_parameter('batch_delay', [None])
+        simulator.add_parameter('target_port', [50051, 60051])
+    elif case == 'batch_size_changing':
+        simulator.add_parameter('sending_rate', [None])
+        simulator.add_parameter('rate_limit', [None])
+        simulator.add_parameter('rate_limiter_buffer_size', [None])
+        simulator.add_parameter('batch_size', [2 ** i  for i in range(18)])
+        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('target_port', [50051, 60051])
+    elif case == 'buffer_size_changing':
         simulator.add_parameter('sending_rate', [200])
         simulator.add_parameter('iteration', [1])
         simulator.add_parameter('rate_limit', [100])
         simulator.add_parameter('rate_limiter_buffer_size', [0, 100, 500, 100000])
         simulator.add_parameter('batch_size', [1])
-    elif case == 'batch_size_changing':
-        simulator.add_parameter('target_port', [50051, 60051])
-        simulator.add_parameter('sending_rate', [None])
-        #simulator.add_parameter('rate_limit', [50,500,1000,2000,None])
-        simulator.add_parameter('rate_limit', [None])
-        simulator.add_parameter('rate_limiter_buffer_size', [None])
-        simulator.add_parameter('batch_size', [1, 10, 100, 500, 1000, 2000, 10000])
-        simulator.add_parameter('iteration', [1])
     elif case == 'batch_delay_test':
-        simulator.add_parameter('rate_limit', [None])
-        simulator.add_parameter('rate_limiter_buffer_size', [None])
         simulator.add_parameter('sending_rate', [None])
         simulator.add_parameter('iteration', [1])
         simulator.add_parameter('batch_size', [1])
         simulator.add_parameter('batch_delay', [None] + [0.0001 * (2 ** i) for i in range(15)])
+        simulator.add_parameter('sender_num', [1, 2])
     else:
         raise Exception(f'unknown case "{case}"')
 
-    def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None, target_port=None, batch_delay=None) -> float:
+    def measure(rate_limit=None, batch_size=1, sending_rate=None, sender_num=1, rate_limiter_buffer_size=None, target_port=None, batch_delay=None) -> float:
         try:
             with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
                 obj = ProxyConfig.model_validate_json(f.read())
@@ -58,7 +63,7 @@ for case in ['batch_size_changing']:
                 obj.mappings[0].target.batch_delay = batch_delay
 
             with open(PROXY_CONFIG_FILENAME, 'w') as f:
-                f.write(obj.model_dump_json(indent=4))
+                f.write(obj.model_dump_json(indent=2, exclude_none=True))
 
             create_tmux_window_with_retry(TMUX_WINDOW_NAME)
             tmux_shell(f'python controller.py', controller_pane_name)
@@ -73,7 +78,7 @@ for case in ['batch_size_changing']:
             except TimeoutError:
                 print(f'{COLOR_RED_BG}Proxy is failed to startup{COLOR_END}')
 
-            validator_cmd = f'python validator.py --batch_size {batch_size}'
+            validator_cmd = f'python validator.py --batch_size {batch_size} --sender_num {sender_num}'
             if sending_rate is not None:
                 validator_cmd += f' --rate_limit {sending_rate}'
             if target_port is not None:
@@ -100,12 +105,6 @@ for case in ['batch_size_changing']:
     simulator.add_function('message_per_sec_mean', measure)
 
 
-    def ticks():
-        with open('ticks.json', 'r') as f:
-            obj = TickOutputJSON.model_validate_json(f.read())
-        return obj.tick_per_sec_list
-    simulator.add_function('ticks', ticks)
-
     def stdev():
         with open('ticks.json', 'r') as f:
             obj = TickOutputJSON.model_validate_json(f.read())
@@ -126,6 +125,12 @@ for case in ['batch_size_changing']:
 
         return obj.delay_stdev
     simulator.add_function('delay_stdev', delay_stdev)
+
+    def ticks():
+        with open('ticks.json', 'r') as f:
+            obj = TickOutputJSON.model_validate_json(f.read())
+        return obj.tick_per_sec_list
+    simulator.add_function('ticks', ticks)
 
     try:
         shutil.move(PROXY_CONFIG_FILENAME, BACKUP_PROXY_CONFIG_FILENAME)

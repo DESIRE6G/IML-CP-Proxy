@@ -11,15 +11,17 @@ import numpy as np
 
 os.makedirs('images', exist_ok=True)
 
-targets = ['main']
+targets = ['rate_limit_changing']
+source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
+target_folder = '/home/hudi/t4/proxy_doc/images'
 for target in targets:
     x_label = 'batch_size'
-    grid_x_field = 'sending_rate'
-    grid_y_field = 'sending_rate'
+    grid_x_field = 'iteration'
+    grid_y_field = 'iteration'
     line_fields = ['target_port']
     value_field_array = ['message_per_sec_mean']
     plot_type = 'line'
-    small = False
+    small = True
     topleft_title = None
     relabel_to_percent = False
     percent_decimals = 0
@@ -29,6 +31,8 @@ for target in targets:
     force_ylabel_legend = None
     merge_value_field_plots = False
     force_xticks = None
+    logx = False
+    logy = False
 
 
     def load_and_prepare_df(filename):
@@ -39,11 +43,19 @@ for target in targets:
         #print(df_original)
         return df_original
 
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.max_rows", None)
 
-    df_original = load_and_prepare_df('./results/simulator_result.csv')
-    df_original = df_original[df_original['rate_limit'] != 500]
-    df_original = df_original[df_original['iteration'] == 1]
-    df_original['update_per_sec'] = df_original['message_per_sec_mean'] * df_original['batch_size']
+    if target == 'batch_size_changing':
+        df_original = load_and_prepare_df(f'{source_folder}/batch_size_changing.csv')
+        df_original['target_port'] = df_original['target_port'].map({50051: 'Without proxy', 60051: 'With proxy'})
+        logx = True
+    elif target == 'rate_limit_changing':
+        df_original = load_and_prepare_df(f'{source_folder}/rate_limit_changing_1.csv')
+        df_original['target_port'] = df_original['target_port'].map({50051: 'Without proxy', 60051: 'With proxy'})
+        x_label = 'rate_limit'
+
+
     print(df_original)
     output_filename = str(target) + '.png'
 
@@ -52,7 +64,6 @@ for target in targets:
     MULTI_Y_VALUE_MODE_ROW = 'row'
     multi_y_value_mode = MULTI_Y_VALUE_MODE_COLUMN
 
-    log_scale = False
 
     style_rules = {
     }
@@ -170,14 +181,14 @@ for target in targets:
                         fig_y_size = force_figsize[1] * row_num
                     else:
                         fig_x_size = (6 if small else 16) * col_num
-                        fig_y_size = (2.8 if small else 7) * row_num
+                        fig_y_size = (3.5 if small else 7) * row_num
                     final_title = force_title if force_title is not None else title
 
                     if plot_type == 'bar':
                         ax = draw_df.plot.bar(x=x_label, ax=ax, legend=has_legend, figsize=(fig_x_size, fig_y_size),
                                               title=final_title, rot=0)
                     else:
-                        ax = draw_df.plot(x=x_label, logy=log_scale, y=target_labels, style=style_ar, marker='o', ax=ax,
+                        ax = draw_df.plot(x=x_label, logx=logx, logy=logy, y=target_labels, style=style_ar, marker='o', ax=ax,
                                           legend=has_legend, figsize=(fig_x_size, fig_y_size),
                                           title=final_title)
 
@@ -191,25 +202,9 @@ for target in targets:
                         ax.ticklabel_format(style='plain', axis='y')
                         ax.text(0,1.035,topleft_title, transform=ax.transAxes)
 
-                    # {i: str(round(1 / i * 100, 1)) + '%' for i in range(1, 101)}
-                    if relabel_to_percent:
-                        def tick_format_function(x, pos):
-                            if x == 0:
-                                return '100%'
-                            if plot_type == 'bar':
-                                x += 1
-                            value = 1 / x * 100
-
-                            if percent_decimals > 0:
-                                value_rounded = round(value, percent_decimals)
-                            else:
-                                value_rounded = int(value)
-
-                            return str(value_rounded) + '%'
-
-                        ax.xaxis.set_major_formatter(mpl.ticker.FuncFormatter(tick_format_function))
-
                     if force_xticks is not None:
                         ax.set_xticks(force_xticks)
-    # plt.show()
-    plt.savefig(f'images/{output_filename}', dpi=300)
+    plt.subplots_adjust(bottom=0.15)
+    plt.savefig(f'{target_folder}/{output_filename}', dpi=300)
+
+    plt.show()
