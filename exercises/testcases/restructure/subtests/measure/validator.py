@@ -11,12 +11,12 @@ from common.high_level_switch_connection import HighLevelSwitchConnection
 parser = argparse.ArgumentParser(prog='Validator')
 parser.add_argument('--batch_size', default=1, type=int)
 parser.add_argument('--sender_num', default=1, type=int)
-parser.add_argument('--rate_limit', default=None)
+parser.add_argument('--rate_limit', default=None, type=int)
 parser.add_argument('--target_port', default='60051')
 args = parser.parse_args()
 
 if __name__ == '__main__':
-    s = [HighLevelSwitchConnection(i, f'part{i+1}', str(int(args.target_port) + 1), rate_limit=args.rate_limit)
+    s = [HighLevelSwitchConnection(i, f'part{i+1}', int(args.target_port) + 1, rate_limit=args.rate_limit)
          for i in range(args.sender_num)]
 
     counter = 0
