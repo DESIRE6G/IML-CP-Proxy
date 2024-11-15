@@ -11,126 +11,126 @@ from common.rates import TickOutputJSON
 from common.simulator import Simulator
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
-simulator = Simulator(results_folder='../results')
-PROXY_CONFIG_FILENAME = 'proxy_config.json'
-BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
-TMUX_WINDOW_NAME = 'simulate'
-controller_pane_name = f'{TMUX_WINDOW_NAME}:0.0'
-proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
-validator_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
+#for case in ['buffer_size_changing', 'batch_size_changing', 'batch_delay_test']:
+for case in ['batch_size_changing']:
+    simulator = Simulator(results_folder='../results', results_filename=case)
+    PROXY_CONFIG_FILENAME = 'proxy_config.json'
+    BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
+    TMUX_WINDOW_NAME = 'simulate'
+    controller_pane_name = f'{TMUX_WINDOW_NAME}:0.0'
+    proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
+    validator_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
-case = 'batch_delay_test'
+    if case == 'buffer_size_changing':
+        simulator.add_parameter('sending_rate', [200])
+        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('rate_limit', [100])
+        simulator.add_parameter('rate_limiter_buffer_size', [0, 100, 500, 100000])
+        simulator.add_parameter('batch_size', [1])
+    elif case == 'batch_size_changing':
+        simulator.add_parameter('target_port', [50051, 60051])
+        simulator.add_parameter('sending_rate', [None])
+        #simulator.add_parameter('rate_limit', [50,500,1000,2000,None])
+        simulator.add_parameter('rate_limit', [None])
+        simulator.add_parameter('rate_limiter_buffer_size', [None])
+        simulator.add_parameter('batch_size', [1, 10, 100, 500, 1000, 2000, 10000])
+        simulator.add_parameter('iteration', [1])
+    elif case == 'batch_delay_test':
+        simulator.add_parameter('rate_limit', [None])
+        simulator.add_parameter('rate_limiter_buffer_size', [None])
+        simulator.add_parameter('sending_rate', [None])
+        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('batch_size', [1])
+        simulator.add_parameter('batch_delay', [None] + [0.0001 * (2 ** i) for i in range(15)])
+    else:
+        raise Exception(f'unknown case "{case}"')
 
-if case == 'buffer_size_changing':
-    simulator.add_parameter('sending_rate', [200])
-    simulator.add_parameter('iteration', [1])
-    simulator.add_parameter('rate_limit', [100])
-    simulator.add_parameter('rate_limiter_buffer_size', [0, 100, 500, 100000])
-    simulator.add_parameter('batch_size', [1])
-elif case == 'batch_size_changing':
-    simulator.add_parameter('target_port', [50051, 60051])
-    simulator.add_parameter('sending_rate', [None])
-    #simulator.add_parameter('rate_limit', [50,500,1000,2000,None])
-    simulator.add_parameter('rate_limit', [None])
-    simulator.add_parameter('rate_limiter_buffer_size', [None])
-    simulator.add_parameter('batch_size', [100, 200, 500, 1000, 2000, 10000])
-    simulator.add_parameter('iteration', [1])
-elif case == 'batch_delay_test':
-    simulator.add_parameter('rate_limit', [None])
-    simulator.add_parameter('rate_limiter_buffer_size', [None])
-    simulator.add_parameter('sending_rate', [None])
-    simulator.add_parameter('iteration', [1])
-    simulator.add_parameter('batch_size', [1])
-    simulator.add_parameter('batch_delay', [None] + [0.0001 * (2 ** i) for i in range(15)])
-else:
-    raise Exception(f'unknown case "{case}"')
-
-def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None, target_port=None, batch_delay=None) -> float:
-    try:
-        with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
-            obj = ProxyConfig.model_validate_json(f.read())
-
-        if rate_limit is not None:
-            obj.mappings[0].target.rate_limit = rate_limit
-        if rate_limiter_buffer_size is not None:
-            obj.mappings[0].target.rate_limiter_buffer_size = rate_limiter_buffer_size
-        if batch_delay is not None:
-            obj.mappings[0].target.batch_delay = batch_delay
-
-        with open(PROXY_CONFIG_FILENAME, 'w') as f:
-            f.write(obj.model_dump_json(indent=4))
-
-        create_tmux_window_with_retry(TMUX_WINDOW_NAME)
-        tmux_shell(f'python controller.py', controller_pane_name)
-        time.sleep(1)
-
-        tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
-        tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
-
-        tmux_shell('python proxy.py', proxy_pane_name)
+    def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None, target_port=None, batch_delay=None) -> float:
         try:
-            wait_for_output('^Proxy is ready', proxy_pane_name)
-        except TimeoutError:
-            print(f'{COLOR_RED_BG}Proxy is failed to startup{COLOR_END}')
+            with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
+                obj = ProxyConfig.model_validate_json(f.read())
 
-        validator_cmd = f'python validator.py --batch_size {batch_size}'
-        if sending_rate is not None:
-            validator_cmd += f' --rate_limit {sending_rate}'
-        if target_port is not None:
-            validator_cmd += f' --target_port {target_port}'
+            if rate_limit is not None:
+                obj.mappings[0].target.rate_limit = rate_limit
+            if rate_limiter_buffer_size is not None:
+                obj.mappings[0].target.rate_limiter_buffer_size = rate_limiter_buffer_size
+            if batch_delay is not None:
+                obj.mappings[0].target.batch_delay = batch_delay
 
-        tmux_shell(validator_cmd, validator_pane_name)
+            with open(PROXY_CONFIG_FILENAME, 'w') as f:
+                f.write(obj.model_dump_json(indent=4))
 
-        time.sleep(30)
+            create_tmux_window_with_retry(TMUX_WINDOW_NAME)
+            tmux_shell(f'python controller.py', controller_pane_name)
+            time.sleep(1)
 
-        os.remove(PROXY_CONFIG_FILENAME)
+            tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
+            tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
+
+            tmux_shell('python proxy.py', proxy_pane_name)
+            try:
+                wait_for_output('^Proxy is ready', proxy_pane_name)
+            except TimeoutError:
+                print(f'{COLOR_RED_BG}Proxy is failed to startup{COLOR_END}')
+
+            validator_cmd = f'python validator.py --batch_size {batch_size}'
+            if sending_rate is not None:
+                validator_cmd += f' --rate_limit {sending_rate}'
+            if target_port is not None:
+                validator_cmd += f' --target_port {target_port}'
+
+            tmux_shell(validator_cmd, validator_pane_name)
+
+            time.sleep(30)
+
+            os.remove(PROXY_CONFIG_FILENAME)
+        finally:
+            close_everything_and_save_logs(TMUX_WINDOW_NAME, {
+                'controller': controller_pane_name,
+                'proxy': proxy_pane_name,
+                'validator': validator_pane_name
+            })
+
+        with open('ticks.json', 'r') as f:
+            obj = TickOutputJSON.model_validate_json(f.read())
+            print(obj.average)
+
+        return obj.average
+
+    simulator.add_function('message_per_sec_mean', measure)
+
+
+    def ticks():
+        with open('ticks.json', 'r') as f:
+            obj = TickOutputJSON.model_validate_json(f.read())
+        return obj.tick_per_sec_list
+    simulator.add_function('ticks', ticks)
+
+    def stdev():
+        with open('ticks.json', 'r') as f:
+            obj = TickOutputJSON.model_validate_json(f.read())
+
+        return obj.stdev
+    simulator.add_function('stdev', stdev)
+
+    def delay_average():
+        with open('ticks.json', 'r') as f:
+            obj = TickOutputJSON.model_validate_json(f.read())
+
+        return obj.delay_average
+    simulator.add_function('delay_average', delay_average)
+
+    def delay_stdev():
+        with open('ticks.json', 'r') as f:
+            obj = TickOutputJSON.model_validate_json(f.read())
+
+        return obj.delay_stdev
+    simulator.add_function('delay_stdev', delay_stdev)
+
+    try:
+        shutil.move(PROXY_CONFIG_FILENAME, BACKUP_PROXY_CONFIG_FILENAME)
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.max_rows', None)
+        print(simulator.run())
     finally:
-        close_everything_and_save_logs(TMUX_WINDOW_NAME, {
-            'controller': controller_pane_name,
-            'proxy': proxy_pane_name,
-            'validator': validator_pane_name
-        })
-
-    with open('ticks.json', 'r') as f:
-        obj = TickOutputJSON.model_validate_json(f.read())
-        print(obj.average)
-
-    return obj.average
-
-simulator.add_function('message_per_sec_mean', measure)
-
-
-def ticks():
-    with open('ticks.json', 'r') as f:
-        obj = TickOutputJSON.model_validate_json(f.read())
-    return obj.tick_per_sec_list
-simulator.add_function('ticks', ticks)
-
-def stdev():
-    with open('ticks.json', 'r') as f:
-        obj = TickOutputJSON.model_validate_json(f.read())
-
-    return obj.stdev
-simulator.add_function('stdev', stdev)
-
-def delay_average():
-    with open('ticks.json', 'r') as f:
-        obj = TickOutputJSON.model_validate_json(f.read())
-
-    return obj.delay_average
-simulator.add_function('delay_average', delay_average)
-
-def delay_stdev():
-    with open('ticks.json', 'r') as f:
-        obj = TickOutputJSON.model_validate_json(f.read())
-
-    return obj.delay_stdev
-simulator.add_function('delay_stdev', delay_stdev)
-
-try:
-    shutil.move(PROXY_CONFIG_FILENAME, BACKUP_PROXY_CONFIG_FILENAME)
-    pd.set_option('display.max_columns', None)
-    pd.set_option('display.max_rows', None)
-    print(simulator.run())
-finally:
-    shutil.move(BACKUP_PROXY_CONFIG_FILENAME, PROXY_CONFIG_FILENAME)
+        shutil.move(BACKUP_PROXY_CONFIG_FILENAME, PROXY_CONFIG_FILENAME)
