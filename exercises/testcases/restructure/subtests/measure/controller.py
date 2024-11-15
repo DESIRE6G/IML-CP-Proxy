@@ -12,7 +12,7 @@ import grpc
 from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, ReadResponse, WriteResponse
 from pydantic import BaseModel
 
-from common.controller_helper import ControllerExceptionHandling, get_now_ts_us_int32
+from common.controller_helper import ControllerExceptionHandling, get_now_ts_us_int32, diff_ts_us_int32
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from p4.v1 import p4runtime_pb2
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
@@ -110,7 +110,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for update in request.updates:
             send_ts_us_int32 = int.from_bytes(update.entity.table_entry.action.action.params[0].value, 'big')
             now_ts_us_int32 = get_now_ts_us_int32()
-            self.average_calculator.add_value((now_ts_us_int32 - send_ts_us_int32) / 1e6)
+            self.average_calculator.add_value(diff_ts_us_int32(send_ts_us_int32, now_ts_us_int32) / 1e6)
 
         if self.tick_counter.tick(len(request.updates)):
             self.data_collector.add('ticks', self.tick_counter.get_last_tick_count())

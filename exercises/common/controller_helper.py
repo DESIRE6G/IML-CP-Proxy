@@ -173,3 +173,21 @@ class ControllerExceptionHandling:
 
 def get_now_ts_us_int32() -> int:
     return int(time.time() * 1_000_000) % (2 ** 32)
+
+def diff_ts_us_int32(a: int, b: int) -> int:
+    '''
+    >>> diff_ts_us_int32(1, 1000)
+    999
+    >>> diff_ts_us_int32(1, 1)
+    0
+    >>> diff_ts_us_int32(1234, 11234)
+    10000
+    >>> diff_ts_us_int32(2 ** 32 - 1, 1)
+    2
+    >>> diff_ts_us_int32(2 ** 32 - 100, 100)
+    200
+    '''
+    if a <= b:
+        return b - a
+    else:
+        return b - (a - 2 ** 32)
