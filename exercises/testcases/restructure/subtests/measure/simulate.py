@@ -11,8 +11,8 @@ from common.rates import TickOutputJSON
 from common.simulator import Simulator
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
-#for case in ['buffer_size_changing', 'batch_size_changing', 'batch_delay_test']:
-for case in ['batch_delay_test']:
+for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buffer_size_changing', 'batch_delay_test']:
+#for case in ['batch_delay_test']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
