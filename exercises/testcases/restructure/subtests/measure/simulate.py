@@ -12,7 +12,7 @@ from common.simulator import Simulator
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
 #for case in ['buffer_size_changing', 'batch_size_changing', 'batch_delay_test']:
-for case in ['fake_proxy']:
+for case in ['batch_delay_test']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
@@ -49,7 +49,7 @@ for case in ['fake_proxy']:
         simulator.add_parameter('iteration', [1])
         simulator.add_parameter('batch_size', [1])
         simulator.add_parameter('batch_delay', [None] + [0.0001 * (2 ** i) for i in range(15)])
-        simulator.add_parameter('sender_num', [1, 2])
+        simulator.add_parameter('sender_num', [1, 2, 3])
     else:
         raise Exception(f'unknown case "{case}"')
 

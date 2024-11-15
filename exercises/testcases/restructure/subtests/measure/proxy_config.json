@@ -17,6 +17,16 @@
           "program_name": "part2",
           "prefix": "part2_",
           "port": 60052
+        },
+        {
+          "program_name": "part3",
+          "prefix": "part3_",
+          "port": 60053
+        },
+        {
+          "program_name": "part4",
+          "prefix": "part4_",
+          "port": 60054
         }
       ]
     }
