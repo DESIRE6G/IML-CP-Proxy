@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass
 from typing import List, Optional, Union
 
@@ -168,3 +169,7 @@ class ControllerExceptionHandling:
             printGrpcError(exc_value)
             ShutdownAllSwitchConnections()
             raise Exception('GRPC Error occured')
+
+
+def get_now_ts_us_int32() -> int:
+    return int(time.time() * 1_000_000) % (2 ** 32)

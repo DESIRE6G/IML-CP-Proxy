@@ -11,9 +11,9 @@ header ethernet_t {
 }
 
 header states_t {
-    bit<8>    state1;
-    bit<8>    state2;
-    bit<8>    state3;
+    bit<32>    state1;
+    bit<32>    state2;
+    bit<32>    state3;
 }
 
 struct metadata {
@@ -49,7 +49,7 @@ control MyIngress(inout headers hdr,
     counter(1, CounterType.packets_and_bytes) part1_packetCounter1;
     counter(1, CounterType.packets_and_bytes) part2_packetCounter2;
 
-    action part1_state_set(bit<8> newState) {
+    action part1_state_set(bit<32> newState) {
         hdr.states.state1 = newState;
     }
 
@@ -65,7 +65,7 @@ control MyIngress(inout headers hdr,
     }
 
 
-    action part2_state_set(bit<8> newState) {
+    action part2_state_set(bit<32> newState) {
         hdr.states.state2 = newState;
     }
 

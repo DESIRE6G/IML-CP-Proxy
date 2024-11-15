@@ -6,13 +6,13 @@ import numpy as np
 
 from concurrent import futures
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import grpc
 from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, ReadResponse, WriteResponse
 from pydantic import BaseModel
 
-from common.controller_helper import ControllerExceptionHandling
+from common.controller_helper import ControllerExceptionHandling, get_now_ts_us_int32
 from common.high_level_switch_connection import HighLevelSwitchConnection
 from p4.v1 import p4runtime_pb2
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
@@ -24,33 +24,77 @@ class TickCounter:
     def __init__(self) -> None:
         self.counter = 0
         self.last_reset = time.time()
-        self.ticks_per_sec_list = []
+        self.last_tick_count = None
 
     def tick(self, counter_increment: int = 1) -> bool:
         self.counter += counter_increment
         now_time = time.time()
         if now_time - self.last_reset > 1:
-            self.ticks_per_sec_list.append(self.counter)
+            self.last_tick_count = self.counter
             self.counter = 0
             self.last_reset = now_time
             return True
 
         return False
 
+    def get_last_tick_count(self) -> int:
+        return self.last_tick_count
 
-def find_center_average_and_stdev(l: list) -> Tuple[float, float]:
-    if len(l) == 1:
-        return l[0], 0
-    if len(l) == 2:
-        return (l[0] + l[1])/2, 0
-    if len(l) == 3:
-        return sorted(l)[1], 0
 
-    sorted_list = sorted(l)
-    start = len(l) // 4
-    end = len(l) // 4 * 3
+class DataCollector:
+    def __init__(self) -> None:
+        self.data : Dict[str, List] = {}
 
-    return sum(sorted_list[start:end]) / (end - start), np.std(sorted_list[start:end])
+    def add(self, key: str, value: float) -> None:
+        self.guarantee_key_existence(key)
+
+        self.data[key].append(value)
+
+    def guarantee_key_existence(self, key):
+        if key not in self.data:
+            self.data[key] = []
+
+    def get_center_avg_stdev(self, key: str) -> Tuple[float, float]:
+        return self._find_center_average_and_stdev(self.data[key])
+
+    def _find_center_average_and_stdev(self, l: List) -> Tuple[float, float]:
+        if len(l) == 1:
+            return l[0], 0
+        if len(l) == 2:
+            return (l[0] + l[1])/2, 0
+        if len(l) == 3:
+            return sorted(l)[1], 0
+
+        sorted_list = sorted(l)
+        start = len(l) // 4
+        end = len(l) // 4 * 3
+
+        return sum(sorted_list[start:end]) / (end - start), np.std(sorted_list[start:end])
+
+    def get_list(self, key: str) -> List[float]:
+        return self.data[key]
+
+
+
+class ContiniousAverageCalculator:
+    def __init__(self) -> None:
+        self.actual_average = None
+        self.latency_divisor = None
+
+    def add_value(self, value: float) -> None:
+        if self.actual_average is None:
+            self.actual_average = value
+            self.latency_divisor = 1
+        else:
+            self.actual_average = (self.actual_average * self.latency_divisor) / (self.latency_divisor + 1) + value / (self.latency_divisor + 1)
+            self.latency_divisor += 1
+
+    def get_average(self) -> float:
+        return self.actual_average
+
+    def reset(self) -> None:
+        self.actual_average = None
+        self.latency_divisor = None
 
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
@@ -59,22 +103,37 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.servicer_id = servicer_id
         self.tick_counter = TickCounter()
         self.to_controller_queue = to_controller_queue
+        self.average_calculator = ContiniousAverageCalculator()
+        self.data_collector = DataCollector()
 
     def Write(self, request, context) -> None:
+        for update in request.updates:
+            send_ts_us_int32 = int.from_bytes(update.entity.table_entry.action.action.params[0].value, 'big')
+            now_ts_us_int32 = get_now_ts_us_int32()
+            self.average_calculator.add_value((now_ts_us_int32 - send_ts_us_int32) / 1e6)
+
         if self.tick_counter.tick(len(request.updates)):
-            average, stdev = find_center_average_and_stdev(self.tick_counter.ticks_per_sec_list)
+            self.data_collector.add('ticks', self.tick_counter.get_last_tick_count())
+            average, stdev = self.data_collector.get_center_avg_stdev('ticks')
+            self.data_collector.add('delay', self.average_calculator.get_average())
+            delay_average, delay_stdev = self.data_collector.get_center_avg_stdev('delay')
             output = TickOutputJSON(
-                tick_per_sec_list=self.tick_counter.ticks_per_sec_list,
+                tick_per_sec_list=self.data_collector.get_list('ticks'),
                 average=average,
-                stdev=stdev
+                stdev=stdev,
+                delay_list=self.data_collector.get_list('delay'),
+                delay_average=delay_average,
+                delay_stdev=delay_stdev
             )
             #print(output.tick_per_sec_list, output.average)
             with open('ticks.json', 'w') as f:
                 f.write(output.model_dump_json(indent=4))
             self.to_controller_queue.put({
                 'servicer_id': self.servicer_id,
-                'ticks':self.tick_counter.ticks_per_sec_list
+                'ticks':self.data_collector.get_list('ticks'),
+                'delays':self.data_collector.get_list('delay')
             })
+            self.average_calculator.reset()
 
         return WriteResponse()
 

@@ -111,8 +111,21 @@ def stdev():
         obj = TickOutputJSON.model_validate_json(f.read())
 
     return obj.stdev
-
 simulator.add_function('stdev', stdev)
+
+def delay_average():
+    with open('ticks.json', 'r') as f:
+        obj = TickOutputJSON.model_validate_json(f.read())
+
+    return obj.delay_average
+simulator.add_function('delay_average', delay_average)
+
+def delay_stdev():
+    with open('ticks.json', 'r') as f:
+        obj = TickOutputJSON.model_validate_json(f.read())
+
+    return obj.delay_stdev
+simulator.add_function('delay_stdev', delay_stdev)
 
 try:
     shutil.move(PROXY_CONFIG_FILENAME, BACKUP_PROXY_CONFIG_FILENAME)
