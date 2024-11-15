@@ -11,7 +11,7 @@ import numpy as np
 
 os.makedirs('images', exist_ok=True)
 
-targets = ['fake_proxy']
+targets = ['batch_delay_test_focused']
 source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
 target_folder = '/home/hudi/t4/proxy_doc/images'
 for target in targets:
@@ -67,6 +67,13 @@ for target in targets:
         x_label = 'batch_delay'
         line_fields = ['sender_num']
         logx = True
+    elif target == 'batch_delay_test_focused':
+        df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
+        df_original['batch_delay'] = df_original['batch_delay'].fillna(0)
+        df_original = df_original[df_original['batch_delay'] < 0.0033]
+        x_label = 'batch_delay'
+        line_fields = ['sender_num']
+        logx = False
 
     print(df_original)
     output_filename = str(target) + '.png'
