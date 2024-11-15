@@ -41,10 +41,10 @@ elif case == 'batch_delay_test':
     simulator.add_parameter('sending_rate', [None])
     simulator.add_parameter('iteration', [1])
     simulator.add_parameter('batch_size', [1])
-    simulator.add_parameter('batch_delay', [None, 0.0001, 0.001, 0.01, 0.1, 1])
+    simulator.add_parameter('batch_delay', [None] + [0.0001 * (2 ** i) for i in range(15)])
 else:
     raise Exception(f'unknown case "{case}"')
-    
+
 def measure(rate_limit, batch_size, sending_rate, rate_limiter_buffer_size=None, target_port=None, batch_delay=None) -> float:
     try:
         with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
