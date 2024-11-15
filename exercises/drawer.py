@@ -11,8 +11,10 @@ import numpy as np
 
 os.makedirs('images', exist_ok=True)
 
-targets = ['batch_delay_test_focused']
-source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
+#targets = ['batch_delay_test_focused']
+targets = ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'batch_delay_test', 'batch_delay_test_focused']
+#source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
+source_folder = '/home/hudi/remote-mounts/elte-switch/proxy/p4runtime-proxy/exercises/results'
 target_folder = '/home/hudi/t4/proxy_doc/images'
 for target in targets:
     x_label = 'batch_size'
