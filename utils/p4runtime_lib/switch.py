@@ -141,19 +141,6 @@ class SwitchConnection(object):
                  proto_dump_file=None, rate_limit=None, rate_limiter_buffer_size=None,
                  production_mode=True, p4_config_support=True,
                  batch_delay: Optional[float] = None):
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
-        print(production_mode)
         self.name = name
         self.address = address
         self.device_id = device_id
