@@ -1,9 +1,11 @@
+import socket
 from dataclasses import dataclass
 from queue import Queue
 from typing import Any, Optional, List, Union
 
 from google.protobuf.text_format import MessageToString
 from p4.v1 import p4runtime_pb2
+from pydantic import BaseModel
 
 import common.p4runtime_lib.bmv2
 import common.p4runtime_lib.helper
@@ -44,6 +46,17 @@ class StreamHandlerWorkerThread(Thread):
         self.stopped.set()
 
 
+class EnviromentSettins(BaseModel):
+    production_mode: bool = True
+    p4_config_support: bool = True
+
+if socket.gethostname() == 'dpdk-switch':
+    enviroment_settings = EnviromentSettins(
+        production_mode = True,
+        p4_config_support = False
+    )
+else:
+    enviroment_settings = EnviromentSettins()
 
 class HighLevelSwitchConnection:
     def __init__(self,
@@ -57,7 +70,8 @@ class HighLevelSwitchConnection:
                  bmv2_file_path: Optional[str] = None,
                  rate_limit: Optional[int] = None,
                  rate_limiter_buffer_size: Optional[int] = None,
-                 production_mode: bool = True,
+                 production_mode: Optional[bool] = None,
+                 p4_config_support: Optional[bool] = None,
                  batch_delay: Optional[float] = None
                  ):
         self.device_id = device_id
@@ -83,7 +97,8 @@ class HighLevelSwitchConnection:
             proto_dump_file=f'logs/port{self.port}-p4runtime-requests.txt',
             rate_limit=rate_limit,
             rate_limiter_buffer_size=rate_limiter_buffer_size,
-            production_mode=production_mode,
+            production_mode=enviroment_settings.production_mode if production_mode is None else production_mode,
+            p4_config_support=enviroment_settings.p4_config_support if p4_config_support is None else p4_config_support,
             batch_delay=batch_delay
         )
 
