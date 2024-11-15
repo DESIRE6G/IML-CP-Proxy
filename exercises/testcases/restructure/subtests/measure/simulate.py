@@ -12,7 +12,7 @@ from common.simulator import Simulator
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
 #for case in ['buffer_size_changing', 'batch_size_changing', 'batch_delay_test']:
-for case in ['batch_size_changing']:
+for case in ['fake_proxy']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
@@ -21,13 +21,16 @@ for case in ['batch_size_changing']:
     proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
     validator_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
-    if case == 'rate_limit_changing':
-        simulator.add_parameter('sending_rate', [None])
+    if case == 'sending_rate_changing':
+        simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
         simulator.add_parameter('iteration', [1])
-        simulator.add_parameter('rate_limit', [200 * (i + 1) for i in range(30)])
         simulator.add_parameter('rate_limiter_buffer_size', [None])
         simulator.add_parameter('batch_delay', [None])
         simulator.add_parameter('target_port', [50051, 60051])
+    if case == 'fake_proxy':
+        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
+        simulator.add_parameter('fake_proxy', [True, False])
     elif case == 'batch_size_changing':
         simulator.add_parameter('sending_rate', [None])
         simulator.add_parameter('rate_limit', [None])
@@ -50,7 +53,16 @@ for case in ['batch_size_changing']:
     else:
         raise Exception(f'unknown case "{case}"')
 
-    def measure(rate_limit=None, batch_size=1, sending_rate=None, sender_num=1, rate_limiter_buffer_size=None, target_port=None, batch_delay=None) -> float:
+    def measure(
+            rate_limit=None,
+            batch_size=1,
+            sending_rate=None,
+            sender_num=1,
+            rate_limiter_buffer_size=None,
+            target_port=None,
+            batch_delay=None,
+            fake_proxy=False
+        ) -> float:
         try:
             with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
                 obj = ProxyConfig.model_validate_json(f.read())
@@ -72,7 +84,10 @@ for case in ['batch_size_changing']:
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
 
-            tmux_shell('python proxy.py', proxy_pane_name)
+            if fake_proxy:
+                tmux_shell('python fake_proxy.py', proxy_pane_name)
+            else:
+                tmux_shell('python proxy.py', proxy_pane_name)
             try:
                 wait_for_output('^Proxy is ready', proxy_pane_name)
             except TimeoutError:

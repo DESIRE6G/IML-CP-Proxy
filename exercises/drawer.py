@@ -11,13 +11,13 @@ import numpy as np
 
 os.makedirs('images', exist_ok=True)
 
-targets = ['rate_limit_changing']
+targets = ['fake_proxy']
 source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
 target_folder = '/home/hudi/t4/proxy_doc/images'
 for target in targets:
     x_label = 'batch_size'
-    grid_x_field = 'iteration'
-    grid_y_field = 'iteration'
+    grid_x_field = None
+    grid_y_field = None
     line_fields = ['target_port']
     value_field_array = ['message_per_sec_mean']
     plot_type = 'line'
@@ -46,15 +46,27 @@ for target in targets:
     pd.set_option("display.max_columns", None)
     pd.set_option("display.max_rows", None)
 
-    if target == 'batch_size_changing':
+    if target == 'sending_rate_changing':
+        df_original = load_and_prepare_df(f'{source_folder}/sending_rate_changing.csv')
+        df_original['target_port'] = df_original['target_port'].map({50051: 'Without proxy', 60051: 'With proxy'})
+        line_fields = ['target_port']
+        x_label = 'sending_rate'
+    elif target == 'fake_proxy':
+        df_original = load_and_prepare_df(f'{source_folder}/fake_proxy.csv')
+        df_original['fake_proxy'] = df_original['fake_proxy'].map({True: 'Fake proxy', False: 'Real proxy'})
+        line_fields = ['fake_proxy']
+        x_label = 'sending_rate'
+    elif target == 'batch_size_changing':
         df_original = load_and_prepare_df(f'{source_folder}/batch_size_changing.csv')
         df_original['target_port'] = df_original['target_port'].map({50051: 'Without proxy', 60051: 'With proxy'})
+        df_original = df_original[df_original['batch_size'] < 4096]
         logx = True
-    elif target == 'rate_limit_changing':
-        df_original = load_and_prepare_df(f'{source_folder}/rate_limit_changing_1.csv')
-        df_original['target_port'] = df_original['target_port'].map({50051: 'Without proxy', 60051: 'With proxy'})
-        x_label = 'rate_limit'
-
+    elif target == 'batch_delay_test':
+        df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
+        df_original['batch_delay'] = df_original['batch_delay'].fillna(0)
+        x_label = 'batch_delay'
+        line_fields = ['sender_num']
+        logx = True
 
     print(df_original)
     output_filename = str(target) + '.png'
@@ -77,8 +89,15 @@ for target in targets:
     col_multiplier = value_field_array_caused_size_need if multi_y_value_mode == MULTI_Y_VALUE_MODE_COLUMN else 1
     row_multiplier = value_field_array_caused_size_need if multi_y_value_mode == MULTI_Y_VALUE_MODE_ROW else 1
 
-    col_num = len(unique_values_dict[grid_x_field]) * col_multiplier
-    row_num = len(unique_values_dict[grid_y_field]) * row_multiplier
+    if grid_x_field is None:
+        col_num = 1
+    else:
+        col_num = len(unique_values_dict[grid_x_field]) * col_multiplier
+
+    if grid_y_field is None:
+        row_num = 1
+    else:
+        row_num = len(unique_values_dict[grid_y_field]) * row_multiplier
 
     print("Generating grid with ", row_num, " row and ", col_num, " column")
     fig, axs = plt.subplots(row_num, col_num, squeeze=False)
@@ -100,10 +119,23 @@ for target in targets:
         return ret
 
     for value_iterator, value_field in enumerate(value_field_array):
-        for x_position, grid_x_field_value in enumerate(unique_values_dict[grid_x_field]):
-            for y_position, grid_y_field_value in enumerate(unique_values_dict[grid_y_field]):
-                df = df_original[df_original[grid_x_field] == grid_x_field_value]
-                df = df[df[grid_y_field] == grid_y_field_value]
+        if grid_x_field is None:
+            grid_x_iter = [(0, None)]
+        else:
+            grid_x_iter = enumerate(unique_values_dict[grid_x_field])
+
+        if grid_y_field is None:
+            grid_y_iter = [(0, None)]
+        else:
+            grid_y_iter = enumerate(unique_values_dict[grid_y_field])
+
+        for x_position, grid_x_field_value in grid_x_iter:
+            for y_position, grid_y_field_value in grid_y_iter:
+                df = df_original
+                if grid_x_field is not None:
+                    df = df[df[grid_x_field] == grid_x_field_value]
+                if grid_y_field is not None:
+                    df = df[df[grid_y_field] == grid_y_field_value]
 
                 local_unique_values_dict = {c: df[c].unique() for c in df.columns}
                 title = "---" + str(value_field[0] if isinstance(value_field, list) else value_field) + "---\n"
