@@ -11,10 +11,10 @@ import numpy as np
 
 os.makedirs('images', exist_ok=True)
 
-#targets = ['batch_delay_test_focused']
+#targets = ['fake_proxy']
 targets = ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'batch_delay_test', 'batch_delay_test_focused']
-source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
-#source_folder = '/home/hudi/remote-mounts/elte-switch/proxy/p4runtime-proxy/exercises/results'
+#source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
+source_folder = '/home/hudi/remote-mounts/elte-switch/exercises/results'
 target_folder = '/home/hudi/t4/proxy_doc/images'
 for target in targets:
     x_label = 'batch_size'
@@ -53,21 +53,21 @@ for target in targets:
         df_original['target_port'] = df_original['target_port'].map({50051: 'Without proxy', 60051: 'With proxy'})
         line_fields = ['target_port']
         x_label = 'sending_rate'
-        force_title = 'Message per second'
-        force_xlabel_legend = 'Write request per second'
+        force_title = 'Request per second arrived to the dataplane'
+        force_xlabel_legend = 'Request per second sent by control plane'
     elif target == 'fake_proxy':
         df_original = load_and_prepare_df(f'{source_folder}/fake_proxy.csv')
         df_original['fake_proxy'] = df_original['fake_proxy'].map({True: 'Fake proxy', False: 'Real proxy'})
         line_fields = ['fake_proxy']
         x_label = 'sending_rate'
-        force_title = 'Message per second'
-        force_xlabel_legend = 'Write request per second'
+        force_title = 'Request per second arrived to the dataplane'
+        force_xlabel_legend = 'Request per second sent by control plane'
     elif target == 'batch_size_changing':
         df_original = load_and_prepare_df(f'{source_folder}/batch_size_changing.csv')
         df_original['target_port'] = df_original['target_port'].map({50051: 'Without proxy', 60051: 'With proxy'})
         df_original = df_original[df_original['batch_size'] < 4096]
         logx = True
-        force_title = 'Message per second'
+        force_title = 'Request per second arrived to the dataplane'
         force_xlabel_legend = 'Number of updates in one request'
     elif target == 'batch_delay_test':
         df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
@@ -75,7 +75,7 @@ for target in targets:
         x_label = 'batch_delay'
         line_fields = ['sender_num']
         logx = True
-        force_title = 'Message per second'
+        force_title = 'Request per second arrived to the dataplane'
         force_xlabel_legend = 'Max size of a batch in seconds'
     elif target == 'batch_delay_test_focused':
         df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
@@ -83,7 +83,7 @@ for target in targets:
         df_original = df_original[df_original['batch_delay'] < 0.0033]
         x_label = 'batch_delay'
         line_fields = ['sender_num']
-        force_title = 'Message per second'
+        force_title = 'Request per second arrived to the dataplane'
         force_xlabel_legend = 'Max size of a batch in seconds'
         logx = False
 
