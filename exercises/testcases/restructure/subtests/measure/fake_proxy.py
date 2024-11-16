@@ -24,9 +24,15 @@ from common.rates import TickOutputJSON
 class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, target_client_stub) -> None:
         self.target_client_stub = target_client_stub
+        self.futures_pit = []
 
     def Write(self, request, context) -> None:
-        self.target_client_stub.Write(request)
+        self.futures_pit.append(self.target_client_stub.Write.future(request))
+
+        for fut in self.futures_pit:
+            if fut.done():
+                fut.result()
+        self.futures_pit = [fut for fut in self.futures_pit if not fut.done()]
         return WriteResponse()
 
     def Read(self, original_request: p4runtime_pb2.ReadRequest, context):
