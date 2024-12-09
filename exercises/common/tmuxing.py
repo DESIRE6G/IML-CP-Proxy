@@ -107,7 +107,7 @@ def close_everything_and_save_logs(window_name: str, panes_dict: dict, folder: O
         tmux_shell(f'C-c', pane_tmux_name)
         tmux_shell(f'C-c', pane_tmux_name)
 
-    tmux_shell(f'tmux kill-session -t {window_name}')
+    tmux(f'kill-session -t {window_name}')
 
 
 def create_tmux_window_with_retry(window_name):
