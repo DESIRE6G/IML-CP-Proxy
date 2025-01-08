@@ -1,0 +1,30 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "targets": [
+        {
+          "program_name": "smgw_part_1",
+          "port": 50051,
+          "device_id": 0,
+          "names": {
+          }
+        },
+        {
+          "program_name": "smgw_part_2",
+          "port": 50052,
+          "device_id": 1,
+          "names": {
+            "ingress.ue_selector": "ingress.ue_selector",
+            "ingress.ipv4_lpm": "ingress.ipv4_lpm"
+          }
+        }
+      ],
+      "source":
+      {
+        "program_name": "smgw",
+        "port": 60051
+      }
+    }
+  ]
+}
