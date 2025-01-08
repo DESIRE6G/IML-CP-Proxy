@@ -150,4 +150,6 @@ class PacketReceiver:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         logging.debug('touch .pcap_receive_finished')
+        if exc_type is not None:
+            logging.exception('Exception occurred')
         Path('.pcap_receive_finished').touch()
