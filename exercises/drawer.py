@@ -22,7 +22,7 @@ for target in targets:
     grid_y_field = None
     line_fields = ['target_port']
     value_field_array = ['message_per_sec_mean']
-    plot_type = 'line'
+    plot_type = 'line_with_yerr'
     small = True
     topleft_title = None
     relabel_to_percent = False
@@ -67,7 +67,7 @@ for target in targets:
         df_original['target_port'] = df_original['target_port'].map({50051: 'Without proxy', 60051: 'With proxy'})
         df_original = df_original[df_original['batch_size'] < 4096]
         logx = True
-        force_title = 'Request per second arrived to the dataplane'
+        force_title = 'Table update per second arrived to the dataplane'
         force_xlabel_legend = 'Number of updates in one request'
     elif target == 'batch_delay_test':
         df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
@@ -75,7 +75,7 @@ for target in targets:
         x_label = 'batch_delay'
         line_fields = ['sender_num']
         logx = True
-        force_title = 'Request per second arrived to the dataplane'
+        force_title = 'Table update per second arrived to the dataplane'
         force_xlabel_legend = 'Max size of a batch in seconds'
     elif target == 'batch_delay_test_focused':
         df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
@@ -83,7 +83,7 @@ for target in targets:
         df_original = df_original[df_original['batch_delay'] < 0.0033]
         x_label = 'batch_delay'
         line_fields = ['sender_num']
-        force_title = 'Request per second arrived to the dataplane'
+        force_title = 'Table update per second arrived to the dataplane'
         force_xlabel_legend = 'Max size of a batch in seconds'
         logx = False
 
@@ -221,11 +221,8 @@ for target in targets:
                 has_legend = 1 if x_position == 0 and y_position == 0 else None
                 draw_df = draw_df.sort_values(by=[x_label])
                 # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-                print(draw_df)
 
                 if len(draw_df.index):
-                    # mean_df = draw_df.groupby(x_label, as_index=False).max()
-                    # std_df = draw_df.groupby(x_label, as_index=False).std()
                     print(draw_df)
                     if force_figsize is not None:
                         fig_x_size = force_figsize[0] * col_num
@@ -238,6 +235,14 @@ for target in targets:
                     if plot_type == 'bar':
                         ax = draw_df.plot.bar(x=x_label, ax=ax, legend=has_legend, figsize=(fig_x_size, fig_y_size),
                                               title=final_title, rot=0)
+                    elif plot_type == 'line_with_yerr':
+                        mean_df = draw_df.groupby(x_label).max()
+                        std_df = draw_df.groupby(x_label).std()
+                        print(mean_df)
+                        print(std_df)
+                        ax = mean_df.plot(logx=logx, logy=logy, y=target_labels, yerr=std_df, style=style_ar, ax=ax,
+                                          legend=has_legend, figsize=(fig_x_size, fig_y_size),
+                                          title=final_title)
                     else:
                         ax = draw_df.plot(x=x_label, logx=logx, logy=logy, y=target_labels, style=style_ar, marker='o', ax=ax,
                                           legend=has_legend, figsize=(fig_x_size, fig_y_size),

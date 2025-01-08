@@ -278,7 +278,7 @@ def run_test_cases(test_cases_to_run: list):
                     raise Exception('I do not know what to send.')
                 wait_for_output('^mininet>', mininet_pane_name)
 
-                wait_for_condition_blocking(lambda: os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_finished'))
+                wait_for_condition_blocking(lambda: os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_finished'), max_time=60)
 
                 with open(f'{TARGET_TEST_FOLDER}/test_output.json', 'r') as f:
                     test_output = TestOutput.model_validate_json(f.read())
@@ -382,7 +382,9 @@ def close_everything_and_save_logs() -> None:
     tmux_shell(f'C-c', proxy_pane_name)
     tmux_shell(f'C-c', controller_pane_name)
     tmux_shell(f'C-c', mininet_pane_name)
+    wait_for_output('^mininet>', mininet_pane_name)
     tmux_shell(f'quit', mininet_pane_name)
+    wait_for_output('^mininet@mininet-vm', mininet_pane_name)
     tmux_shell(f'make stop', mininet_pane_name)
     wait_for_output('^mininet@mininet-vm', mininet_pane_name)
     tmux_shell(f'tmux kill-session -t {TMUX_WINDOW_NAME}')
