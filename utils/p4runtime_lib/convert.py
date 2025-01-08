@@ -70,6 +70,8 @@ def encode(x, bitwidth):
         else:
             # Assume that the string is already encoded
             encoded_bytes = x
+    elif type(x) == bytes:
+        encoded_bytes = x
     elif type(x) == int:
         encoded_bytes = encodeNum(x, bitwidth)
     else:

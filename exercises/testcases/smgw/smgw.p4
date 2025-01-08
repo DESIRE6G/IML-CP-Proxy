@@ -451,7 +451,7 @@ control ingress(inout headers hdr,
         }
         actions = { set_nhgrp; drop; }
         //default_action = drop;
-        default_action = set_nhgrp(0);
+        default_action = set_nhgrp(1);
         size = 256;
     }
 
@@ -460,8 +460,7 @@ control ingress(inout headers hdr,
             meta.routing_metadata.nhgrp : exact;
         }
         actions = { pkt_send; drop; }
-        //default_action = drop;
-        default_action = pkt_send(48w0x080000000200, 2);
+        default_action = drop;
         size = 256;
     }
 
