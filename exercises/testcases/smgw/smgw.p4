@@ -12,8 +12,8 @@ const bit<16> ETHERTYPE_IPV4 = 0x0800;
 const bit<16> ETHERTYPE_ARP  = 0x0806;
 const bit<16> ETHERTYPE_VLAN = 0x8100;
 
-const bit<8>  IPPROTO_ICMP  = 0x01;
-const bit<8>  IPPROTO_IPv4  = 0x04;
+const bit<8>  IPPROTO_ICMP   = 0x01;
+const bit<8>  IPPROTO_IPv4   = 0x04;
 const bit<8>  IPPROTO_TCP   = 0x06;
 const bit<8>  IPPROTO_UDP   = 0x11;
 
@@ -32,10 +32,9 @@ const bit<16> GTP_UDP_PORT     = 2152;
 const digest_t MAC_LEARN_RECEIVER = 1;
 const digest_t ARP_LEARN_RECEIVER = 1025;
 
-const macAddr_t OWN_MAC   = 0x001122334455;
+const macAddr_t OWN_MAC = 0x001122334455;
 const macAddr_t BCAST_MAC = 0xFFFFFFFFFFFF;
-//const ip4Addr_t GW_IP     = 0x0A000001; // 10.0.0.1
-const ip4Addr_t GW_IP     = 32w0x0a010203; // 10.1.2.3
+const ip4Addr_t GW_IP = 0x0A000001; // 10.0.0.1
 
 /*************************************************************************
  *********************** H E A D E R S  ***********************************
@@ -143,6 +142,7 @@ header gtpv1_extension_hdr_t {
 
 /* GPRS Tunnelling Protocol (GTP) v2 (also known as evolved-GTP or eGTP) */
 
+
 header gtpv2_ending_t {
     bit<24> sNumber;
     bit<8> reserved;
@@ -156,16 +156,17 @@ struct gtp_metadata_t {
 }
 
 struct arp_metadata_t {
-    ip4Addr_t   dst_ipv4;
-    macAddr_t   mac_da;
-    macAddr_t   mac_sa;
-    PortId_t    egress_port;
-    macAddr_t   my_mac;
+    ip4Addr_t dst_ipv4;
+    macAddr_t  mac_da;
+    macAddr_t  mac_sa;
+    PortId_t   egress_port;
+    macAddr_t  my_mac;
 }
 
 struct routing_metadata_t {
     bit<8> nhgrp;
 }
+
 
 struct metadata {
     gtp_metadata_t gtp_metadata;
@@ -178,24 +179,24 @@ struct headers {
     ipv4_t       ipv4;
     ipv4_t       inner_ipv4;
     icmp_t       icmp;
-    icmp_t       inner_icmp;
+    icmp_t         inner_icmp;
     arp_t        arp;
     arp_ipv4_t   arp_ipv4;
     vlan_t       vlan;
     gtp_common_t gtp_common;
-    gtp_teid_t   gtp_teid;
+    gtp_teid_t gtp_teid;
     gtpv1_extension_hdr_t gtpv1_extension_hdr;
-    gtpv1_optional_t      gtpv1_optional;
-    gtpv2_ending_t        gtpv2_ending;
-    udp_t                 udp;
-    udp_t                 inner_udp;
+    gtpv1_optional_t gtpv1_optional;
+    gtpv2_ending_t gtpv2_ending;
+    udp_t udp;
+    udp_t inner_udp;
 }
 
 parser ParserImpl(packet_in packet,
-                  out headers hdr,
-                  inout metadata meta,
-                  inout standard_metadata_t
-                  standard_metadata) {
+        out headers hdr,
+        inout metadata meta,
+        inout standard_metadata_t
+        standard_metadata) {
 
     state start {
         packet.extract(hdr.ethernet);
@@ -258,7 +259,7 @@ parser ParserImpl(packet_in packet,
 
     state parse_teid {
         packet.extract(hdr.gtp_teid);
-        transition accept;
+        transition parse_inner;
         /*select( hdr.gtp_common.version, hdr.gtp_common.eFlag, hdr.gtp_common.sFlag, hdr.gtp_common.pnFlag ) {
           0x10 &  0x18 : parse_gtpv2; / v2 /
           0x0c & 0x1c : parse_gtpv1optional; / v1 + E /
@@ -273,31 +274,31 @@ parser ParserImpl(packet_in packet,
         transition accept;
     }
 
-    // CHANGE: These were not used even in the original.
-    //
-    //    state parse_gtpv1optional {
-    //        packet.extract(hdr.gtpv1_optional);
-    //        transition parse_inner;
-    //    }
-    //
-    //    state parse_inner {
-    //        packet.extract(hdr.inner_ipv4);
-    //        transition accept;
-    //    }
+    state parse_gtpv1optional {
+        packet.extract(hdr.gtpv1_optional);
+        transition parse_inner;
+    }
+
+    state parse_inner {
+        packet.extract(hdr.inner_ipv4);
+        transition accept;
+    }
 }
 
 control ingress(inout headers hdr,
                 inout metadata meta,
                 inout standard_metadata_t standard_metadata) {
 
+
     meter(256, MeterType.bytes) teid_meters;
+
 
     action drop() {
         mark_to_drop(standard_metadata);
     }
 
     action mac_learn() {
-        /* digest(MAC_LEARN_RECEIVER, { hdr.ethernet.srcAddr, standard_metadata.ingress_port } ); */
+        /*    digest(MAC_LEARN_RECEIVER, { hdr.ethernet.srcAddr, standard_metadata.ingress_port } );*/
     }
 
     action arp_digest() {
@@ -316,6 +317,7 @@ control ingress(inout headers hdr,
         hdr.arp_ipv4.spa     = meta.arp_metadata.dst_ipv4;
 
         standard_metadata.egress_port = (PortId_t)(standard_metadata.ingress_port);
+
     }
 
     action send_icmp_reply() {
@@ -372,8 +374,8 @@ control ingress(inout headers hdr,
     }
 
     action gtp_decapsulate() {
+        hdr.ipv4 = hdr.inner_ipv4;
         meta.gtp_metadata.teid =  hdr.gtp_teid.teid;
-        hdr.ipv4.setInvalid();
         hdr.udp.setInvalid();
         hdr.gtp_common.setInvalid();
         hdr.gtp_teid.setInvalid();
@@ -421,18 +423,17 @@ control ingress(inout headers hdr,
             hdr.udp.dstPort  : ternary; /* in most of the cases the mask is 0 */
         }
         actions = { drop; gtp_encapsulate; gtp_decapsulate;}
+        size = 10000;
         default_action = drop;
-        size = 1024;
     }
 
     table teid_rate_limiter {
         key = {
             meta.gtp_metadata.teid : exact;
         }
-        actions = { apply_meter; NoAction; drop; }
-        //default_action = drop;
-        default_action = apply_meter(0);
+        actions = { apply_meter; NoAction; drop;}
         size = 256;
+        default_action = drop;
     }
 
     table m_filter {
@@ -440,9 +441,9 @@ control ingress(inout headers hdr,
             meta.gtp_metadata.color : exact;
         }
         actions = { drop; NoAction; }
-        //default_action = drop;
-        default_action = NoAction();
         size = 256;
+        const default_action = drop;
+        const entries = { 0 : NoAction();} /* GREEN */
     }
 
     table ipv4_lpm {
@@ -450,18 +451,17 @@ control ingress(inout headers hdr,
             hdr.ipv4.dstAddr : lpm;
         }
         actions = { set_nhgrp; drop; }
-        //default_action = drop;
-        default_action = set_nhgrp(1);
         size = 256;
+        default_action = drop;
     }
 
     table ipv4_forward {
         key = {
             meta.routing_metadata.nhgrp : exact;
         }
-        actions = { pkt_send; drop; }
+        actions = {pkt_send; drop; }
+        size = 64;
         default_action = drop;
-        size = 256;
     }
 
     apply {
@@ -472,45 +472,61 @@ control ingress(inout headers hdr,
         smac.apply();
         dmac.apply();
 
-        if(hdr.arp.isValid()) {
-            if( (hdr.arp.oper == ARP_OPER_REQUEST)
-                    && hdr.arp_ipv4.isValid() ) {
+        if ( (hdr.ethernet.dstAddr == OWN_MAC) || (hdr.ethernet.dstAddr == BCAST_MAC) ) {
 
-                if((hdr.arp_ipv4.tpa == GW_IP)
-                        && (!hdr.ipv4.isValid())
-                        && (!hdr.icmp.isValid())) {
+            // CHANGE: P4Testgen erronously marked table local_forward as tainted, because hdr.arp, hdr.arp_ipv4, hdr.ipv4, and hdr.icmp may be invalid by the call; but the table itself checks those. Solved by transforming the table into code.
+            // Note: isValid() must be called before the header is read, but p4testgen does not understand short-circuit operators, so I decomposed them the condition into multiple. See https://github.com/p4lang/p4c/pull/4030 "Sometimes we can overtaint because an expression that technically short-circuits is treated as taint."
 
-                    arp_reply();
-                    return;
+            if(hdr.arp.isValid()) {
+                if( (hdr.arp.oper == ARP_OPER_REQUEST)
+                        && hdr.arp_ipv4.isValid() ) {
+
+                    if((hdr.arp_ipv4.tpa == GW_IP)
+                            && (!hdr.ipv4.isValid())
+                            && (!hdr.icmp.isValid())) {
+
+                        arp_reply();
+                        return;
+                    } else { /* continue; */
+                    }
+                } else { /* continue; */
                 }
+
+            } else { /* continue; */
             }
-        }
 
-        if( (!hdr.arp.isValid())
-                && (!hdr.arp_ipv4.isValid())
-                && hdr.ipv4.isValid()){
-
-            if( (hdr.ipv4.dstAddr == GW_IP)
-                    && hdr.icmp.isValid()) {
-
-                if((hdr.icmp.type == ICMP_ECHO_REQUEST)) {
-                    send_icmp_reply();
-                    return;
+            if ((!hdr.arp.isValid())
+                    && (!hdr.arp_ipv4.isValid())
+                    && hdr.ipv4.isValid()){
+                if((hdr.ipv4.dstAddr == GW_IP)
+                        && hdr.icmp.isValid()) {
+                    if((hdr.icmp.type == ICMP_ECHO_REQUEST)) {
+                        send_icmp_reply();
+                        return;
+                    } else { /* continue; */
+                    }
+                } else { /* continue; */
                 }
+            }  else { /* continue; */
             }
+
+            // !local_forward.apply().hit
+
+
+            // CHANGE: No checks guaranteed at this point, so these are needed to avoid taint.
+            if (!hdr.ipv4.isValid()) {return;}
+            if (!hdr.udp.isValid()) {return;}
+            if (!hdr.gtp_teid.isValid()) {return;}
+
+
+            NoAction();
+
+            ue_selector.apply();
+            teid_rate_limiter.apply();
+            m_filter.apply();
+            ipv4_lpm.apply();
+            ipv4_forward.apply();
         }
-
-        // CHANGE: No checks guaranteed at this point, so these are needed to avoid taint.
-        if (!hdr.ipv4.isValid()) {return;}
-        if (!hdr.udp.isValid()) {return;}
-        if (!hdr.gtp_teid.isValid()) {return;}
-
-        ue_selector.apply();
-        teid_rate_limiter.apply();
-        m_filter.apply();
-        ipv4_lpm.apply();
-        ipv4_forward.apply();
-
     }
 }
 
