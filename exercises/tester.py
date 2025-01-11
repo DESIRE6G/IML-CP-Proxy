@@ -252,55 +252,67 @@ def run_test_cases(test_cases_to_run: list):
                 print(f'{COLOR_GREEN}PING response arrived, ping test succeed{COLOR_END}')
 
             if active_test_modes['pcap'] or active_test_modes['pcap_generator']:
-                if os.path.exists(f'{TARGET_TEST_FOLDER}/test_h2_expected.pcap'):
-                    tmux_shell('h2 python receive.py test_h2_expected.pcap > receive.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
-                elif os.path.exists(f'{TARGET_TEST_FOLDER}/test_receive.py'):
-                    tmux_shell('h2 python test_receive.py > receive.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
-                else:
-                    raise Exception('There is no test_h2_expected.pcap or test_receive.py, do not know how to validate pcap test.')
+                receive_started_by_host = {}
+                for host in ['h1', 'h2']:
+                    postfix = f'_{host}' if host != 'h2' else ''
 
-                wait_for_output('^mininet>', mininet_pane_name)
-                print('Waiting for .pcap_receive_started')
-                try:
-                    wait_for_condition_blocking(lambda : os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_started'))
-                except TimeoutError:
-                    with open(f'{TARGET_TEST_FOLDER}/receive.log') as f:
-                        print(f'{COLOR_RED_BG}PCAP Receive not started correctly{COLOR_END}')
-                        print(f.read())
-                        print('-------------------------')
-                    raise
+                    try:
+                        if os.path.exists(f'{TARGET_TEST_FOLDER}/test_{host}_expected.pcap'):
+                            tmux_shell(f'{host} python receive.py test_{host}_expected.pcap {postfix} > receive{postfix}.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
+                            receive_started_by_host[host] = True
+                        elif os.path.exists(f'{TARGET_TEST_FOLDER}/test_receive{postfix}.py'):
+                            tmux_shell(f'{host} python test_receive{postfix}.py > receive{postfix}.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
+                            receive_started_by_host[host] = True
+
+                        if host in receive_started_by_host:
+                            wait_for_output('^mininet>', mininet_pane_name)
+                            print(f'Waiting for .pcap_receive_started{postfix}')
+                            wait_for_condition_blocking(lambda : os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_started{postfix}'))
+                    except TimeoutError:
+                        with open(f'{TARGET_TEST_FOLDER}/receive{postfix}.log') as f:
+                            print(f'{COLOR_RED_BG}PCAP {host} Receive not started correctly{COLOR_END}')
+                            print(f.read())
+                            print('-------------------------')
+                        raise
+
+                if len(receive_started_by_host) == 0:
+                    raise Exception('There is no test_h*_expected.pcap or test_receive.py, do not know how to validate pcap test.')
 
                 if active_test_modes['pcap']:
-                    tmux_shell('h1 python send.py test_h1_input.pcap', mininet_pane_name)
+                    tmux_shell('h1 python send.py test_h1_input.pcap > send_h1.log 2>&1 &', mininet_pane_name)
                 elif active_test_modes['pcap_generator']:
-                    tmux_shell('h1 python test_send.py', mininet_pane_name)
+                    tmux_shell('h1 python test_send.py > send_h1.log 2>&1 &', mininet_pane_name)
                 else:
                     raise Exception('I do not know what to send.')
                 wait_for_output('^mininet>', mininet_pane_name)
 
                 wait_for_condition_blocking(lambda: os.path.exists(f'{TARGET_TEST_FOLDER}/.pcap_receive_finished'), max_time=60)
+                for host in ['h1', 'h2']:
+                    postfix = f'_{host}' if host != 'h2' else ''
+                    test_output_filename = f'{TARGET_TEST_FOLDER}/test_output{postfix}.json'
+                    if os.path.exists(test_output_filename):
+                        with open(test_output_filename, 'r') as f:
+                            test_output = TestOutput.model_validate_json(f.read())
+                            if not test_output.success:
+                                if test_output.ordered_compare is not None:
+                                    print(f'{COLOR_RED_BG}PCAP {host} Test failed{COLOR_END}')
+                                    for i, compare in enumerate(test_output.ordered_compare):
+                                        print(f'--- [Packet {i}] ---')
+                                        print(f'Expected: {compare.expected}')
+                                        print(f'Arrived:  {compare.arrived_colored}')
+                                        if compare['ok']:
+                                            print(f'{COLOR_GREEN}OK{COLOR_END}')
+                                        else:
+                                            print(f'          {compare.diff_string}')
+                                            print(f'Dump Expected: {compare.dump_expected}')
+                                            print(f'Dump Arrived:  {compare.dump_arrived_colored}')
+                                            print(f'               {compare.dump_diff_string}')
 
-                with open(f'{TARGET_TEST_FOLDER}/test_output.json', 'r') as f:
-                    test_output = TestOutput.model_validate_json(f.read())
-                    if not test_output.success:
-                        if test_output.ordered_compare is not None:
-                            print(f'{COLOR_RED_BG}PCAP Test failed{COLOR_END}')
-                            for i, compare in enumerate(test_output.ordered_compare):
-                                print(f'--- [Packet {i}] ---')
-                                print(f'Expected: {compare.expected}')
-                                print(f'Arrived:  {compare.arrived_colored}')
-                                if compare['ok']:
-                                    print(f'{COLOR_GREEN}OK{COLOR_END}')
-                                else:
-                                    print(f'          {compare.diff_string}')
-                                    print(f'Dump Expected: {compare.dump_expected}')
-                                    print(f'Dump Arrived:  {compare.dump_arrived_colored}')
-                                    print(f'               {compare.dump_diff_string}')
+                                if test_output is not None:
+                                    print(test_output.message)
 
-                        if test_output is not None:
-                            print(test_output.message)
+                                raise Exception(f'Pcap test failed, check the logs above or the test_output.json for more details')
 
-                        raise Exception(f'Pcap test failed, check the logs above or the test_output.json for more details')
                 print(f'{COLOR_GREEN}PCAP Test successful{COLOR_END}')
             if active_test_modes['validator']:
                 if not active_test_modes['pcap'] and not active_test_modes['ping']:

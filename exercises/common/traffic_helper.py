@@ -59,7 +59,6 @@ def compare_packet_lists(packets_arrived, packets_expected):
             output_object['missing_packets'].append(convert_packet_to_dump_object(pkt_expected))
             logging.debug(f'Missing packet {pkt_expected}')
 
-
     for packet_index in range(len(packets_arrived)):
         actual_packet_arrived = packets_arrived[packet_index]
         actual_packet_arrived_str = str(actual_packet_arrived)
@@ -98,12 +97,13 @@ def compare_packet_lists(packets_arrived, packets_expected):
         })
 
     output_object['success'] = len(output_object['extra_packets']) == 0 and len(output_object['missing_packets']) == 0
-
-    with open('test_output.json','w') as f:
-        json.dump(output_object, f, indent = 4)
+    return output_object
 
 
 class PacketReceiver:
+    def __init__(self, host_postfix=''):
+        self.host_postfix = host_postfix
+
     def __enter__(self):
         iface = get_eth0_interface()
         logging.debug(f"sniffing on {iface}")
@@ -113,38 +113,46 @@ class PacketReceiver:
             packets_arrived.append(pkt)
             packet_readable = pkt.show2(dump=True)
             logging.debug(f'Arrived {repr(pkt)}')
-            with open("output.txt", "a") as f:
+            with open(f"output{self.host_postfix}.txt", "a") as f:
                 f.write(packet_readable)
 
             sys.stdout.flush()
 
-        t = AsyncSniffer(iface = iface, prn = lambda x: handle_pkt(x))
+        t = AsyncSniffer(iface = iface, filter="inbound", prn = lambda x: handle_pkt(x))
         t.start()
         while not hasattr(t, 'stop_cb'):
             time.sleep(0.1)
 
-        logging.debug('Touch .pcap_receive_started')
-        Path('.pcap_receive_started').touch()
+        logging.debug(f'Touch .pcap_receive_started{self.host_postfix}')
+        Path(f'.pcap_receive_started{self.host_postfix}').touch()
         logging.debug('Waiting for .pcap_send_finished')
         while t.running and not os.path.exists('.pcap_send_finished'):
             time.sleep(0.25)
 
         logging.debug('Waiting to arrive one package')
-        wait_counter = 0
-        while len(packets_arrived) == 0 and wait_counter < 50:
-            wait_counter += 1
+
+        last_time = time.time()
+        last_packet_arrived_count = 0
+        while time.time() - last_time < 2:
+            if last_packet_arrived_count != len(packets_arrived):
+                last_packet_arrived_count = len(packets_arrived)
+                last_time = time.time()
+
             time.sleep(0.1)
 
         time.sleep(1)
 
         logging.debug('Done, removing .pcap_send_finished')
-        os.remove('.pcap_send_finished')
+        try:
+            os.remove('.pcap_send_finished')
+        except OSError: # If multiple receiver runs may the other deleted the flag file
+            pass
         if t.running:
             t.stop()
 
         logging.debug('--------------------------------')
         logging.debug('SNIFFING FINISHED')
-        wrpcap('test_arrived.pcap', packets_arrived)
+        wrpcap(f'test_arrived{self.host_postfix}.pcap', packets_arrived)
 
         return packets_arrived
 

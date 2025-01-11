@@ -5,7 +5,7 @@ import sys
 from enum import Enum
 
 from common.logging_helper import configure_logger_with_common_settings
-from common.traffic_helper import compare_packet_lists, PacketReceiver
+from common.traffic_helper import PacketReceiver
 
 configure_logger_with_common_settings('receive.log')
 from scapy.all import (
