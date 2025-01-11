@@ -55,12 +55,18 @@ def diff_strings(actual_rebuilt: str, expected_rebuilt: str) -> Tuple[str, str]:
         else:
             if color_active:
                 actual_packet_arrived_colored += COLOR_END
+                color_active = False
             diff_flags += ' '
+
         if i < len(actual_rebuilt):
             actual_packet_arrived_colored += actual_rebuilt[i]
         else:
+            if not color_active:
+                actual_packet_arrived_colored += COLOR_RED
+                color_active = True
             actual_packet_arrived_colored += '#'
         i += 1
+
     while i < len(actual_rebuilt):
         if not color_active:
             actual_packet_arrived_colored += COLOR_RED
@@ -75,6 +81,7 @@ def diff_strings(actual_rebuilt: str, expected_rebuilt: str) -> Tuple[str, str]:
         actual_packet_arrived_colored += '#'
         diff_flags += '^'
         i += 1
+
     if color_active:
         actual_packet_arrived_colored += COLOR_END
 
