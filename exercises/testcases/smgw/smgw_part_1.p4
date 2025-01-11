@@ -200,12 +200,16 @@ struct headers {
 	}
 	state parse_teid {
 		 packet.extract(hdr.gtp_teid);
-		transition accept;
+		transition parse_inner;
 	}
 	state parse_gtpv2 {
 		 packet.extract(hdr.gtpv2_ending);
 		transition accept;
 	}
+    state parse_inner {
+        packet.extract(hdr.inner_ipv4);
+        transition accept;
+    }
 }
 control ingress(inout headers hdr, inout metadata meta, inout standard_metadata_t standard_metadata){
 	 meter(256, MeterType.bytes)teid_meters;

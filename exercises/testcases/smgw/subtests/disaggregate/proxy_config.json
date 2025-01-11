@@ -8,6 +8,7 @@
           "port": 50051,
           "device_id": 0,
           "names": {
+            "ingress.ipv4_lpm": "ingress.ipv4_lpm"
           }
         },
         {
@@ -16,7 +17,7 @@
           "device_id": 1,
           "names": {
             "ingress.ue_selector": "ingress.ue_selector",
-            "ingress.ipv4_lpm": "ingress.ipv4_lpm"
+            "ingress.ipv4_forward": "ingress.ipv4_forward"
           }
         }
       ],
