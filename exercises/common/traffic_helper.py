@@ -35,8 +35,6 @@ def are_packets_equal(packet1, packet2) -> bool:
         return True
 
     if IP in packet1 and IP in packet2:
-        packet1[IP].ttl = 64
-        packet2[IP].ttl = 64
         packet1[IP].chksum = 0
         packet2[IP].chksum = 0
 

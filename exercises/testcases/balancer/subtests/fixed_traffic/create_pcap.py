@@ -15,11 +15,11 @@ for packet_index in range(5):
 
     source_ip = source_ips[choosen_source_id]
     pkt =  Ether(src=source_mac, dst=dst_mac)
-    pkt = pkt /IP(src=source_ip, dst=destination_ip) / bytes([packet_index, 0])
+    pkt = pkt /IP(src=source_ip, dst=destination_ip, ttl=64) / bytes([packet_index, 0])
     input.append(pkt)
 
     pkt =  Ether(src=source_mac, dst=dst_mac)
-    pkt = pkt /IP(src=source_ip, dst=destination_ip) / bytes([packet_index, choosen_source_id + 10])
+    pkt = pkt /IP(src=source_ip, dst=destination_ip, ttl=62) / bytes([packet_index, choosen_source_id + 10])
     output.append(pkt)
 
 wrpcap('test_h1_input.pcap', input)
