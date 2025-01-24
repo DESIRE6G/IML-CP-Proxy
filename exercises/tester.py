@@ -224,15 +224,16 @@ def run_test_cases(test_cases_to_run: list):
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
 
-            # Start Proxy
-            tmux_shell(f'cd {TARGET_TEST_FOLDER}', proxy_pane_name)
-            tmux_shell('python3 proxy.py', proxy_pane_name)
+            if config.get('start_proxy', True):
+                # Start Proxy
+                tmux_shell(f'cd {TARGET_TEST_FOLDER}', proxy_pane_name)
+                tmux_shell('python3 proxy.py', proxy_pane_name)
 
-            try:
-                wait_for_output('^Proxy is ready', proxy_pane_name)
-            except TimeoutError:
-                print(f'{COLOR_RED_BG}Proxy is failed to startup{COLOR_END}')
-                dump_proxy_output()
+                try:
+                    wait_for_output('^Proxy is ready', proxy_pane_name)
+                except TimeoutError:
+                    print(f'{COLOR_RED_BG}Proxy is failed to startup{COLOR_END}')
+                    dump_proxy_output()
 
             # Start Controller
             if config.get('start_controller', default=True):
@@ -362,7 +363,7 @@ def run_test_cases(test_cases_to_run: list):
 
 
 def wait_and_assert_controller_exit_code() -> None:
-    wait_for_output(f'{TARGET_TEST_FOLDER}\$\s*$', controller_pane_name)
+    wait_for_output(f'{TARGET_TEST_FOLDER}\$\s*$', controller_pane_name, max_time=20)
     with open(f'{TARGET_TEST_FOLDER}/.controller_exit_code') as f:
         exit_code = f.read().strip()
         if exit_code != '0':
