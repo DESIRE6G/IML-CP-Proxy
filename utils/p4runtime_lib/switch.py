@@ -415,10 +415,12 @@ class SwitchConnection(object):
         if self.rate_limit is None:
             self.futures_pit.append(self.client_stub.Write.future(request))
 
+            done_fut = []
             for fut in self.futures_pit:
                 if fut.done():
                     fut.result()
-            self.futures_pit = [fut for fut in self.futures_pit if not fut.done()]
+                    done_fut.append(fut)
+            self.futures_pit = [fut for fut in self.futures_pit if fut not in done_fut]
         else:
             self.client_stub.Write(request)
 
