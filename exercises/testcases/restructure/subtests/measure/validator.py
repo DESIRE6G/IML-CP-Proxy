@@ -16,7 +16,7 @@ parser.add_argument('--target_port', default='60051')
 args = parser.parse_args()
 
 if __name__ == '__main__':
-    s = [HighLevelSwitchConnection(i, f'part{i+1}', int(args.target_port) + 1, rate_limit=args.rate_limit)
+    s = [HighLevelSwitchConnection(i, f'part{i+1}', int(args.target_port) + i, rate_limit=args.rate_limit)
          for i in range(args.sender_num)]
 
     counter = 0
