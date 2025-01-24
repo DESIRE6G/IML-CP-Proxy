@@ -29,10 +29,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def Write(self, request, context) -> None:
         self.futures_pit.append(self.target_client_stub.Write.future(request))
 
+        done_fut = []
         for fut in self.futures_pit:
             if fut.done():
                 fut.result()
-        self.futures_pit = [fut for fut in self.futures_pit if not fut.done()]
+                done_fut.append(fut)
+        self.futures_pit = [fut for fut in self.futures_pit if fut not in done_fut]
         return WriteResponse()
 
     def Read(self, original_request: p4runtime_pb2.ReadRequest, context):
