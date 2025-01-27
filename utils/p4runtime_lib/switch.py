@@ -73,7 +73,7 @@ class RateLimitedP4RuntimeStub:
 
         commands = [x for x in dir(self.real_stub) if callable(getattr(self.real_stub, x)) and not x.startswith('_')]
         for command_name in commands:
-            setattr(self, command_name, self.command_generate(command_name))
+            setattr(self, command_name, self.command_generate(command_name, do_buffering = 'Write' in command_name))
 
     def heartbeat(self) -> None:
         while True:
@@ -86,15 +86,20 @@ class RateLimitedP4RuntimeStub:
             command = self.buffered_commands.popleft()
             getattr(self.real_stub, command[0])(*command[1], **command[2])
 
-    def command_generate(self, command_name):
-        def _inner(*args, **kwargs):
-            with self.lock:
-                if len(self.buffered_commands) == 0 and self.rate_limiter.is_fit_in_the_rate_limit():
-                    return getattr(self.real_stub, command_name)(*args, **kwargs)
-                else:
-                    self.buffered_commands.append((command_name, args, kwargs))
-                self._flush_buffered_commands()
-        return _inner
+    def command_generate(self, command_name: str, do_buffering: bool):
+        if do_buffering:
+            def _inner(*args, **kwargs):
+                with self.lock:
+                    if len(self.buffered_commands) == 0 and self.rate_limiter.is_fit_in_the_rate_limit():
+                        return getattr(self.real_stub, command_name)(*args, **kwargs)
+                    else:
+                        self.buffered_commands.append((command_name, args, kwargs))
+                    self._flush_buffered_commands()
+            return _inner
+        else:
+            def _inner(*args, **kwargs):
+                return getattr(self.real_stub, command_name)(*args, **kwargs)
+            return _inner
 
 
 class Batcher:
