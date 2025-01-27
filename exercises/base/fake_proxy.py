@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import multiprocessing
 import queue
 import time
@@ -18,6 +19,7 @@ from common.high_level_switch_connection import HighLevelSwitchConnection
 from p4.v1 import p4runtime_pb2
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 
+from common.p4runtime_lib.switch import IterableQueue
 from common.rates import TickOutputJSON
 
 
@@ -38,11 +40,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         return WriteResponse()
 
     def Read(self, original_request: p4runtime_pb2.ReadRequest, context):
-        result = ReadResponse()
-        yield result
+        for res in self.target_client_stub.Read(original_request):
+            yield res
 
     def SetForwardingPipelineConfig(self, request: p4runtime_pb2.SetForwardingPipelineConfigRequest, context):
-        return SetForwardingPipelineConfigResponse()
+        return self.target_client_stub.SetForwardingPipelineConfig(request)
 
     def GetForwardingPipelineConfig(self, request: p4runtime_pb2.GetForwardingPipelineConfigRequest, context):
         response = p4runtime_pb2.GetForwardingPipelineConfigResponse()
@@ -72,6 +74,18 @@ def start_dataplane_simulator(index: int, queue: multiprocessing.Queue, stop_eve
 
     channel = grpc.insecure_channel(target_address)
     target_client_stub = p4runtime_pb2_grpc.P4RuntimeStub(channel)
+
+    requests_stream = IterableQueue()
+    stream_msg_resp = target_client_stub.StreamChannel(iter(requests_stream))
+
+    request = p4runtime_pb2.StreamMessageRequest()
+    request.arbitration.device_id = 0
+    request.arbitration.election_id.high = 0
+    request.arbitration.election_id.low = 1
+
+    requests_stream.put(request)
+    print(request)
+
     servicer = ProxyP4RuntimeServicer(target_client_stub)
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     add_P4RuntimeServicer_to_server(servicer, server)
@@ -93,11 +107,15 @@ class DataplaneInfoObject:
     queue: multiprocessing.Queue
     stop_event : multiprocessing.Event
 
+parser = argparse.ArgumentParser(prog='Fake Proxy')
+parser.add_argument('--proxy_size', default=2, type=int)
+args = parser.parse_args()
+
 
 with ControllerExceptionHandling():
     dataplanes: List[DataplaneInfoObject] = []
 
-    for i in range(2):
+    for i in range(args.proxy_size):
         stop_event = multiprocessing.Event()
         queue = multiprocessing.Queue()
         process = multiprocessing.Process(target=start_dataplane_simulator, args=(i, queue, stop_event, ))
@@ -110,7 +128,7 @@ with ControllerExceptionHandling():
         )
         process.start()
 
-    for i in range(2):
+    for i in range(args.proxy_size):
         print(i, dataplanes[i].queue.get())
     print('Proxy is ready')
     try:
