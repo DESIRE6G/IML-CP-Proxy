@@ -1,0 +1,18 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "measure",
+        "port": 50051,
+        "device_id": 0
+      },
+      "sources": [
+        {
+          "program_name": "measure",
+          "port": 60051
+        }
+      ]
+    }
+  ]
+}

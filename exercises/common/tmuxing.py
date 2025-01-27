@@ -104,8 +104,16 @@ def close_everything_and_save_logs(window_name: str, panes_dict: dict, folder: O
         tmux(f'capture-pane -S - -pt {pane_tmux_name} > {logs_folder}/{pane_name}.log')
 
     for pane_name, pane_tmux_name in panes_dict.items():
-        tmux_shell(f'C-c', pane_tmux_name)
-        tmux_shell(f'C-c', pane_tmux_name)
+        if pane_name == 'mininet':
+            tmux_shell(f'C-c', pane_tmux_name)
+            wait_for_output('^mininet>', pane_tmux_name)
+            tmux_shell(f'quit', pane_tmux_name)
+            wait_for_output('^mininet@mininet-vm', pane_tmux_name)
+            tmux_shell(f'make stop', pane_tmux_name)
+            wait_for_output('^mininet@mininet-vm', pane_tmux_name)
+        else:
+            tmux_shell(f'C-c', pane_tmux_name)
+            tmux_shell(f'C-c', pane_tmux_name)
 
     tmux(f'kill-session -t {window_name}')
 

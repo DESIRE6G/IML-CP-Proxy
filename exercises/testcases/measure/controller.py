@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import sys
+import time
+
+from p4.v1 import p4runtime_pb2
+
+from common.high_level_switch_connection import HighLevelSwitchConnection
+from common.p4runtime_lib.convert import decodeMac
+from common.rates import TickOutputJSON
+
+parser = argparse.ArgumentParser(prog='Validator')
+parser.add_argument('--batch_size', default=1, type=int)
+parser.add_argument('--sender_num', default=1, type=int)
+parser.add_argument('--rate_limit', default=None, type=int)
+parser.add_argument('--target_port', default='60051')
+args = parser.parse_args()
+
+if __name__ == '__main__':
+    s = [HighLevelSwitchConnection(i, f'measure', int(args.target_port) + i, rate_limit=args.rate_limit)
+         for i in range(args.sender_num)]
+
+    test_runtime = 5
+    counter = 0
+    update_counter = 0
+    start_time = time.time()
+    start_mac_int = 0x080000000000
+    while time.time() - start_time < test_runtime:
+        request = p4runtime_pb2.WriteRequest()
+        request.device_id = 0
+        request.election_id.low = 1
+        actual_target_index = counter % args.sender_num
+        for _ in range(args.batch_size):
+
+            actual_mac_int = start_mac_int + update_counter
+            actual_mac_bytes = actual_mac_int.to_bytes(6, 'big')
+            actual_mac_str = ':'.join(hex(s)[2:].rjust(2,'0') for s in actual_mac_bytes)
+            table_entry = s[actual_target_index].p4info_helper.buildTableEntry(
+            table_name="MyIngress.table_entry_drop_counter",
+                match_fields={
+                    'hdr.ethernet.dstAddr': actual_mac_str
+                },
+                action_name="MyIngress.mock_action",
+                action_params={
+                    "packet_count": update_counter
+                }
+            )
+            update = request.updates.add()
+            update.type = p4runtime_pb2.Update.INSERT
+            update.entity.table_entry.CopyFrom(table_entry)
+            update_counter += 1
+        s[actual_target_index].connection.client_stub.Write(request)
+
+        counter += 1
+
+    for response in s[0].connection.ReadTableEntries():
+        print(f'{len(response.entities)}/{update_counter}')
+
+        with open('ticks.json', 'w') as f:
+            entity_num = len(response.entities)
+            output = TickOutputJSON(
+                tick_per_sec_list=[entity_num/test_runtime],
+                average=entity_num/test_runtime,
+                stdev=0,
+                delay_list=[],
+                delay_average=0,
+                delay_stdev=0
+            )
+            f.write(output.model_dump_json(indent=4))
