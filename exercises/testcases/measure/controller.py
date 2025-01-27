@@ -57,16 +57,20 @@ if __name__ == '__main__':
 
         counter += 1
 
-    table_write_measure_result = None
-    for response in s[0].connection.ReadTableEntries():
-        print(f'{len(response.entities)}/{update_counter}')
-        table_write_measure_result = len(response.entities)/test_runtime
+    def get_arrived_table_entries_len() -> int:
+        for response in s[0].connection.ReadTableEntries():
+            return len(response.entities)
 
+    table_write_measure_result = get_arrived_table_entries_len()/test_runtime
     s[0].connection.purge_rate_limiter_buffer()
-    Path('.controller_ready').touch()
 
-    while not os.path.exists('.pcap_send_started'):
-        time.sleep(0.1)
+    print(f'{table_write_measure_result}/{update_counter}')
+    print('Waiting')
+    last_len = None
+    while (actual_len := get_arrived_table_entries_len()) != last_len:
+        print(actual_len)
+        last_len = actual_len
+        time.sleep(1)
 
     def generate_timed_table_entry():
         return s[0].p4info_helper.buildTableEntry(
@@ -78,8 +82,14 @@ if __name__ == '__main__':
             action_params={
                 "table_write_time": time.time_ns()
             })
-    time.sleep(0.5)
+
     s[0].connection.WriteTableEntry(generate_timed_table_entry())
+    print('.controller_ready')
+    Path('.controller_ready').touch()
+
+    while not os.path.exists('.pcap_send_started'):
+        time.sleep(0.1)
+
     start_time = time.time()
     while time.time() - start_time < 4:
         s[0].connection.WriteTableEntry(generate_timed_table_entry(), update_type='MODIFY')

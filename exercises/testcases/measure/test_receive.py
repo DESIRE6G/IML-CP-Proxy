@@ -30,10 +30,9 @@ if __name__ == '__main__':
             message(f'----- Packet {i}')
             send_time = int.from_bytes(bytes(arrived_packet[Raw])[:8], 'big')
             table_write_time = int.from_bytes(bytes(arrived_packet[Raw])[8:], 'big')
-            message(f'{send_time=} {table_write_time=} {arrived_packet_ts=}')
-            message(f'{ns_ts_to_iso(send_time)=} {ns_ts_to_iso(table_write_time)=} {ns_ts_to_iso(arrived_packet_ts)=}')
             transfer_time_sec = (arrived_packet_ts - send_time) / 10 ** 9
             table_write_time_passed = (arrived_packet_ts - table_write_time) / 10 ** 9
+            message(f'{send_time=} {table_write_time=} {arrived_packet_ts=}')
             message(f'{ns_ts_to_iso(send_time)=} {ns_ts_to_iso(table_write_time)=} {ns_ts_to_iso(arrived_packet_ts)=}')
             message(f'{transfer_time_sec=}')
             message(f'{table_write_time_passed=}')

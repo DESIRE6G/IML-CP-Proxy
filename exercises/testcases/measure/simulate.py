@@ -9,11 +9,12 @@ from common.colors import COLOR_RED_BG, COLOR_END
 from common.proxy_config import ProxyConfig
 from common.rates import TickOutputJSON
 from common.simulator import Simulator
+from common.sync import wait_for_condition_blocking
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 from common.tester_config import TestConfig
 
-#for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buffer_size_changing', 'batch_delay_test']:
-for case in ['fake_proxy']:
+for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buffer_size_changing', 'batch_delay_test']:
+#for case in ['buffer_size_changing']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
@@ -26,15 +27,14 @@ for case in ['fake_proxy']:
     validator_pane_name = f'{TMUX_WINDOW_NAME}:0.3'
 
     if case == 'sending_rate_changing':
-        #simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
-        simulator.add_parameter('sending_rate', [200,1000,3000])
+        simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
         simulator.add_parameter('iteration', [1])
         simulator.add_parameter('rate_limiter_buffer_size', [None])
         simulator.add_parameter('batch_delay', [None])
         simulator.add_parameter('target_port', [50051, 60051])
     elif case == 'fake_proxy':
         simulator.add_parameter('iteration', [1])
-        simulator.add_parameter('sending_rate', [200,1000,3000])
+        simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
         simulator.add_parameter('fake_proxy', [True, False])
     elif case == 'batch_size_changing':
         simulator.add_parameter('sending_rate', [None])
@@ -69,6 +69,12 @@ for case in ['fake_proxy']:
             fake_proxy=False
         ) -> float:
         try:
+            for filename in ['.controller_finished', '.controller_ready', '.pcap_receive_finished', '.pcap_receive_started', '.pcap_send_started'] + \
+                ['ticks.json', 'send_h1.log', 'receive.log', 'test_output.json']:
+                if os.path.exists(filename):
+                    os.remove(filename)
+            shutil.rmtree('logs', ignore_errors=True)
+
             with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
                 proxy_config = ProxyConfig.model_validate_json(f.read())
             with open(BACKUP_TEST_CONFIG_FILENAME, 'r') as f:
@@ -115,8 +121,13 @@ for case in ['fake_proxy']:
                 controller_cmd += f' --target_port {target_port}'
 
             tmux_shell(controller_cmd, controller_pane_name)
+            wait_for_condition_blocking(lambda: os.path.exists('.controller_ready'), max_time=30)
+            tmux_shell(f'h2 python test_receive.py > receive.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
+            wait_for_output('^mininet>', mininet_pane_name)
+            wait_for_condition_blocking(lambda : os.path.exists(f'.pcap_receive_started'))
+            tmux_shell('h1 python test_send.py > send_h1.log 2>&1 &', mininet_pane_name)
 
-            time.sleep(10)
+            wait_for_condition_blocking(lambda: os.path.exists('.controller_finished'), max_time=30)
 
             os.remove(PROXY_CONFIG_FILENAME)
             os.remove(TEST_CONFIG_FILENAME)
@@ -127,6 +138,8 @@ for case in ['fake_proxy']:
                 'proxy': proxy_pane_name,
                 'mininet': mininet_pane_name
             })
+
+
 
         with open('ticks.json', 'r') as f:
             proxy_config = TickOutputJSON.model_validate_json(f.read())
