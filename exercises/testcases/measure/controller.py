@@ -28,7 +28,7 @@ if __name__ == '__main__':
     counter = 0
     update_counter = 0
     start_time = time.time()
-    start_mac_int = 0x080000000000
+    start_mac_int = 0x080000000222
     while time.time() - start_time < test_runtime:
         request = p4runtime_pb2.WriteRequest()
         request.device_id = 0
@@ -62,6 +62,7 @@ if __name__ == '__main__':
         print(f'{len(response.entities)}/{update_counter}')
         table_write_measure_result = len(response.entities)/test_runtime
 
+    s[0].connection.purge_rate_limiter_buffer()
     Path('.controller_ready').touch()
 
     while not os.path.exists('.pcap_send_started'):
@@ -99,3 +100,6 @@ if __name__ == '__main__':
             delay_stdev=np.std(latencies)
         )
         f.write(output.model_dump_json(indent=4))
+
+    Path('.controller_finished').touch()
+    print('Touched .controller_finished')

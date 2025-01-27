@@ -37,8 +37,11 @@ def ShutdownAllSwitchConnections():
 
 class RateLimiter:
     def __init__(self, max_per_sec: int):
-        self.last_tick = time.time()
         self.max_per_sec = max_per_sec
+        self.reset()
+
+    def reset(self):
+        self.last_tick = time.time()
         self.bucket = 0
 
     def _decrease_bucket_base_on_time(self) -> None:
@@ -100,6 +103,11 @@ class RateLimitedP4RuntimeStub:
             def _inner(*args, **kwargs):
                 return getattr(self.real_stub, command_name)(*args, **kwargs)
             return _inner
+
+    def purge_buffer(self):
+        with self.lock:
+            self.buffered_commands = []
+            self.rate_limiter.reset()
 
 
 class Batcher:
@@ -176,6 +184,10 @@ class SwitchConnection(object):
             return p4config_pb2.P4DeviceConfig()
         else:
             return None
+
+    def purge_rate_limiter_buffer(self) -> None:
+        if isinstance(self.client_stub, RateLimitedP4RuntimeStub):
+            self.client_stub.purge_buffer()
 
     def shutdown(self):
         self.requests_stream.close()
