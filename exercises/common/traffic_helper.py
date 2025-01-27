@@ -99,16 +99,19 @@ def compare_packet_lists(packets_arrived, packets_expected):
 
 
 class PacketReceiver:
-    def __init__(self, host_postfix=''):
+    def __init__(self, host_postfix='', attach_timestamps=False):
         self.host_postfix = host_postfix
+        self.attach_timestamps = attach_timestamps
 
     def __enter__(self):
         iface = get_eth0_interface()
         logging.debug(f"sniffing on {iface}")
         sys.stdout.flush()
         packets_arrived = []
+        packets_arrived_ts = []
         def handle_pkt(pkt):
             packets_arrived.append(pkt)
+            packets_arrived_ts.append(time.time_ns())
             packet_readable = pkt.show2(dump=True)
             logging.debug(f'Arrived {repr(pkt)}')
             with open(f"output{self.host_postfix}.txt", "a") as f:
@@ -151,8 +154,10 @@ class PacketReceiver:
         logging.debug('--------------------------------')
         logging.debug('SNIFFING FINISHED')
         wrpcap(f'test_arrived{self.host_postfix}.pcap', packets_arrived)
-
-        return packets_arrived
+        if self.attach_timestamps:
+            return zip(packets_arrived, packets_arrived_ts)
+        else:
+            return packets_arrived
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         logging.debug('touch .pcap_receive_finished')

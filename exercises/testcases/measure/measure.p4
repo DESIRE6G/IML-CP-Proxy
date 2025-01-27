@@ -21,8 +21,15 @@ struct metadata {
     egressSpec_t port;
 }
 
+header info_f {
+    bit<64> send_time;
+    bit<64> table_write_time;
+}
+
+
 struct headers {
     ethernet_t   ethernet;
+    info_f info;
 }
 
 /*************************************************************************
@@ -36,6 +43,7 @@ parser MyParser(packet_in packet,
 
     state start {
         packet.extract(hdr.ethernet);
+        packet.extract(hdr.info);
         transition accept;
     }
 
@@ -63,6 +71,10 @@ control MyIngress(inout headers hdr,
         standard_metadata.egress_spec = 2;
     }
 
+    action write_time(bit<64> table_write_time) {
+        hdr.info.table_write_time = table_write_time;
+    }
+
     table table_entry_drop_counter {
         key = {
             hdr.ethernet.dstAddr: exact;
@@ -74,9 +86,23 @@ control MyIngress(inout headers hdr,
         size = 1048576;
         default_action = NoAction();
     }
-    
+
+    table table_write_time {
+        key = {
+            hdr.ethernet.dstAddr: exact;
+        }
+
+        actions = {
+            write_time;
+            NoAction;
+        }
+        size = 1024;
+        default_action = NoAction();
+    }
+
     apply {
         table_entry_drop_counter.apply();
+        table_write_time.apply();
     }
 }
 
@@ -105,6 +131,7 @@ control MyComputeChecksum(inout headers  hdr, inout metadata meta) {
 control MyDeparser(packet_out packet, in headers hdr) {
     apply {
         packet.emit(hdr.ethernet);
+        packet.emit(hdr.info);
     }
 }
 

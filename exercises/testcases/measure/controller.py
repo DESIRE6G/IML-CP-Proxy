@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os.path
 import sys
 import time
+from pathlib import Path
+import numpy as np
 
 from p4.v1 import p4runtime_pb2
 
@@ -54,17 +57,45 @@ if __name__ == '__main__':
 
         counter += 1
 
+    table_write_measure_result = None
     for response in s[0].connection.ReadTableEntries():
         print(f'{len(response.entities)}/{update_counter}')
+        table_write_measure_result = len(response.entities)/test_runtime
 
-        with open('ticks.json', 'w') as f:
-            entity_num = len(response.entities)
-            output = TickOutputJSON(
-                tick_per_sec_list=[entity_num/test_runtime],
-                average=entity_num/test_runtime,
-                stdev=0,
-                delay_list=[],
-                delay_average=0,
-                delay_stdev=0
-            )
-            f.write(output.model_dump_json(indent=4))
+    Path('.controller_ready').touch()
+
+    while not os.path.exists('.pcap_send_started'):
+        time.sleep(0.1)
+
+    def generate_timed_table_entry():
+        return s[0].p4info_helper.buildTableEntry(
+            table_name="MyIngress.table_write_time",
+            match_fields={
+                'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
+            },
+            action_name="MyIngress.write_time",
+            action_params={
+                "table_write_time": time.time_ns()
+            })
+    time.sleep(0.5)
+    s[0].connection.WriteTableEntry(generate_timed_table_entry())
+    start_time = time.time()
+    while time.time() - start_time < 4:
+        s[0].connection.WriteTableEntry(generate_timed_table_entry(), update_type='MODIFY')
+        time.sleep(0.2)
+
+    while not os.path.exists('.pcap_receive_finished'):
+        time.sleep(0.1)
+
+
+    with open('test_output.json', 'r') as test_output_f, open('ticks.json', 'w') as f:
+        latencies = json.load(test_output_f)['latencies']
+        output = TickOutputJSON(
+            tick_per_sec_list=[table_write_measure_result],
+            average=table_write_measure_result,
+            stdev=0,
+            delay_list=latencies,
+            delay_average=np.mean(latencies),
+            delay_stdev=np.std(latencies)
+        )
+        f.write(output.model_dump_json(indent=4))
