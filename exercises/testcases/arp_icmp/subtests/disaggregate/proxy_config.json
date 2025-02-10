@@ -1,0 +1,30 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "targets": [
+        {
+          "program_name": "arp_icmp_part_1",
+          "port": 50051,
+          "device_id": 0,
+          "names": {
+            "MyIngress.arp_exact": "MyIngress.arp_exact"
+          }
+        },
+        {
+          "program_name": "arp_icmp_part_2",
+          "port": 50052,
+          "device_id": 1,
+          "names": {
+            "MyIngress.icmp_responder": "MyIngress.icmp_responder"
+          }
+        }
+      ],
+      "source":
+      {
+        "program_name": "arp_icmp",
+        "port": 60051
+      }
+    }
+  ]
+}

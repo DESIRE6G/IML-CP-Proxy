@@ -63,6 +63,8 @@ test_cases : List[TestCase] = [
     {'name': 'basicv3','subtest': None},
     {'name': 'basicv3','subtest': 'disaggregate'},
     {'name': 'smgw','subtest': None},
+    {'name': 'arp_icmp','subtest': None},
+    {'name': 'arp_icmp','subtest': 'disaggregate'},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
