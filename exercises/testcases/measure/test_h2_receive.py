@@ -15,7 +15,8 @@ def ns_ts_to_iso(ns_ts: int) -> str:
     return datetime.fromtimestamp(ns_ts / 10**9).isoformat()
 
 if __name__ == '__main__':
-    with PacketReceiver(attach_timestamps=True) as packets_arrived:
+    host_postfix = '_h2'
+    with PacketReceiver(host_postfix, attach_timestamps=True) as packets_arrived:
         output_object = {'success':True, 'message': '', 'latencies': []}
 
 
@@ -42,5 +43,5 @@ if __name__ == '__main__':
                 last_table_write_time = table_write_time
         print(measured_table_write_time_passed_list)
         output_object['latencies'] = measured_table_write_time_passed_list
-        with open('test_output.json','w') as f:
+        with open(f'test_output{host_postfix}.json','w') as f:
             json.dump(output_object, f, indent = 4)

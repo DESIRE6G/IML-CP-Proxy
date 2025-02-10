@@ -126,8 +126,8 @@ class PacketReceiver:
 
         logging.debug(f'Touch .pcap_receive_started{self.host_postfix}')
         Path(f'.pcap_receive_started{self.host_postfix}').touch()
-        logging.debug('Waiting for .pcap_send_finished')
-        while t.running and not os.path.exists('.pcap_send_finished'):
+        logging.debug('Waiting for .pcap_send_finished_h1')
+        while t.running and not os.path.exists('.pcap_send_finished_h1'):
             time.sleep(0.25)
 
         logging.debug('Waiting to arrive one package')
@@ -143,9 +143,9 @@ class PacketReceiver:
 
         time.sleep(1)
 
-        logging.debug('Done, removing .pcap_send_finished')
+        logging.debug('Done, removing .pcap_send_finished_h1')
         try:
-            os.remove('.pcap_send_finished')
+            os.remove('.pcap_send_finished_h1')
         except OSError: # If multiple receiver runs may the other deleted the flag file
             pass
         if t.running:

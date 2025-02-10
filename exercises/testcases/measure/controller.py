@@ -87,7 +87,7 @@ if __name__ == '__main__':
     print('.controller_ready')
     Path('.controller_ready').touch()
 
-    while not os.path.exists('.pcap_send_started'):
+    while not os.path.exists('.pcap_send_started_h1'):
         time.sleep(0.1)
 
     start_time = time.time()

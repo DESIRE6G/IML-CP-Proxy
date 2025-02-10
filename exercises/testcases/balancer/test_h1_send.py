@@ -61,5 +61,5 @@ send_one_packet(1, 10)
 
 #wrpcap('test_h2_expected.pcap', output)
 
-Path('.pcap_send_finished').touch()
-logging.debug('touch pcap_send_finished')
+Path('.pcap_send_finished_h1').touch()
+logging.debug('touch pcap_send_finished_h1')

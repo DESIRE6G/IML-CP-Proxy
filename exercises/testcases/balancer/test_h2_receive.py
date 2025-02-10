@@ -13,7 +13,8 @@ from scapy.all import (
 )
 
 if __name__ == '__main__':
-    with PacketReceiver() as packets_arrived:
+    host_postfix = '_h2'
+    with PacketReceiver(host_postfix) as packets_arrived:
         class Phase(Enum):
             NOT_ARRIVED = 0
             NODE1_ARRIVED = 1
@@ -62,5 +63,5 @@ if __name__ == '__main__':
             output_object['success'] = False
 
 
-        with open('test_output.json','w') as f:
+        with open(f'test_output{host_postfix}.json','w') as f:
             json.dump(output_object, f, indent = 4)

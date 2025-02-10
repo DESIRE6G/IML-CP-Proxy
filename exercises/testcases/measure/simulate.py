@@ -69,7 +69,7 @@ for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buff
             fake_proxy=False
         ) -> float:
         try:
-            for filename in ['.controller_finished', '.controller_ready', '.pcap_receive_finished', '.pcap_receive_started', '.pcap_send_started'] + \
+            for filename in ['.controller_finished', '.controller_ready', '.pcap_receive_finished_h2', '.pcap_receive_started_h2', '.pcap_send_started_h1'] + \
                 ['ticks.json', 'send_h1.log', 'receive.log', 'test_output.json']:
                 if os.path.exists(filename):
                     os.remove(filename)
@@ -124,7 +124,7 @@ for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buff
             wait_for_condition_blocking(lambda: os.path.exists('.controller_ready'), max_time=30)
             tmux_shell(f'h2 python test_receive.py > receive.log 2>&1 &', mininet_pane_name, wait_command_appear=True)
             wait_for_output('^mininet>', mininet_pane_name)
-            wait_for_condition_blocking(lambda : os.path.exists(f'.pcap_receive_started'))
+            wait_for_condition_blocking(lambda : os.path.exists(f'.pcap_receive_started_h2'))
             tmux_shell('h1 python test_send.py > send_h1.log 2>&1 &', mininet_pane_name)
 
             wait_for_condition_blocking(lambda: os.path.exists('.controller_finished'), max_time=30)

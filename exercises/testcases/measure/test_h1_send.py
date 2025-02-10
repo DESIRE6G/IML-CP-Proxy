@@ -34,8 +34,8 @@ def send_packets_for_x_sec(main_flag: int, sending_time: float) -> None:
 pkt = Ether(src=source_mac, dst=dst_mac)
 
 logging.info('Start sending')
-Path('.pcap_send_started').touch()
-logging.debug('touch .pcap_send_started')
+Path('.pcap_send_started_h1').touch()
+logging.debug('touch .pcap_send_started_h1')
 send_packets_for_x_sec(1, 3)
 logging.info('Finished sending')
 

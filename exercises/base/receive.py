@@ -11,7 +11,7 @@ from scapy.all import (
 )
 
 if __name__ == '__main__':
-    host_postfix = sys.argv[2] if len(sys.argv) > 2 else ''
+    host_postfix = sys.argv[2]
     with PacketReceiver(host_postfix) as pr:
         packets_expected = rdpcap(sys.argv[1])
         output_object = compare_packet_lists(pr, packets_expected)

@@ -22,5 +22,5 @@ for pkt in packets:
     logging.debug(f'Sent {repr(pkt)}')
 
 
-Path('.pcap_send_finished').touch()
-logging.debug('touch pcap_send_finished')
+Path('.pcap_send_finished_h1').touch()
+logging.debug('touch pcap_send_finished_h1')
