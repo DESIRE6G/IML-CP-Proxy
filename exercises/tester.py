@@ -303,7 +303,7 @@ def run_test_cases(test_cases_to_run: list):
                                         print(f'--- [Packet {i}] ---')
                                         print(f'Expected: {compare.expected}')
                                         print(f'Arrived:  {compare.arrived_colored}')
-                                        if compare['ok']:
+                                        if compare.ok:
                                             print(f'{COLOR_GREEN}OK{COLOR_END}')
                                         else:
                                             print(f'          {compare.diff_string}')
