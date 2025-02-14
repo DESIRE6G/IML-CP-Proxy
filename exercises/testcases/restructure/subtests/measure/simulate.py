@@ -54,7 +54,7 @@ for case in ['unbalanced_flow']:
     elif case == 'unbalanced_flow':
         simulator.add_parameter('sending_rate', [200])
         simulator.add_parameter('dominant_sender_rate_limit', list(range(100,1400,20)))
-        simulator.add_parameter('iteration', [1,2,3])
+        simulator.add_parameter('iteration', list(range(1,11)))
         simulator.add_parameter('batch_size', [1])
         simulator.add_parameter('sender_num', [3])
     else:
