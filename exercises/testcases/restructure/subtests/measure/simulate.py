@@ -1,6 +1,7 @@
 import os
 import shutil
 import time
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -12,7 +13,7 @@ from common.simulator import Simulator
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
 #for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buffer_size_changing', 'batch_delay_test']:
-for case in ['fake_proxy']:
+for case in ['unbalanced_flow']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
@@ -50,6 +51,12 @@ for case in ['fake_proxy']:
         simulator.add_parameter('batch_size', [1])
         simulator.add_parameter('batch_delay', [None] + [0.0001 * (2 ** i) for i in range(15)])
         simulator.add_parameter('sender_num', [1, 2, 3])
+    elif case == 'unbalanced_flow':
+        simulator.add_parameter('sending_rate', [200])
+        simulator.add_parameter('dominant_sender_rate_limit', list(range(100,1400,20)))
+        simulator.add_parameter('iteration', [1,2,3])
+        simulator.add_parameter('batch_size', [1])
+        simulator.add_parameter('sender_num', [3])
     else:
         raise Exception(f'unknown case "{case}"')
 
@@ -61,7 +68,8 @@ for case in ['fake_proxy']:
             rate_limiter_buffer_size=None,
             target_port=None,
             batch_delay=None,
-            fake_proxy=False
+            fake_proxy=False,
+            dominant_sender_rate_limit=None
         ) -> float:
         try:
             with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
@@ -98,6 +106,8 @@ for case in ['fake_proxy']:
                 validator_cmd += f' --rate_limit {sending_rate}'
             if target_port is not None:
                 validator_cmd += f' --target_port {target_port}'
+            if dominant_sender_rate_limit is not None:
+                validator_cmd += f' --dominant_sender_rate_limit {dominant_sender_rate_limit}'
 
             tmux_shell(validator_cmd, validator_pane_name)
 
@@ -119,33 +129,31 @@ for case in ['fake_proxy']:
 
     simulator.add_function('message_per_sec_mean', measure)
 
-
-    def stdev():
+    def extract_variable(field_name):
         with open('ticks.json', 'r') as f:
             obj = TickOutputJSON.model_validate_json(f.read())
 
-        return obj.stdev
-    simulator.add_function('stdev', stdev)
+        actual_obj = obj
+        for field_name_element in field_name.split('.'):
+            print(f'extract {field_name_element} from {actual_obj}')
+            if isinstance(actual_obj, dict):
+                actual_obj = actual_obj[field_name_element]
+            else:
+                actual_obj = getattr(actual_obj, field_name_element)
 
-    def delay_average():
-        with open('ticks.json', 'r') as f:
-            obj = TickOutputJSON.model_validate_json(f.read())
+        print(f'result {actual_obj}')
+        return actual_obj
 
-        return obj.delay_average
-    simulator.add_function('delay_average', delay_average)
+    simulator.add_function('stdev', partial(extract_variable, 'stdev'))
+    simulator.add_function('delay_average', partial(extract_variable, 'delay_average'))
+    simulator.add_function('delay_stdev', partial(extract_variable, 'delay_stdev'))
+    simulator.add_function('ticks', partial(extract_variable, 'tick_per_sec_list'))
 
-    def delay_stdev():
-        with open('ticks.json', 'r') as f:
-            obj = TickOutputJSON.model_validate_json(f.read())
-
-        return obj.delay_stdev
-    simulator.add_function('delay_stdev', delay_stdev)
-
-    def ticks():
-        with open('ticks.json', 'r') as f:
-            obj = TickOutputJSON.model_validate_json(f.read())
-        return obj.tick_per_sec_list
-    simulator.add_function('ticks', ticks)
+    for i in range(1,4):
+        simulator.add_function(f'average_by_table.part{i}', partial(extract_variable, f'average_by_table.part{i}'))
+        simulator.add_function(f'stdev_by_table.part{i}', partial(extract_variable, f'stdev_by_table.part{i}'))
+        simulator.add_function(f'delay_average_by_table.part{i}', partial(extract_variable, f'delay_average_by_table.part{i}'))
+        simulator.add_function(f'delay_stdev_by_table.part{i}', partial(extract_variable, f'delay_stdev_by_table.part{i}'))
 
     try:
         shutil.move(PROXY_CONFIG_FILENAME, BACKUP_PROXY_CONFIG_FILENAME)

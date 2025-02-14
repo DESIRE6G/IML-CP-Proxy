@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import multiprocessing
 import queue
+import threading
 import time
 import numpy as np
 
@@ -30,12 +31,16 @@ class TickCounter:
         self.counter += counter_increment
         now_time = time.time()
         if now_time - self.last_reset > 1:
-            self.last_tick_count = self.counter
-            self.counter = 0
-            self.last_reset = now_time
+            self.save_last_tick_and_reset(now_time)
             return True
 
         return False
+
+    def save_last_tick_and_reset(self, now_time = None):
+        self.last_tick_count = self.counter
+        self.counter = 0
+        self.last_reset = now_time if now_time is not None else time.time()
+
 
     def get_last_tick_count(self) -> int:
         return self.last_tick_count
@@ -101,38 +106,96 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, to_controller_queue: multiprocessing.Queue, servicer_id: str) -> None:
         self.write_counter = 0
         self.servicer_id = servicer_id
-        self.tick_counter = TickCounter()
+        self.tick_counter = None
+        self.tick_counter_by_table: Dict[str, int] = {}
         self.to_controller_queue = to_controller_queue
         self.average_calculator = ContiniousAverageCalculator()
+        self.average_calculator_by_table: Dict[str, ContiniousAverageCalculator] = {}
         self.data_collector = DataCollector()
+        self.lock = threading.Lock()
+        self.first_message_time = None
 
     def Write(self, request, context) -> None:
-        for update in request.updates:
-            send_ts_us_int32 = int.from_bytes(update.entity.table_entry.action.action.params[0].value, 'big')
-            now_ts_us_int32 = get_now_ts_us_int32()
-            self.average_calculator.add_value(diff_ts_us_int32(send_ts_us_int32, now_ts_us_int32) / 1e6)
+        if self.first_message_time is None:
+            self.first_message_time = time.time()
+            return WriteResponse()
+        elif time.time() - self.first_message_time < 1:
+            return WriteResponse()
+        elif self.tick_counter is None:
+           self.tick_counter = TickCounter()
 
-        if self.tick_counter.tick(len(request.updates)):
-            self.data_collector.add('ticks', self.tick_counter.get_last_tick_count())
-            average, stdev = self.data_collector.get_center_avg_stdev('ticks')
-            self.data_collector.add('delay', self.average_calculator.get_average())
-            delay_average, delay_stdev = self.data_collector.get_center_avg_stdev('delay')
-            output = TickOutputJSON(
-                tick_per_sec_list=self.data_collector.get_list('ticks'),
-                average=average,
-                stdev=stdev,
-                delay_list=self.data_collector.get_list('delay'),
-                delay_average=delay_average,
-                delay_stdev=delay_stdev
-            )
-            with open('ticks.json', 'w') as f:
-                f.write(output.model_dump_json(indent=4))
-            self.to_controller_queue.put({
-                'servicer_id': self.servicer_id,
-                'ticks':self.data_collector.get_list('ticks'),
-                'delay_average':delay_average
-            })
-            self.average_calculator.reset()
+        with self.lock:
+            for update in request.updates:
+                send_ts_us_int32 = int.from_bytes(update.entity.table_entry.action.action.params[0].value, 'big')
+                now_ts_us_int32 = get_now_ts_us_int32()
+                self.average_calculator.add_value(diff_ts_us_int32(send_ts_us_int32, now_ts_us_int32) / 1e6)
+                id_to_table = {36935333: 'part1', 50070911: 'part2', 36354468: 'part3', 49541385: 'part4'}
+                table_name = str(id_to_table[update.entity.table_entry.table_id])
+                if table_name not in self.tick_counter_by_table:
+                    self.tick_counter_by_table[table_name] = 0
+                    self.average_calculator_by_table[table_name] = ContiniousAverageCalculator()
+
+                self.tick_counter_by_table[table_name] += 1
+                self.average_calculator_by_table[table_name].add_value(diff_ts_us_int32(send_ts_us_int32, now_ts_us_int32) / 1e6)
+
+
+            if self.tick_counter.tick(len(request.updates)):
+                self.data_collector.add('ticks', self.tick_counter.get_last_tick_count())
+                average, stdev = self.data_collector.get_center_avg_stdev('ticks')
+                self.data_collector.add('delay', self.average_calculator.get_average())
+                delay_average, delay_stdev = self.data_collector.get_center_avg_stdev('delay')
+
+                tick_per_sec_by_table={}
+                average_by_table={}
+                stdev_by_table={}
+                delay_list_by_table={}
+                delay_average_by_table={}
+                delay_stdev_by_table={}
+
+                for table_name, table_tick_counter in self.tick_counter_by_table.items():
+                    self.data_collector.add(f'ticks__{table_name}', table_tick_counter)
+                    self.tick_counter_by_table[table_name] = 0
+
+                    by_table_average, by_table_stdev = self.data_collector.get_center_avg_stdev(f'ticks__{table_name}')
+                    tick_per_sec_by_table[table_name] = self.data_collector.get_list(f'ticks__{table_name}')
+                    average_by_table[table_name] = by_table_average
+                    stdev_by_table[table_name] = by_table_stdev
+
+                    self.data_collector.add(f'delay__{table_name}', self.average_calculator_by_table[table_name].get_average())
+                    by_table_delay_average, by_table_delay_stdev = self.data_collector.get_center_avg_stdev(f'delay__{table_name}')
+                    delay_list_by_table[table_name]=self.data_collector.get_list(f'delay__{table_name}')
+                    delay_average_by_table[table_name]=by_table_delay_average
+                    delay_stdev_by_table[table_name]=by_table_delay_stdev
+
+                print('----')
+                print(self.data_collector.get_list('ticks'))
+                for table_name in self.tick_counter_by_table:
+                    print(self.data_collector.get_list(f'ticks__{table_name}'))
+
+                output = TickOutputJSON(
+                    tick_per_sec_list=self.data_collector.get_list('ticks'),
+                    average=average,
+                    stdev=stdev,
+                    tick_per_sec_by_table=tick_per_sec_by_table,
+                    average_by_table=average_by_table,
+                    stdev_by_table=stdev_by_table,
+                    delay_list=self.data_collector.get_list('delay'),
+                    delay_average=delay_average,
+                    delay_stdev=delay_stdev,
+                    delay_list_by_table=delay_list_by_table,
+                    delay_average_by_table=delay_average_by_table,
+                    delay_stdev_by_table=delay_stdev_by_table,
+                )
+                with open('ticks.json', 'w') as f:
+                    f.write(output.model_dump_json(indent=4))
+                self.to_controller_queue.put({
+                    'servicer_id': self.servicer_id,
+                    'ticks':self.data_collector.get_list('ticks'),
+                    'delay_average':delay_average
+                })
+                self.average_calculator.reset()
+                for table_name in self.average_calculator_by_table:
+                    self.average_calculator_by_table[table_name].reset()
 
         return WriteResponse()
 
@@ -191,7 +254,7 @@ with ControllerExceptionHandling():
     dataplanes: List[DataplaneInfoObject] = []
 
     to_controller_queue = multiprocessing.Queue()
-    for i in range(2):
+    for i in range(1):
         stop_event = multiprocessing.Event()
         process = multiprocessing.Process(target=start_dataplane_simulator, args=(50051 + i, to_controller_queue, stop_event, ))
         dataplanes.append(
@@ -206,7 +269,7 @@ with ControllerExceptionHandling():
     try:
         while True:
             ticks = to_controller_queue.get()
-            print(ticks)
+            #print(ticks)
     except KeyboardInterrupt:
         for dataplane in dataplanes:
             dataplane.stop_event.set()

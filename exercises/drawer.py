@@ -12,9 +12,10 @@ import numpy as np
 os.makedirs('images', exist_ok=True)
 
 #targets = ['fake_proxy']
-targets = ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'batch_delay_test', 'batch_delay_test_focused']
-#source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
-source_folder = '/home/hudi/remote-mounts/elte-switch/exercises/results'
+#targets = ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'batch_delay_test', 'batch_delay_test_focused']
+targets = ['unbalanced_flow_focused', 'unbalanced_flow_delay_focused']
+source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
+#source_folder = '/home/hudi/remote-mounts/elte-switch/exercises/results'
 target_folder = '/home/hudi/t4/proxy_doc/images'
 for target in targets:
     x_label = 'batch_size'
@@ -86,7 +87,36 @@ for target in targets:
         force_title = 'Table update per second arrived to the dataplane'
         force_xlabel_legend = 'Max size of a batch in seconds'
         logx = False
-
+    elif target == 'unbalanced_flow':
+        df_original = load_and_prepare_df(f'{source_folder}/unbalanced_flow.csv')
+        line_fields = []
+        value_field_array = ['average_by_table.part1', 'average_by_table.part2', 'average_by_table.part3']
+        merge_value_field_plots = True
+        force_title = 'Table update per second per tenant'
+        x_label = 'dominant_sender_rate_limit'
+    elif target == 'unbalanced_flow_delay':
+        df_original = load_and_prepare_df(f'{source_folder}/unbalanced_flow.csv')
+        line_fields = []
+        value_field_array = ['delay_average_by_table.part1', 'delay_average_by_table.part2', 'delay_average_by_table.part3']
+        merge_value_field_plots = True
+        force_title = 'Table update delays per tenant'
+        x_label = 'dominant_sender_rate_limit'
+    elif target == 'unbalanced_flow_focused':
+        df_original = load_and_prepare_df(f'{source_folder}/unbalanced_flow_focused.csv')
+        line_fields = []
+        value_field_array = ['average_by_table.part1', 'average_by_table.part2', 'average_by_table.part3']
+        merge_value_field_plots = True
+        force_title = 'Table update per second per tenant'
+        x_label = 'dominant_sender_rate_limit'
+    elif target == 'unbalanced_flow_delay_focused':
+        df_original = load_and_prepare_df(f'{source_folder}/unbalanced_flow_focused.csv')
+        line_fields = []
+        value_field_array = ['delay_average_by_table.part1', 'delay_average_by_table.part2', 'delay_average_by_table.part3']
+        merge_value_field_plots = True
+        force_title = 'Table update delays per tenant'
+        x_label = 'dominant_sender_rate_limit'
+    else:
+        raise Exception(f'Unknowon target "{target}"')
     print(df_original)
     output_filename = str(target) + '.png'
 
@@ -150,6 +180,7 @@ for target in targets:
 
         for x_position, grid_x_field_value in grid_x_iter:
             for y_position, grid_y_field_value in grid_y_iter:
+
                 df = df_original
                 if grid_x_field is not None:
                     df = df[df[grid_x_field] == grid_x_field_value]
@@ -215,7 +246,8 @@ for target in targets:
                 else:
                     col_shift_by_value = value_iterator if multi_y_value_mode == MULTI_Y_VALUE_MODE_COLUMN else 0
                     row_shift_by_value = value_iterator if multi_y_value_mode == MULTI_Y_VALUE_MODE_ROW else 0
-
+                print(x_position)
+                print(x_position * col_multiplier + col_shift_by_value)
                 ax = axs[y_position * row_multiplier + row_shift_by_value][
                     x_position * col_multiplier + col_shift_by_value]
                 has_legend = 1 if x_position == 0 and y_position == 0 else None
