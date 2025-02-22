@@ -442,39 +442,6 @@ class SwitchConnection(object):
             self.client_stub.Write(request)
 
 
-
-
-class SwitchConnection(object):
-
-    def __init__(self, name=None, address='127.0.0.1:50051', device_id=0,
-                 proto_dump_file=None, rate_limit=None, rate_limiter_buffer_size=None,
-                 production_mode=True, p4_config_support=True,
-                 batch_delay: Optional[float] = None):
-        self.name = name
-        self.address = address
-        self.device_id = device_id
-        self.p4info = None
-        self.p4_config_support = p4_config_support
-        self.channel = grpc.insecure_channel(self.address)
-        if proto_dump_file is not None and not production_mode:
-            interceptor = GrpcRequestLogger(proto_dump_file)
-            self.channel = grpc.intercept_channel(self.channel, interceptor)
-
-        self.rate_limit = rate_limit
-        if rate_limit is None:
-            self.client_stub = p4runtime_pb2_grpc.P4RuntimeStub(self.channel)
-        else:
-            self.client_stub = RateLimitedP4RuntimeStub(self.channel, max_per_sec=rate_limit, buffer_size=rate_limiter_buffer_size)
-        self.requests_stream = IterableQueue()
-        self.stream_msg_resp = self.client_stub.StreamChannel(iter(self.requests_stream))
-        self.proto_dump_file = proto_dump_file
-        connections.append(self)
-
-    def purge_rate_limiter_buffer(self) -> None:
-        if isinstance(self.client_stub, RateLimitedP4RuntimeStub):
-            self.client_stub.purge_buffer()
-
-
 class GrpcRequestLogger(grpc.UnaryUnaryClientInterceptor,
                         grpc.UnaryStreamClientInterceptor):
     """Implementation of a gRPC interceptor that logs request to a file"""
