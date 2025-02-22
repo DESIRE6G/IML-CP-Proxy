@@ -13,7 +13,7 @@ from common.simulator import Simulator
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
 #for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buffer_size_changing', 'batch_delay_test']:
-for case in ['unbalanced_flow']:
+for case in ['batch_delay_test']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
@@ -133,16 +133,20 @@ for case in ['unbalanced_flow']:
         with open('ticks.json', 'r') as f:
             obj = TickOutputJSON.model_validate_json(f.read())
 
-        actual_obj = obj
-        for field_name_element in field_name.split('.'):
-            print(f'extract {field_name_element} from {actual_obj}')
-            if isinstance(actual_obj, dict):
-                actual_obj = actual_obj[field_name_element]
-            else:
-                actual_obj = getattr(actual_obj, field_name_element)
 
-        print(f'result {actual_obj}')
-        return actual_obj
+        try:
+            actual_obj = obj
+            for field_name_element in field_name.split('.'):
+                print(f'extract {field_name_element} from {actual_obj}')
+                if isinstance(actual_obj, dict):
+                    actual_obj = actual_obj[field_name_element]
+                else:
+                    actual_obj = getattr(actual_obj, field_name_element)
+
+            print(f'result {actual_obj}')
+            return actual_obj
+        except KeyError:
+            return None
 
     simulator.add_function('stdev', partial(extract_variable, 'stdev'))
     simulator.add_function('delay_average', partial(extract_variable, 'delay_average'))
