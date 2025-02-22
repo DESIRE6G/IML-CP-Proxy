@@ -24,12 +24,12 @@ for case in ['batch_delay_test']:
 
     if case == 'sending_rate_changing':
         simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
-        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('rate_limiter_buffer_size', [None])
         simulator.add_parameter('batch_delay', [None])
         simulator.add_parameter('target_port', [50051, 60051])
     elif case == 'fake_proxy':
-        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
         simulator.add_parameter('fake_proxy', [True, False])
     elif case == 'batch_size_changing':
@@ -37,24 +37,24 @@ for case in ['batch_delay_test']:
         simulator.add_parameter('rate_limit', [None])
         simulator.add_parameter('rate_limiter_buffer_size', [None])
         simulator.add_parameter('batch_size', [2 ** i  for i in range(18)])
-        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('target_port', [50051, 60051])
     elif case == 'buffer_size_changing':
         simulator.add_parameter('sending_rate', [200])
-        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('rate_limit', [100])
         simulator.add_parameter('rate_limiter_buffer_size', [0, 100, 500, 100000])
         simulator.add_parameter('batch_size', [1])
     elif case == 'batch_delay_test':
         simulator.add_parameter('sending_rate', [None])
-        simulator.add_parameter('iteration', [1])
+        simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('batch_size', [1])
         simulator.add_parameter('batch_delay', [None] + [0.0001 * (2 ** i) for i in range(15)])
         simulator.add_parameter('sender_num', [1, 2, 3])
     elif case == 'unbalanced_flow':
         simulator.add_parameter('sending_rate', [200])
         simulator.add_parameter('dominant_sender_rate_limit', list(range(100,1400,20)))
-        simulator.add_parameter('iteration', list(range(1,11)))
+        simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('batch_size', [1])
         simulator.add_parameter('sender_num', [3])
     else:
