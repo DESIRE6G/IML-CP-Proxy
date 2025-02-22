@@ -13,9 +13,10 @@ os.makedirs('images', exist_ok=True)
 
 #targets = ['fake_proxy']
 #targets = ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'batch_delay_test', 'batch_delay_test_focused']
-targets = ['unbalanced_flow_focused', 'unbalanced_flow_delay_focused']
-source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
-#source_folder = '/home/hudi/remote-mounts/elte-switch/exercises/results'
+targets = ['batch_delay_test', 'batch_delay_test_focused']
+#targets = ['unbalanced_flow', 'unbalanced_flow_delay']
+#source_folder = '/home/hudi/remote-mounts/mininet/tutorials/exercises/results'
+source_folder = '/home/hudi/remote-mounts/elte-switch/exercises/results'
 target_folder = '/home/hudi/t4/proxy_doc/images'
 for target in targets:
     x_label = 'batch_size'
@@ -96,20 +97,6 @@ for target in targets:
         x_label = 'dominant_sender_rate_limit'
     elif target == 'unbalanced_flow_delay':
         df_original = load_and_prepare_df(f'{source_folder}/unbalanced_flow.csv')
-        line_fields = []
-        value_field_array = ['delay_average_by_table.part1', 'delay_average_by_table.part2', 'delay_average_by_table.part3']
-        merge_value_field_plots = True
-        force_title = 'Table update delays per tenant'
-        x_label = 'dominant_sender_rate_limit'
-    elif target == 'unbalanced_flow_focused':
-        df_original = load_and_prepare_df(f'{source_folder}/unbalanced_flow_focused.csv')
-        line_fields = []
-        value_field_array = ['average_by_table.part1', 'average_by_table.part2', 'average_by_table.part3']
-        merge_value_field_plots = True
-        force_title = 'Table update per second per tenant'
-        x_label = 'dominant_sender_rate_limit'
-    elif target == 'unbalanced_flow_delay_focused':
-        df_original = load_and_prepare_df(f'{source_folder}/unbalanced_flow_focused.csv')
         line_fields = []
         value_field_array = ['delay_average_by_table.part1', 'delay_average_by_table.part2', 'delay_average_by_table.part3']
         merge_value_field_plots = True
