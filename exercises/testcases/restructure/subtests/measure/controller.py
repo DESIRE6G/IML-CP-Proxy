@@ -130,7 +130,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 now_ts_us_int32 = get_now_ts_us_int32()
                 self.average_calculator.add_value(diff_ts_us_int32(send_ts_us_int32, now_ts_us_int32) / 1e6)
                 id_to_table = {36935333: 'part1', 50070911: 'part2', 36354468: 'part3', 49541385: 'part4'}
-                table_name = str(id_to_table[update.entity.table_entry.table_id])
+                table_id = update.entity.table_entry.table_id
+                if table_id not in id_to_table:
+                    table_name = str(table_id)
+                else:
+                    table_name = str(id_to_table[table_id])
                 if table_name not in self.tick_counter_by_table:
                     self.tick_counter_by_table[table_name] = 0
                     self.average_calculator_by_table[table_name] = ContiniousAverageCalculator()
