@@ -10,7 +10,7 @@ from common.high_level_switch_connection import HighLevelSwitchConnection
 
 
 def sender_process(index: int, program_name: str, prefix: str, target_port: int, batch_size: int, rate_limit: int = None):
-    print(f'sender_process started {index=} {target_port=} {batch_size=} {rate_limit=} part{index+1}')
+    print(f'sender_process started {index=} {program_name=} {prefix=} {target_port=} {batch_size=} {rate_limit=} part{index+1}')
     s = HighLevelSwitchConnection(index, program_name, target_port, rate_limit=rate_limit)
     while True:
         request = p4runtime_pb2.WriteRequest()
