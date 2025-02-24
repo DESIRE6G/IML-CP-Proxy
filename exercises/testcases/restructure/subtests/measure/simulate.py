@@ -9,11 +9,11 @@ import pandas as pd
 from common.colors import COLOR_RED_BG, COLOR_END
 from common.proxy_config import ProxyConfig
 from common.rates import TickOutputJSON
-from common.simulator import Simulator
+from common.simulator import Simulator, SimulatorMultipleResult
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
 #for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buffer_size_changing', 'batch_delay_test']:
-for case in ['batch_delay_test']:
+for case in ['fake_proxy']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
@@ -70,7 +70,7 @@ for case in ['batch_delay_test']:
             batch_delay=None,
             fake_proxy=False,
             dominant_sender_rate_limit=None
-        ) -> float:
+        ) -> SimulatorMultipleResult:
         try:
             with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
                 obj = ProxyConfig.model_validate_json(f.read())
@@ -125,39 +125,29 @@ for case in ['batch_delay_test']:
             obj = TickOutputJSON.model_validate_json(f.read())
             print(obj.average)
 
-        return obj.average
+        results={
+            'message_per_sec_mean': obj.average,
+            'stdev': obj.stdev,
+            'delay_average': obj.delay_average,
+            'delay_stdev': obj.delay_stdev,
+            'ticks': obj.tick_per_sec_list
+        }
+
+        for table_name in obj.average_by_table:
+            results[f'average_by_table.{table_name}'] = obj.average_by_table[table_name]
+
+        for table_name in obj.stdev_by_table:
+            results[f'stdev_by_table.{table_name}'] = obj.stdev_by_table[table_name]
+
+        for table_name in obj.delay_average_by_table:
+            results[f'delay_average_by_table.{table_name}'] = obj.delay_average_by_table[table_name]
+
+        for table_name in obj.delay_stdev_by_table:
+            results[f'delay_stdev_by_table.{table_name}'] = obj.delay_stdev_by_table[table_name]
+
+        return SimulatorMultipleResult(results=results)
 
     simulator.add_function('message_per_sec_mean', measure)
-
-    def extract_variable(field_name):
-        with open('ticks.json', 'r') as f:
-            obj = TickOutputJSON.model_validate_json(f.read())
-
-
-        try:
-            actual_obj = obj
-            for field_name_element in field_name.split('.'):
-                print(f'extract {field_name_element} from {actual_obj}')
-                if isinstance(actual_obj, dict):
-                    actual_obj = actual_obj[field_name_element]
-                else:
-                    actual_obj = getattr(actual_obj, field_name_element)
-
-            print(f'result {actual_obj}')
-            return actual_obj
-        except KeyError:
-            return None
-
-    simulator.add_function('stdev', partial(extract_variable, 'stdev'))
-    simulator.add_function('delay_average', partial(extract_variable, 'delay_average'))
-    simulator.add_function('delay_stdev', partial(extract_variable, 'delay_stdev'))
-    simulator.add_function('ticks', partial(extract_variable, 'tick_per_sec_list'))
-
-    for i in range(1,4):
-        simulator.add_function(f'average_by_table.part{i}', partial(extract_variable, f'average_by_table.part{i}'))
-        simulator.add_function(f'stdev_by_table.part{i}', partial(extract_variable, f'stdev_by_table.part{i}'))
-        simulator.add_function(f'delay_average_by_table.part{i}', partial(extract_variable, f'delay_average_by_table.part{i}'))
-        simulator.add_function(f'delay_stdev_by_table.part{i}', partial(extract_variable, f'delay_stdev_by_table.part{i}'))
 
     try:
         shutil.move(PROXY_CONFIG_FILENAME, BACKUP_PROXY_CONFIG_FILENAME)
