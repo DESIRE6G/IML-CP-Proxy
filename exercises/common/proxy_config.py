@@ -33,6 +33,7 @@ class ProxyConfigSource(BaseModel):
     program_name: str
     prefix: str = ''
     port: int = Field(validation_alias=AliasChoices('controller_port', 'port'))
+    worker_num: int = 10
 
 
 class ProxyConfigPreloadEntry(BaseModel):

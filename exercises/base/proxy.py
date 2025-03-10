@@ -24,7 +24,7 @@ import redis
 
 from common.p4runtime_lib.switch import IterableQueue
 from common.high_level_switch_connection import HighLevelSwitchConnection, StreamMessageResponseWithInfo
-from common.proxy_config import ProxyConfig, RedisMode
+from common.proxy_config import ProxyConfig, RedisMode, ProxyConfigSource
 from common.redis_helper import RedisKeys, RedisRecords
 
 logger = logging.getLogger()
@@ -402,7 +402,13 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
 
 class ProxyServer:
-    def __init__(self, port, prefix, from_p4info_path, target_switches: Union[List[TargetSwitchConfig], HighLevelSwitchConnection], redis_mode: RedisMode):
+    def __init__(self,
+                 port: int,
+                 prefix: str,
+                 from_p4info_path: str,
+                 target_switches: Union[List[TargetSwitchConfig], HighLevelSwitchConnection],
+                 redis_mode: RedisMode,
+                 config: ProxyConfigSource):
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
@@ -416,9 +422,10 @@ class ProxyServer:
         self.server = None
         self.servicer = None
         self.redis_mode = redis_mode
+        self.config = config
 
     def start(self) -> None:
-        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=self.config.worker_num))
         self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switches, self.redis_mode)
         if RedisMode.is_reading(self.redis_mode):
             self.servicer.fill_from_redis()
@@ -469,7 +476,7 @@ def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[ProxyServer
 
         for source in source_configs_raw:
             p4info_path = f"build/{source.program_name}.p4.p4info.txt"
-            proxy_server = ProxyServer(source.port, source.prefix, p4info_path, target_switch_configs, proxy_config.redis)
+            proxy_server = ProxyServer(source.port, source.prefix, p4info_path, target_switch_configs, proxy_config.redis, source)
             proxy_server.start()
             servers.append(proxy_server)
 
