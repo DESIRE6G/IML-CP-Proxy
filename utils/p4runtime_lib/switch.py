@@ -61,10 +61,24 @@ class RateLimiter:
         return False
 
 
+class P4RuntimeStubFutureSimplified(p4runtime_pb2_grpc.P4RuntimeStub):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.futures_pit = []
+
+    def Write_future(self, request):
+        self.futures_pit.append(self.Write.future(request))
+        done_fut = []
+        for fut in self.futures_pit:
+            if fut.done():
+                fut.result()
+                done_fut.append(fut)
+        self.futures_pit = [fut for fut in self.futures_pit if fut not in done_fut]
+
 
 class RateLimitedP4RuntimeStub:
     def __init__(self, channel, max_per_sec: int, buffer_size: Optional[int] = None) -> None:
-        self.real_stub = p4runtime_pb2_grpc.P4RuntimeStub(channel)
+        self.real_stub = P4RuntimeStubFutureSimplified(channel)
         self.rate_limiter = RateLimiter(max_per_sec)
 
         self.buffer_size = 5 * max_per_sec if buffer_size is None else buffer_size
@@ -166,16 +180,18 @@ class SwitchConnection(object):
 
         self.rate_limit = rate_limit
         if rate_limit is None:
-            self.client_stub = p4runtime_pb2_grpc.P4RuntimeStub(self.channel)
+            self.client_stub = P4RuntimeStubFutureSimplified(self.channel)
         else:
             self.client_stub = RateLimitedP4RuntimeStub(self.channel, max_per_sec=rate_limit, buffer_size=rate_limiter_buffer_size)
         self.requests_stream = IterableQueue()
         self.stream_msg_resp = self.client_stub.StreamChannel(iter(self.requests_stream))
         self.proto_dump_file = proto_dump_file
         connections.append(self)
-        self.futures_pit = []
 
-        self.WriteUpdates_batcher = Batcher(self.WriteUpdates_inner, batch_delay)
+        if batch_delay is None:
+            self.WriteUpdates_batcher = None
+        else:
+            self.WriteUpdates_batcher = Batcher(self.WriteUpdates_inner, batch_delay)
 
     @abstractmethod
     def buildDeviceConfig(self, **kwargs):
@@ -419,7 +435,10 @@ class SwitchConnection(object):
         if dry_run:
             print("P4Runtime Write:", updates)
         else:
-            self.WriteUpdates_batcher.add_elements(updates)
+            if self.WriteUpdates_batcher is None:
+                self.WriteUpdates_inner(updates)
+            else:
+                self.WriteUpdates_batcher.add_elements(updates)
 
     def WriteUpdates_inner(self, updates: List[p4runtime_pb2.Entity]):
         request = p4runtime_pb2.WriteRequest()
@@ -429,17 +448,8 @@ class SwitchConnection(object):
             update_in_request = request.updates.add()
             update_in_request.CopyFrom(update)
 
-        if self.rate_limit is None:
-            self.futures_pit.append(self.client_stub.Write.future(request))
+        self.client_stub.Write_future(request)
 
-            done_fut = []
-            for fut in self.futures_pit:
-                if fut.done():
-                    fut.result()
-                    done_fut.append(fut)
-            self.futures_pit = [fut for fut in self.futures_pit if fut not in done_fut]
-        else:
-            self.client_stub.Write(request)
 
 
 class GrpcRequestLogger(grpc.UnaryUnaryClientInterceptor,
