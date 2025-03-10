@@ -12,8 +12,7 @@ from common.rates import TickOutputJSON
 from common.simulator import Simulator, SimulatorMultipleResult
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
-#for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buffer_size_changing', 'batch_delay_test']:
-for case in ['fake_proxy']:
+for case in ['sending_rate_changing', 'batch_size_changing', 'sending_rate_changing_multi_sender', 'batch_delay_test', 'unbalanced_flow', 'multi_sender']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
@@ -22,41 +21,46 @@ for case in ['fake_proxy']:
     proxy_pane_name = f'{TMUX_WINDOW_NAME}:0.1'
     validator_pane_name = f'{TMUX_WINDOW_NAME}:0.2'
 
+    simulator.set_output_column_order([
+            'message_per_sec_mean', 'delay_average',
+            'average_by_table.part1', 'average_by_table.part2', 'average_by_table.part3', 'average_by_table.part4',
+            'delay_average_by_table.part1','delay_average_by_table.part2','delay_average_by_table.part3','delay_average_by_table.part4'
+    ])
+
     if case == 'sending_rate_changing':
-        simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
-        simulator.add_parameter('iteration', list(range(1,5)))
-        simulator.add_parameter('rate_limiter_buffer_size', [None])
-        simulator.add_parameter('batch_delay', [None])
-        simulator.add_parameter('target_port', [50051, 60051])
-    elif case == 'fake_proxy':
         simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
-        simulator.add_parameter('fake_proxy', [True, False])
+        simulator.add_parameter('mode', ['without_proxy', 'fake_proxy', 'real_proxy'])
+        simulator.add_parameter('target_port', [lambda mode: 50051 if mode == 'without_proxy' else 60051])
+        simulator.add_parameter('fake_proxy', [lambda mode: mode == 'fake_proxy'])
     elif case == 'batch_size_changing':
-        simulator.add_parameter('sending_rate', [None])
-        simulator.add_parameter('rate_limit', [None])
-        simulator.add_parameter('rate_limiter_buffer_size', [None])
+        simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('batch_size', [2 ** i  for i in range(18)])
+        simulator.add_parameter('mode', ['without_proxy', 'fake_proxy', 'real_proxy'])
+        simulator.add_parameter('target_port', [lambda mode: 50051 if mode == 'without_proxy' else 60051])
+        simulator.add_parameter('fake_proxy', [lambda mode: mode == 'fake_proxy'])
+    elif case == 'sending_rate_changing_multi_sender':
         simulator.add_parameter('iteration', list(range(1,5)))
-        simulator.add_parameter('target_port', [50051, 60051])
-    elif case == 'buffer_size_changing':
-        simulator.add_parameter('sending_rate', [200])
-        simulator.add_parameter('iteration', list(range(1,5)))
-        simulator.add_parameter('rate_limit', [100])
-        simulator.add_parameter('rate_limiter_buffer_size', [0, 100, 500, 100000])
-        simulator.add_parameter('batch_size', [1])
+        simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
+        simulator.add_parameter('sender_num', [1, 2, 3, 4])
     elif case == 'batch_delay_test':
-        simulator.add_parameter('sending_rate', [None])
         simulator.add_parameter('iteration', list(range(1,5)))
+        simulator.add_parameter('sending_rate', [None])
         simulator.add_parameter('batch_size', [1])
-        simulator.add_parameter('batch_delay', [None] + [0.0001 * (2 ** i) for i in range(15)])
-        simulator.add_parameter('sender_num', [1, 2, 3])
+        simulator.add_parameter('batch_delay', [None] + [0.0001 * (2 ** i) for i in range(16)])
+        simulator.add_parameter('sender_num', [1])
     elif case == 'unbalanced_flow':
+        simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('sending_rate', [200])
         simulator.add_parameter('dominant_sender_rate_limit', list(range(100,1400,20)))
-        simulator.add_parameter('iteration', list(range(1,5)))
         simulator.add_parameter('batch_size', [1])
         simulator.add_parameter('sender_num', [3])
+    elif case == 'multi_sender':
+        simulator.add_parameter('iteration', list(range(1,5)))
+        simulator.add_parameter('sending_rate', [None])
+        simulator.add_parameter('batch_size', [1])
+        simulator.add_parameter('sender_num', [1,2,3,4])
+        simulator.add_parameter('rate_limit', [250, 500, 750, 1000, 1250, 1500, None])
     else:
         raise Exception(f'unknown case "{case}"')
 
@@ -69,7 +73,8 @@ for case in ['fake_proxy']:
             target_port=None,
             batch_delay=None,
             fake_proxy=False,
-            dominant_sender_rate_limit=None
+            dominant_sender_rate_limit=None,
+            proxy_source_worker_num=None
         ) -> SimulatorMultipleResult:
         try:
             with open(BACKUP_PROXY_CONFIG_FILENAME, 'r') as f:
@@ -81,6 +86,9 @@ for case in ['fake_proxy']:
                 obj.mappings[0].target.rate_limiter_buffer_size = rate_limiter_buffer_size
             if batch_delay is not None:
                 obj.mappings[0].target.batch_delay = batch_delay
+            if proxy_source_worker_num is not None:
+                for i in range(4):
+                    obj.mappings[0].sources[i].worker_num = proxy_source_worker_num
 
             with open(PROXY_CONFIG_FILENAME, 'w') as f:
                 f.write(obj.model_dump_json(indent=2, exclude_none=True))
