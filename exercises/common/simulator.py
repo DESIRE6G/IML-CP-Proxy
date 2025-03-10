@@ -95,6 +95,7 @@ class Simulator:
         self.hidden_function_keys = []
         self.results_folder = results_folder
         self.results_filename = results_filename
+        self.output_column_order = []
 
     def run(self, run_from=0):
         if self.auto_save_dataframe:
@@ -119,6 +120,7 @@ class Simulator:
 
             results_row = {}
             results_row.update(preprocessed_actual_parameters)
+            results_row.update({k: None for k in self.output_column_order})
             results_row.update(function_results)
             if self.add_runtimes:
                 results_row.update({f'{k}_runtime': v for k, v in runtime_array.items()})
@@ -291,3 +293,6 @@ class Simulator:
             if not c.function(**final_parameters):
                 return False
         return True
+
+    def set_output_column_order(self, output_column_order):
+        self.output_column_order = output_column_order
