@@ -140,7 +140,7 @@ class Batcher:
         while True:
             with self.lock:
                 self._flush_buffered_if_necessary()
-            time.sleep(0.001)
+            time.sleep(0.00001)
 
     def add_elements(self, elements: List) -> None:
         if self.delay is None:
