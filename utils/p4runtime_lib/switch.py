@@ -81,7 +81,7 @@ class RateLimitedP4RuntimeStub:
         self.real_stub = P4RuntimeStubFutureSimplified(channel)
         self.rate_limiter = RateLimiter(max_per_sec)
 
-        self.buffer_size = 5 * max_per_sec if buffer_size is None else buffer_size
+        self.buffer_size = 0 if buffer_size is None else buffer_size
 
         self.buffered_commands = deque(maxlen=self.buffer_size)
         self.lock = threading.Lock()
@@ -188,6 +188,8 @@ class SwitchConnection(object):
         self.proto_dump_file = proto_dump_file
         connections.append(self)
 
+        self.lock = threading.Lock()
+
         if batch_delay is None:
             self.WriteUpdates_batcher = None
         else:
@@ -254,7 +256,8 @@ class SwitchConnection(object):
         if dry_run:
             print("P4Runtime Write:", request)
         else:
-            self.client_stub.Write(request)
+            with self.lock:
+                self.client_stub.Write(request)
 
 
     def ReadTableEntries(self, table_id=None, dry_run=False):
@@ -429,7 +432,8 @@ class SwitchConnection(object):
         if dry_run:
             print("P4Runtime Write:", request)
         else:
-            self.client_stub.Write(request)
+            with self.lock:
+                self.client_stub.Write(request)
 
     def WriteUpdates(self, updates, dry_run=False):
         if dry_run:
@@ -448,7 +452,8 @@ class SwitchConnection(object):
             update_in_request = request.updates.add()
             update_in_request.CopyFrom(update)
 
-        self.client_stub.Write_future(request)
+        with self.lock:
+            self.client_stub.Write_future(request)
 
 
 
