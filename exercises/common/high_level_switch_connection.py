@@ -47,7 +47,7 @@ class StreamHandlerWorkerThread(Thread):
 
 
 class EnviromentSettins(BaseModel):
-    production_mode: bool = True
+    production_mode: bool = False
     p4_config_support: bool = True
 
 if socket.gethostname() == 'dpdk-switch':

@@ -462,8 +462,6 @@ def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[ProxyServer
                 rate_limit=target_config_raw.rate_limit,
                 rate_limiter_buffer_size=target_config_raw.rate_limiter_buffer_size,
                 batch_delay=target_config_raw.batch_delay,
-                production_mode=False,
-
                 )
             print('On startup the rules on the target are the following')
             for table_entry_response in mapping_target_switch.connection.ReadTableEntries():
