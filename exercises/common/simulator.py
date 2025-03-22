@@ -101,6 +101,10 @@ class Simulator:
         if self.auto_save_dataframe:
             self.archive_actual_result_csv()
 
+        print('Parameters:')
+        for parameter in self.parameters:
+            print(f'\t{parameter.key}: {parameter.values}')
+
         table_data = []
         parameter_keys = [x.key for x in self.parameters]
         parameter_values = [x.values for x in self.parameters]
