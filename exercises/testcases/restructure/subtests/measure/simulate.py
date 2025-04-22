@@ -13,8 +13,8 @@ from common.simulator import Simulator, SimulatorMultipleResult
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
 iter_num = 1
-for case in ['sending_rate_changing', 'batch_size_changing', 'sending_rate_changing_multi_sender', 'batch_delay_test', 'unbalanced_flow', 'multi_sender']:
-#for case in ['test']:
+#for case in ['sending_rate_changing', 'batch_size_changing', 'sending_rate_changing_multi_sender', 'batch_delay_test', 'unbalanced_flow', 'multi_sender']:
+for case in ['test']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
@@ -49,7 +49,8 @@ for case in ['sending_rate_changing', 'batch_size_changing', 'sending_rate_chang
     elif case == 'test':
         simulator.add_parameter('iteration', list(range(1,iter_num + 1)))
         simulator.add_parameter('sending_rate', [None])
-        simulator.add_parameter('sender_num', [1, 2, 3, 4])
+        simulator.add_parameter('sender_num', [1,2,3,4])
+        simulator.add_parameter('fake_proxy', ['simple', 'async'])
         simulator.add_parameter('batch_delay', [None] )
     elif case == 'batch_delay_test':
         simulator.add_parameter('iteration', list(range(1,iter_num + 1)))
@@ -100,13 +101,19 @@ for case in ['sending_rate_changing', 'batch_size_changing', 'sending_rate_chang
                 f.write(obj.model_dump_json(indent=2, exclude_none=True))
 
             create_tmux_window_with_retry(TMUX_WINDOW_NAME)
-            tmux_shell(f'python controller.py', controller_pane_name)
+            if fake_proxy and sender_num > 1:
+                tmux_shell(f'python controller.py --dataplane_num {sender_num}', controller_pane_name)
+            else:
+                tmux_shell(f'python controller.py', controller_pane_name)
+
             time.sleep(1)
 
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
 
-            if fake_proxy:
+            if fake_proxy == 'async':
+                tmux_shell('python fake_proxy_async.py', proxy_pane_name)
+            elif fake_proxy == 'simple' or fake_proxy:
                 tmux_shell('python fake_proxy.py', proxy_pane_name)
             else:
                 tmux_shell('python proxy.py', proxy_pane_name)

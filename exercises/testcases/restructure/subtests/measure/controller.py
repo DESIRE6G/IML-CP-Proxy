@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import multiprocessing
 import queue
 import threading
@@ -253,12 +254,15 @@ class DataplaneInfoObject:
     process: multiprocessing.Process
     stop_event : multiprocessing.Event
 
+parser = argparse.ArgumentParser(prog='Fake Controller')
+parser.add_argument('--dataplane_num', default=1, type=int)
+args = parser.parse_args()
 
 with ControllerExceptionHandling():
     dataplanes: List[DataplaneInfoObject] = []
 
     to_controller_queue = multiprocessing.Queue()
-    for i in range(1):
+    for i in range(args.dataplane_num):
         stop_event = multiprocessing.Event()
         process = multiprocessing.Process(target=start_dataplane_simulator, args=(50051 + i, to_controller_queue, stop_event, ))
         dataplanes.append(
