@@ -6,11 +6,9 @@ import queue
 import signal
 import sys
 import time
-from concurrent import futures
 from dataclasses import dataclass
 from threading import Thread, Event
 from typing import Dict, List, Optional, Union, Tuple
-import yappi
 import google
 import grpc
 import grpc.aio
@@ -32,21 +30,6 @@ from common.redis_helper import RedisKeys, RedisRecords
 logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
 redis = redis.Redis()
-
-
-class ProxyP4ServicerHeartbeatWorkerThread(Thread):
-    def __init__(self, servicer) -> None:
-        Thread.__init__(self)
-        self.stopped = Event()
-        self.servicer = servicer
-
-    def run(self) -> None:
-        while not self.stopped.wait(2):
-            if RedisMode.is_writing(self.servicer.redis_mode):
-                self.servicer.save_counters_state_to_redis()
-
-    def stop(self) -> None:
-        self.stopped.set()
 
 @dataclass
 class TargetSwitchConfig:
@@ -118,10 +101,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.requests_stream = IterableQueue()
         self.redis_mode = redis_mode
 
-        self.heartbeat_worker_thread = ProxyP4ServicerHeartbeatWorkerThread(self)
-        self.heartbeat_worker_thread.start()
-
-
         self.stream_queue_from_target = queue.Queue()
         self.target_switches = []
         for target_key, c in enumerate(target_switch_configs):
@@ -134,11 +113,21 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.runtime_measurer = RuntimeMeasurer()
         self.ticker = Ticker()
 
-    def stop(self) -> None:
+    async def start(self) -> None:
+        asyncio.create_task(self.heartbeat())
+
+    async def heartbeat(self) -> None:
+        while self.running:
+            if RedisMode.is_writing(self.redis_mode):
+                await self.save_counters_state_to_redis()
+
+            await asyncio.sleep(2)
+
+
+    async def stop(self) -> None:
         self.running = False
-        self.heartbeat_worker_thread.stop()
         if RedisMode.is_writing(self.redis_mode):
-            self.save_counters_state_to_redis()
+            await self.save_counters_state_to_redis()
         for target_switch in self.target_switches:
             target_switch.high_level_connection.unsubscribe_from_stream_with_queue(self.stream_queue_from_target)
 
@@ -237,8 +226,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 print(f'Request for switch {target_switch_index}')
                 print(new_request)
 
-            result_list = await target_switch_object.high_level_connection.connection.client_stub.Read(new_request)
-            for result in result_list:
+            async for result in target_switch_object.high_level_connection.connection.client_stub.Read(new_request):
                 if self.verbose:
                     print('result:')
                     print(result)
@@ -313,14 +301,14 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print('Capabilities')
         versions = []
         for target_switch in self.target_switches:
-            versions.append(target_switch.high_level_connection.connection.client_stub.Capabilities(request))
+            versions.append(await target_switch.high_level_connection.connection.client_stub.Capabilities(request))
 
         if not all(version == versions[0] for version in versions):
             raise Exception(f'The underlying api versions not match to each other. Versions from dataplane: {versions}')
 
         return versions[0]
 
-    def fill_from_redis(self) -> None:
+    async def fill_from_redis(self) -> None:
         if self.verbose:
             print('FILLING FROM REDIS')
         self.raw_p4info = redis.get(self.redis_keys.P4INFO)
@@ -342,7 +330,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
                     if self.verbose:
                         print(parsed_update_object)
-                    self._write_update_object(parsed_update_object, virtual_target_switch_for_load)
+                    await self._write_update_object(parsed_update_object, virtual_target_switch_for_load)
 
             for protobuf_message_json_object in itertools.chain(redis.lrange(self.redis_keys.COUNTER_ENTRIES, 0, -1),
                                                                 redis.lrange(self.redis_keys.METER_ENTRIES, 0, -1),
@@ -356,7 +344,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     update = p4runtime_pb2.Update()
                     update.type = p4runtime_pb2.Update.MODIFY
                     update.entity.CopyFrom(entity)
-                    self._write_update_object(update, virtual_target_switch_for_load)
+                    await self._write_update_object(update, virtual_target_switch_for_load)
 
     async def _write_update_object(self, update_object, target_switch: TargetSwitchObject):
         request = p4runtime_pb2.WriteRequest()
@@ -372,7 +360,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         redis.delete(self.redis_keys.METER_ENTRIES)
         redis.delete(self.redis_keys.HEARTBEAT)
 
-    def save_counters_state_to_redis(self) -> None:
+    async def save_counters_state_to_redis(self) -> None:
         with redis.pipeline() as pipe:
             pipe.multi()
             pipe.delete(self.redis_keys.COUNTER_ENTRIES)
@@ -389,7 +377,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
                 entity = request.entities.add()
                 entity.counter_entry.counter_id = 0
-                for response in target_switch.high_level_connection.connection.client_stub.Read(request):
+                async for response in target_switch.high_level_connection.connection.client_stub.Read(request):
                     for entity in response.entities:
                         entity_name = target_switch.converter.get_target_entity_name(entity)
                         if get_pure_p4_name(entity_name).startswith(self.prefix):
@@ -427,12 +415,13 @@ class ProxyServer:
     async def start(self) -> None:
         self.server = grpc.aio.server()
         self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switches, self.redis_mode)
+        servicer_awaitable = self.servicer.start()
         if RedisMode.is_reading(self.redis_mode):
-            self.servicer.fill_from_redis()
+            await self.servicer.fill_from_redis()
         add_P4RuntimeServicer_to_server(self.servicer, self.server)
         self.server.add_insecure_port(f'[::]:{self.port}')
         print(f'Start [::]:{self.port}')
-        await self.server.start()
+        await asyncio.gather(servicer_awaitable, self.server.start())
 
     async def wait_for_termination(self) -> None:
         try:
@@ -440,8 +429,8 @@ class ProxyServer:
         finally:
             await self.server.stop(10)
 
-    def stop(self) -> None:
-        self.servicer.stop()
+    async def stop(self) -> None:
+        await self.servicer.stop()
         self.server.stop(grace=None)
 
 
@@ -469,6 +458,7 @@ async def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[Proxy
                 batch_delay=target_config_raw.batch_delay,
                 )
             await mapping_target_switch.init()
+
             # print('On startup the rules on the target are the following')
             # for table_entry_response in mapping_target_switch.connection.ReadTableEntries():
             #     for starter_table_entity in table_entry_response.entities:
@@ -490,54 +480,54 @@ async def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[Proxy
 
             target_high_level_connection = target_switch_configs[0].high_level_connection
             for entry in mapping.preload_entries:
+                print(entry)
                 entry_type = entry.type
                 if entry_type == 'table':
                     table_entry = target_high_level_connection.p4info_helper.buildTableEntry(**entry.parameters)
-                    target_high_level_connection.connection.WriteTableEntry(table_entry)
+                    await target_high_level_connection.connection.WriteTableEntry(table_entry)
                 elif entry_type == 'meter':
                     meter_entry = target_high_level_connection.p4info_helper.buildMeterConfigEntry(**entry.parameters)
-                    target_high_level_connection.connection.WriteMeterEntry(meter_entry)
+                    await target_high_level_connection.connection.WriteMeterEntry(meter_entry)
                 elif entry_type == 'direct_meter':
                     meter_entry = target_high_level_connection.p4info_helper.buildDirectMeterConfigEntry(**entry.parameters)
-                    target_high_level_connection.connection.WriteDirectMeterEntry(meter_entry)
+                    await target_high_level_connection.connection.WriteDirectMeterEntry(meter_entry)
                 elif entry_type == 'counter':
                     counter_entry = target_high_level_connection.p4info_helper.buildCounterEntry(**entry.parameters)
-                    target_high_level_connection.connection.WriteCountersEntry(counter_entry)
+                    await target_high_level_connection.connection.WriteCountersEntry(counter_entry)
                 elif entry_type == 'direct_counter':
                     counter_entry = target_high_level_connection.p4info_helper.buildDirectCounterEntry(**entry.parameters)
-                    target_high_level_connection.connection.WriteDirectCounterEntry(counter_entry)
+                    await target_high_level_connection.connection.WriteDirectCounterEntry(counter_entry)
                 else:
                     raise Exception(f'Preload does not handle {entry_type} yet, inform the author to add what you need.')
 
     return servers
 
 if __name__ == '__main__':
+    proxy_servers = []
+    def sigint_handler(_signum, _frame):
+        global proxy_servers
+        for server_to_stop in proxy_servers:
+            asyncio.ensure_future(server_to_stop.stop())
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, sigint_handler)
+
     async def async_main():
         with open('proxy_config.json') as f:
             json_data = f.read()
             proxy_config_from_file = ProxyConfig.model_validate_json(json_data)
 
+        global proxy_servers
         proxy_servers = await start_servers_by_proxy_config(proxy_config_from_file)
-        print(proxy_servers)
-        def sigint_handler(_signum, _frame):
-            global proxy_servers
-            for server_to_stop in proxy_servers:
-                server_to_stop.stop()
-            sys.exit(0)
-
-        signal.signal(signal.SIGINT, sigint_handler)
-
 
         try:
-            # Important message for the testing system, do not remove :)
-
-
             await asyncio.gather(*[x.awaitable for x in proxy_servers])
+            # Important message for the testing system, do not remove if you want to use that :)
             print('Proxy is ready')
             await asyncio.gather(*[x.wait_for_termination() for x in proxy_servers])
 
         except KeyboardInterrupt:
             for server in proxy_servers:
-                server.stop()
+                await server.stop()
 
     asyncio.run(async_main())

@@ -391,7 +391,7 @@ class HighLevelSwitchConnection:
                 pass
 
             if send_p4info_second_level:
-                self.connection.SetForwardingPipelineConfig(p4info=self.p4info_helper.p4info,
+                await self.connection.SetForwardingPipelineConfig(p4info=self.p4info_helper.p4info,
                                                bmv2_json_file_path=self.bmv2_file_path)
 
     def stop(self) -> None:
