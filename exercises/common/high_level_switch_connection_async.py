@@ -69,10 +69,20 @@ class SwitchConnection(object):
         self.requests_stream = IterableAsyncQueue()
         self.stream_msg_resp = self.client_stub.StreamChannel(self.requests_stream.__aiter__())
 
-        if batch_delay is None:
-            self.WriteUpdates_batcher = None
-        else:
-            self.WriteUpdates_batcher = Batcher(self.WriteUpdates_inner, batch_delay)
+        self.batch = []
+        self.batch_delay = batch_delay
+
+    async def start(self) -> None:
+        if self.batch_delay is not None:
+            asyncio.create_task(self.batchling_loop())
+
+    async def batchling_loop(self) -> None:
+        while True:
+            if len(self.batch) > 0:
+                batch_to_send = self.batch
+                self.batch = []
+                await self.WriteUpdates_inner(batch_to_send)
+            await asyncio.sleep(self.batch_delay)
 
     def purge_rate_limiter_buffer(self) -> None:
         pass
@@ -245,10 +255,10 @@ class SwitchConnection(object):
         await self.client_stub.Write(request)
 
     async def WriteUpdates(self, updates):
-        if self.WriteUpdates_batcher is None:
+        if self.batch_delay is None:
             await self.WriteUpdates_inner(updates)
         else:
-            self.WriteUpdates_batcher.add_elements(updates)
+            self.batch.extend(updates)
 
     async def WriteUpdates_inner(self, updates: List[p4runtime_pb2.Entity]):
         request = p4runtime_pb2.WriteRequest()
@@ -374,6 +384,7 @@ class HighLevelSwitchConnection:
         )
 
     async def init(self):
+        await self.connection.start()
         await self.connection.MasterArbitrationUpdate(election_id_low=self.election_id_low)
 
         if self.send_p4info:
