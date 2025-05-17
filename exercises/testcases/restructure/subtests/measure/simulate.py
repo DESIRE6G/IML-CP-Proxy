@@ -80,6 +80,7 @@ for case in ['test']:
             target_port=None,
             batch_delay=None,
             fake_proxy=False,
+            async_proxy=True,
             dominant_sender_rate_limit=None,
             proxy_source_worker_num=None
         ) -> SimulatorMultipleResult:
@@ -115,6 +116,8 @@ for case in ['test']:
                 tmux_shell('python fake_proxy_async.py', proxy_pane_name)
             elif fake_proxy == 'simple' or fake_proxy:
                 tmux_shell('python fake_proxy.py', proxy_pane_name)
+            elif async_proxy:
+                tmux_shell('python proxy_async.py', proxy_pane_name)
             else:
                 tmux_shell('python proxy.py', proxy_pane_name)
             try:
