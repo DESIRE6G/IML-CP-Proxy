@@ -2,6 +2,7 @@ import asyncio
 import socket
 import time
 from abc import abstractmethod
+from collections import deque
 from dataclasses import dataclass
 from queue import Queue
 from typing import Any, Optional, List, Union
@@ -47,6 +48,76 @@ class IterableAsyncQueue(asyncio.Queue):
             return
 
 
+
+class RateLimiter:
+    def __init__(self, max_per_sec: int):
+        self.max_per_sec = max_per_sec
+        self.reset()
+
+    def reset(self):
+        self.last_tick = time.time()
+        self.bucket = 0
+
+    def _decrease_bucket_base_on_time(self) -> None:
+        self.bucket -= (time.time() - self.last_tick) * self.max_per_sec
+        if self.bucket < 0:
+            self.bucket = 0
+
+        self.last_tick = time.time()
+
+    def is_fit_in_the_rate_limit(self) -> bool:
+        self._decrease_bucket_base_on_time()
+
+        if self.bucket + 1 < self.max_per_sec:
+            self.bucket += 1
+            return True
+
+        return False
+
+
+class RateLimitedP4RuntimeStub:
+    def __init__(self, channel, max_per_sec: int, buffer_size: Optional[int] = None) -> None:
+        self.real_stub = p4runtime_pb2_grpc.P4RuntimeStub(channel)
+        self.rate_limiter = RateLimiter(max_per_sec)
+
+        self.buffer_size = 0 if buffer_size is None else buffer_size
+
+        self.buffered_commands = deque(maxlen=self.buffer_size)
+
+        commands = [x for x in dir(self.real_stub) if callable(getattr(self.real_stub, x)) and not x.startswith('_')]
+        for command_name in commands:
+            print(command_name)
+            setattr(self, command_name, self.command_generate(command_name, do_buffering = 'Write' in command_name))
+
+    async def heartbeat(self) -> None:
+        while True:
+            await self._flush_buffered_commands()
+            await asyncio.sleep(0.1)
+
+    async def _flush_buffered_commands(self):
+        while len(self.buffered_commands) > 0 and self.rate_limiter.is_fit_in_the_rate_limit():
+            command = self.buffered_commands.popleft()
+            await getattr(self.real_stub, command[0])(*command[1], **command[2])
+
+    def command_generate(self, command_name: str, do_buffering: bool):
+        if do_buffering:
+            async def _inner(*args, **kwargs):
+                if len(self.buffered_commands) == 0 and self.rate_limiter.is_fit_in_the_rate_limit():
+                    return await getattr(self.real_stub, command_name)(*args, **kwargs)
+                else:
+                    self.buffered_commands.append((command_name, args, kwargs))
+                await self._flush_buffered_commands()
+            return _inner
+        else:
+            async def _inner(*args, **kwargs):
+                return await getattr(self.real_stub, command_name)(*args, **kwargs)
+            return _inner
+
+    async def purge_buffer(self):
+        self.buffered_commands = []
+        self.rate_limiter.reset()
+
+
 class SwitchConnection(object):
 
     def __init__(self, name=None, address='127.0.0.1:50051', device_id=0,
@@ -59,24 +130,34 @@ class SwitchConnection(object):
         self.p4info = None
         self.p4_config_support = p4_config_support
         self.channel = grpc.aio.insecure_channel(self.address)
-
-        self.rate_limit = rate_limit
-
-        self.client_stub = p4runtime_pb2_grpc.P4RuntimeStub(self.channel)
         self.proto_dump_file = proto_dump_file
-        connections.append(self)
 
         self.requests_stream = IterableAsyncQueue()
-        self.stream_msg_resp = self.client_stub.StreamChannel(self.requests_stream.__aiter__())
+        self.rate_limit = rate_limit
+        if rate_limit is None:
+            self.client_stub = p4runtime_pb2_grpc.P4RuntimeStub(self.channel)
+            self.stream_msg_resp = self.client_stub.StreamChannel(self.requests_stream.__aiter__())
+        else:
+            self.client_stub = RateLimitedP4RuntimeStub(self.channel, max_per_sec=rate_limit, buffer_size=rate_limiter_buffer_size)
+            self.stream_msg_resp = self.client_stub.real_stub.StreamChannel(self.requests_stream.__aiter__())
+
+
 
         self.batch = []
         self.batch_delay = batch_delay
+        connections.append(self)
 
-    async def start(self) -> None:
+    async def start(self) -> List[asyncio.Task]:
+        ret = []
         if self.batch_delay is not None:
-            asyncio.create_task(self.batchling_loop())
+            ret.append(asyncio.create_task(self.batching_loop()))
 
-    async def batchling_loop(self) -> None:
+        if self.rate_limit is not None:
+            ret.append(asyncio.create_task(self.client_stub.heartbeat()))
+
+        return ret
+
+    async def batching_loop(self) -> None:
         while True:
             if len(self.batch) > 0:
                 batch_to_send = self.batch
@@ -383,7 +464,7 @@ class HighLevelSwitchConnection:
             batch_delay=batch_delay
         )
 
-    async def init(self):
+    async def init(self) -> List[asyncio.Task]:
         await self.connection.start()
         await self.connection.MasterArbitrationUpdate(election_id_low=self.election_id_low)
 
@@ -402,8 +483,11 @@ class HighLevelSwitchConnection:
                 pass
 
             if send_p4info_second_level:
+                print(self.connection.SetForwardingPipelineConfig)
+                print(self.connection.client_stub.SetForwardingPipelineConfig)
                 await self.connection.SetForwardingPipelineConfig(p4info=self.p4info_helper.p4info,
                                                bmv2_json_file_path=self.bmv2_file_path)
+        return []
 
     def stop(self) -> None:
         pass
