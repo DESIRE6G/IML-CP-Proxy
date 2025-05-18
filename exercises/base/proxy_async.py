@@ -182,7 +182,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             if self.verbose:
                 print(f'== SENDING to target {target_switch_index}')
                 print(updates)
-            await self.target_switches[target_switch_index].high_level_connection.connection.WriteUpdates(updates)
+            asyncio.ensure_future(self.target_switches[target_switch_index].high_level_connection.connection.WriteUpdates(updates))
 
         if self.verbose:
             self.runtime_measurer.measure('write', time.time() - start_time)
