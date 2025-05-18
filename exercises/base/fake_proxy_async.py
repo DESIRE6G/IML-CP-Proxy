@@ -27,14 +27,18 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     def __init__(self, target_client_stub) -> None:
         self.target_client_stub = target_client_stub
 
-    async def Write(self, request, context) -> None:
+    async def WriteInner(self, updates):
         new_request = p4runtime_pb2.WriteRequest()
         new_request.device_id = 0
         new_request.election_id.low = 1
-        for update in request.updates:
+        for update in updates:
             update_in_request = new_request.updates.add()
             update_in_request.CopyFrom(update)
-        asyncio.ensure_future(self.target_client_stub.Write(new_request))
+
+        self.target_client_stub.Write(new_request)
+
+    async def Write(self, request, context) -> None:
+        asyncio.ensure_future(self.WriteInner(request.updates))
         return p4runtime_pb2.WriteResponse()
 
     async def Read(self, original_request: p4runtime_pb2.ReadRequest, context):
