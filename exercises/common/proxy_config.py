@@ -27,6 +27,7 @@ class ProxyConfigTarget(BaseModel):
     rate_limit: Optional[int] = None
     rate_limiter_buffer_size: Optional[int] = None
     batch_delay: Optional[float] = None
+    host: Optional[str] = '127.0.0.1'
 
 
 class ProxyConfigSource(BaseModel):
