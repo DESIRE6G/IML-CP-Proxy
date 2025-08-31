@@ -29,13 +29,11 @@ from common.redis_helper import RedisKeys, RedisRecords
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
-redis = redis.Redis()
 
 RUN_PERF = False
 
 if RUN_PERF:
     yappi.start()
-
 
 class ProxyP4ServicerHeartbeatWorkerThread(Thread):
     def __init__(self, servicer) -> None:
@@ -120,6 +118,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.raw_p4info = MessageToString(self.from_p4info_helper.p4info)
         self.requests_stream = IterableQueue()
         self.redis_mode = redis_mode
+        if redis_mode != RedisMode.OFF:
+            redis = redis.Redis()
+        else:
+            redis = None
 
         self.heartbeat_worker_thread = ProxyP4ServicerHeartbeatWorkerThread(self)
         self.heartbeat_worker_thread.start()
@@ -368,10 +370,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.Write(request, None, target_switch.converter, save_to_redis=False)
 
     def delete_redis_entries_for_this_service(self) -> None:
-        redis.delete(self.redis_keys.TABLE_ENTRIES)
-        redis.delete(self.redis_keys.COUNTER_ENTRIES)
-        redis.delete(self.redis_keys.METER_ENTRIES)
-        redis.delete(self.redis_keys.HEARTBEAT)
+        if RedisMode.is_writing(self.redis_mode):
+            redis.delete(self.redis_keys.TABLE_ENTRIES)
+            redis.delete(self.redis_keys.COUNTER_ENTRIES)
+            redis.delete(self.redis_keys.METER_ENTRIES)
+            redis.delete(self.redis_keys.HEARTBEAT)
 
     def save_counters_state_to_redis(self) -> None:
         with redis.pipeline() as pipe:
