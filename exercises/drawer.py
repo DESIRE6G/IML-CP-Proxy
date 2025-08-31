@@ -10,20 +10,29 @@ import matplotlib as mpl
 import numpy as np
 
 os.makedirs('images', exist_ok=True)
-#
+
+# targets = ['sending_rate_changing',
+#            'sending_rate_changing_multi_sender',
+#            'sending_rate_changing_multi_sender_with_batching', 'sending_rate_changing_multi_sender_with_batching_delay',
+#            'batch_size_changing',
+#            'batch_delay_test', 'batch_delay_test_delay',
+#            'batch_delay_test_focused', 'batch_delay_test_focused_delay',
+#            'unbalanced_flow', 'unbalanced_flow_delay',
+#            'unbalanced_flow_with_batching', 'unbalanced_flow_with_batching_delay',
+#            'multi_sender'
+#            ]
 targets = ['sending_rate_changing',
            'sending_rate_changing_multi_sender',
-           'sending_rate_changing_multi_sender_with_batching', 'sending_rate_changing_multi_sender_with_batching_delay',
-           'batch_size_changing',
-           'batch_delay_test', 'batch_delay_test_delay',
+           'sending_rate_changing_multi_sender_with_batching',
+           'batch_delay_test',
            'batch_delay_test_focused', 'batch_delay_test_focused_delay',
-           'unbalanced_flow', 'unbalanced_flow_delay',
-           'unbalanced_flow_with_batching', 'unbalanced_flow_with_batching_delay',
+           'unbalanced_flow',
            'multi_sender'
            ]
 
-#targets = ['batch_delay_test', 'batch_delay_test_focused', 'unbalanced_flow', 'unbalanced_flow_delay']
-#targets = ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'batch_delay_test', 'batch_delay_test_focused']
+
+#targets = ['sending_rate_changing', 'sending_rate_changing_multi_sender']
+# targets = ['multi_sender']
 #targets = ['batch_delay_test', 'batch_delay_test_delay','batch_delay_test_focused', 'batch_delay_test_focused_delay']
 #targets = ['sending_rate_changing_multi_sender_with_batching', 'sending_rate_changing_multi_sender_with_batching_delay']
 #targets = ['unbalanced_flow', 'unbalanced_flow_delay']
@@ -68,19 +77,30 @@ for target in targets:
 
     if target == 'sending_rate_changing':
         df_original = load_and_prepare_df(f'{source_folder}/sending_rate_changing.csv')
-        df_original['mode'] = df_original['mode'].map({'without_proxy': 'Without proxy','fake_proxy': 'Fake proxy', 'real_proxy': 'Real proxy'})
+        df_original = df_original[df_original['sending_rate'] >= 2000]
+        df_original = df_original[df_original['sending_rate'] < 3500]
+        df_original['mode'] = df_original['mode'].map({
+            'without_proxy': 'Without proxy',
+            'fake_proxy': 'Fake proxy',
+            'real_proxy': 'Real proxy',
+            'async_fake_proxy': 'Asynchronous fake proxy',
+            'real_async_proxy': 'Asynchronous real proxy',
+        })
 
         line_fields = ['mode']
         x_label = 'sending_rate'
         force_title = 'Request per second arrived to the dataplane'
         force_xlabel_legend = 'Request per second sent by control plane'
+        force_ylabel_legend = 'Request per second arrived'
     elif re.match(r'^sending_rate_changing_multi_sender(_delay)?$', target):
         df_original = load_and_prepare_df(f'{source_folder}/sending_rate_changing_multi_sender.csv')
         df_original = df_original[df_original['batch_delay'].isnull()]
+        df_original = df_original[df_original['sending_rate'] < 3500]
         df_original['sender_num'] = df_original['sender_num'].map(lambda x: f'{x} controller')
         line_fields = ['sender_num']
         x_label = 'sending_rate'
         force_xlabel_legend = 'Request per second sent by control plane'
+        force_ylabel_legend = 'Request per second arrived'
         if not target.endswith('_delay'):
             force_title = 'Request per second arrived to the dataplane'
             value_field_array = ['message_per_sec_mean']
@@ -89,14 +109,21 @@ for target in targets:
             value_field_array = ['delay_average']
     elif target == 'sending_rate_changing_multi_sender_with_batching':
         df_original = load_and_prepare_df(f'{source_folder}/sending_rate_changing_multi_sender.csv')
+
+        #df_original['lines'] = df_original['sender_num'].map(lambda x: f'{x} controller') + df_original['batch_delay'].astype(str)
+        #line_fields = ['lines']
+
+
         df_original['sender_num'] = df_original['sender_num'].map(lambda x: f'{x} controller')
         line_fields = ['sender_num']
         df_original = df_original[df_original['batch_delay'] > 0]
+        df_original = df_original[df_original['sending_rate'] < 3500]
         print(df_original)
         value_field_array = ['message_per_sec_mean']
         x_label = 'sending_rate'
         force_title = 'Request per second arrived to the dataplane'
-        force_xlabel_legend = 'Request per second sent by control plane'
+        force_xlabel_legend = 'Table updates per second sent by control plane'
+        force_ylabel_legend = 'Request per second arrived'
 
     elif target == 'sending_rate_changing_multi_sender_with_batching_delay':
         df_original = load_and_prepare_df(f'{source_folder}/sending_rate_changing_multi_sender.csv')
@@ -120,15 +147,18 @@ for target in targets:
     elif target == 'batch_delay_test':
         df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
         df_original['batch_delay'] = df_original['batch_delay'].fillna(0)
+        df_original = df_original[df_original['batch_delay'] < 1]
         df_original['sender_num'] = df_original['sender_num'].map(lambda x: f'{x} controller')
         x_label = 'batch_delay'
         line_fields = ['sender_num']
         logx = True
         force_title = 'Table update per second arrived to the dataplane'
         force_xlabel_legend = 'Max size of a batch in seconds'
+        force_ylabel_legend = 'Table write per second arrived'
     elif target == 'batch_delay_test_delay':
         df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
         df_original['batch_delay'] = df_original['batch_delay'].fillna(0)
+        df_original = df_original[df_original['batch_delay'] < 1]
         df_original['sender_num'] = df_original['sender_num'].map(lambda x: f'{x} controller')
         x_label = 'batch_delay'
         line_fields = ['sender_num']
@@ -141,28 +171,32 @@ for target in targets:
         df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
         df_original['sender_num'] = df_original['sender_num'].map(lambda x: f'{x} controller')
         df_original['batch_delay'] = df_original['batch_delay'].fillna(0)
-        df_original = df_original[df_original['batch_delay'] < 0.0033]
+        df_original = df_original[df_original['batch_delay'] < 0.001]
         x_label = 'batch_delay'
         line_fields = ['sender_num']
         force_title = 'Table update per second arrived to the dataplane'
         force_xlabel_legend = 'Max size of a batch in seconds'
+        force_ylabel_legend = 'Table write per second arrived'
         logx = False
     elif target == 'batch_delay_test_focused_delay':
         df_original = load_and_prepare_df(f'{source_folder}/batch_delay_test.csv')
         df_original['sender_num'] = df_original['sender_num'].map(lambda x: f'{x} controller')
         df_original['batch_delay'] = df_original['batch_delay'].fillna(0)
-        df_original = df_original[df_original['batch_delay'] < 0.0033]
+        df_original = df_original[df_original['batch_delay'] < 0.001]
         x_label = 'batch_delay'
         line_fields = ['sender_num']
         value_field_array = ['delay_average']
         force_title = 'Average delay on dataplane'
         force_xlabel_legend = 'Max size of a batch in seconds'
+        force_ylabel_legend = 'Table write per second arrived'
         logx = False
     elif re.match(r'^unbalanced_flow_with_batching(_delay)?$', target):
         df_original = load_and_prepare_df(f'{source_folder}/unbalanced_flow.csv')
         df_original = df_original[~df_original['batch_delay'].isnull()]
         line_fields = []
         x_label = 'dominant_sender_rate_limit'
+        force_xlabel_legend = 'Request per second sent by the dominant control plane'
+
         merge_value_field_plots = True
         if not target.endswith('delay'):
             df_original = df_original.rename(columns={'average_by_table.part1': 'Controller 1', 'average_by_table.part2': 'Controller 2', 'average_by_table.part3': 'Controller 3'})
@@ -175,12 +209,14 @@ for target in targets:
     elif re.match(r'^unbalanced_flow(_delay)?$', target):
         df_original = load_and_prepare_df(f'{source_folder}/unbalanced_flow.csv')
         df_original = df_original[df_original['batch_delay'].isnull()]
+        df_original = df_original[df_original['dominant_sender_rate_limit'] < 3500]
         line_fields = []
         x_label = 'dominant_sender_rate_limit'
         merge_value_field_plots = True
+        force_xlabel_legend = 'Request per second sent by the dominant control plane'
         if not target.endswith('delay'):
             df_original = df_original.rename(columns={'average_by_table.part1': 'Controller 1', 'average_by_table.part2': 'Controller 2', 'average_by_table.part3': 'Controller 3'})
-            force_title = 'Table update per second per tenant'
+            force_title = 'Request per second per tenant'
         else:
             df_original = df_original.rename(columns={'delay_average_by_table.part1': 'Controller 1', 'delay_average_by_table.part2': 'Controller 2', 'delay_average_by_table.part3': 'Controller 3'})
             force_title = 'Table update delays per tenant'
@@ -189,16 +225,23 @@ for target in targets:
     elif target == 'multi_sender':
         df_original = load_and_prepare_df(f'{source_folder}/multi_sender.csv')
         df_original = df_original[df_original['sender_num'] == 4]
+        df_original = df_original[df_original['rate_limit'] > 1500]
+        df_original = df_original[df_original['rate_limit'] < 3500]
         line_fields = []
         rename_dict = {f'average_by_table.part{k}': f'Controller {k}' for k in range(1,4+1)}
         df_original = df_original.rename(columns=rename_dict)
         value_field_array = list(rename_dict.values())
         x_label = 'rate_limit'
+
         grid_y_field = 'sender_num'
         merge_value_field_plots = True
-        force_title = 'Table updates per tenant'
+        force_title = 'Table updates per NF\'s control plane'
+        force_xlabel_legend = 'Rate limit of the proxy'
+        force_ylabel_legend = 'Request per second arrived'
     else:
         raise Exception(f'Unknowon target "{target}"')
+
+    force_title = ''
     #print(df_original)
     output_filename = str(target) + '.png'
 
@@ -218,7 +261,6 @@ for target in targets:
 
     for c in df_original.columns:
         if c in force_order_for_values:
-            print('HELLO')
 
             vals_unique_sorted = sorted(df_original[c].unique())
             local_vals = [v for v in force_order_for_values[c] if v in vals_unique_sorted]
@@ -359,7 +401,7 @@ for target in targets:
                         fig_y_size = force_figsize[1] * row_num
                     else:
                         fig_x_size = (6 if small else 16) * col_num
-                        fig_y_size = (3.5 if small else 7) * row_num
+                        fig_y_size = (2.5 if small else 7) * row_num
                     if force_title is None:
                         final_title = title
                     else:
@@ -397,6 +439,7 @@ for target in targets:
                     if force_xticks is not None:
                         ax.set_xticks(force_xticks)
     plt.subplots_adjust(bottom=0.15)
+    plt.tight_layout()
     plt.savefig(f'{target_folder}/{output_filename}', dpi=300)
 
     plt.show()
