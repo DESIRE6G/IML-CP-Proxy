@@ -12,7 +12,8 @@ from scapy.all import (
     IPOption,
     rdpcap,
     wrpcap,
-    AsyncSniffer
+    AsyncSniffer,
+    hexdump
 )
 
 from common.validator_tools import diff_strings
@@ -113,6 +114,7 @@ class PacketReceiver:
             packets_arrived.append(pkt)
             packets_arrived_ts.append(time.time_ns())
             packet_readable = pkt.show2(dump=True)
+            logging.debug(f'Arrived hexdump:\n{hexdump(pkt, dump=True)}')
             logging.debug(f'Arrived {repr(pkt)}')
             with open(f"output{self.host_postfix}.txt", "a") as f:
                 f.write(packet_readable)

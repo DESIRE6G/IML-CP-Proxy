@@ -1,0 +1,66 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "targets": [
+        {
+          "program_name": "basicv4_part_1",
+          "port": 50051,
+          "device_id": 0,
+          "names": {
+            "MyIngress.ipv4_lpm1": "MyIngress.ipv4_lpm1"
+          }
+        },
+        {
+          "program_name": "basicv4_part_2",
+          "port": 50052,
+          "device_id": 1,
+          "names": {
+            "MyIngress.ipv4_lpm2": "MyIngress.ipv4_lpm2"
+          }
+        },
+        {
+          "program_name": "basicv4_part_3",
+          "port": 50053,
+          "device_id": 2,
+          "names": {
+            "MyIngress.just_another": "MyIngress.just_another"
+          }
+        }
+      ],
+      "source":
+      {
+        "program_name": "basicv4",
+        "port": 60051
+      },
+      "preload_entries": [
+        {
+          "type": "table",
+          "parameters": {
+            "table_name":"MyIngress.selector_table",
+            "match_fields":{
+              "meta.selector": 1
+            },
+            "action_name":"MyIngress.set_out_port",
+            "action_params": {
+              "port": 2
+            }
+          }
+        },
+        {
+          "type": "table",
+          "parameters": {
+            "table_name":"MyIngress.selector_table",
+            "match_fields":{
+              "meta.selector": 2
+            },
+            "action_name":"MyIngress.set_out_port",
+            "action_params": {
+              "port": 3
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
