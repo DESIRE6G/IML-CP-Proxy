@@ -480,11 +480,8 @@ def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[ProxyServer
             servers.append(proxy_server)
 
         if len(mapping.preload_entries) > 0:
-            if len(target_switch_configs) > 1:
-                raise Exception('Cannot determine where to preload entries, because there are multiple targets')
-
-            target_high_level_connection = target_switch_configs[0].high_level_connection
             for entry in mapping.preload_entries:
+                target_high_level_connection = target_switch_configs[entry.target_index].high_level_connection
                 entry_type = entry.type
                 if entry_type == 'table':
                     table_entry = target_high_level_connection.p4info_helper.buildTableEntry(**entry.parameters)

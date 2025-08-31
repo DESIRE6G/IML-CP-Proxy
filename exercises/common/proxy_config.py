@@ -40,6 +40,7 @@ class ProxyConfigSource(BaseModel):
 class ProxyConfigPreloadEntry(BaseModel):
     type: str
     parameters: Dict[str, Any]
+    target_index: int = 0
 
 
 class ProxyConfigMapping(BaseModel):
