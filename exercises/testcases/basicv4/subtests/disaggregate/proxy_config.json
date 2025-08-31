@@ -26,6 +26,11 @@
           "names": {
             "MyIngress.just_another": "MyIngress.just_another"
           }
+        },
+        {
+          "program_name": "fwd2p3",
+          "port": 50054,
+          "device_id": 3
         }
       ],
       "source":

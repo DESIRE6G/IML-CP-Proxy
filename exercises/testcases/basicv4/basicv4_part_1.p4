@@ -106,14 +106,14 @@ control MyIngress(inout headers hdr,inout metadata meta,inout standard_metadata_
 	apply{
 		ipv4_lpm1.apply();
 		if(hdr.ethernet.etherType == TYPE_IPV4){
-			hdr.dissaggregation_header_1.port = meta.port;
 			hdr.dissaggregation_header_1.setValid();
+			hdr.dissaggregation_header_1.port = meta.port;
 			meta.selector = 1;
 		}
 
 		else{
-			hdr.dissaggregation_header_2.dstAddr = hdr.ethernet.dstAddr;
 			hdr.dissaggregation_header_2.setValid();
+			hdr.dissaggregation_header_2.dstAddr = hdr.ethernet.dstAddr;
 			meta.selector = 2;
 		}
 
