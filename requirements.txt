@@ -1,0 +1,8 @@
+pydantic==2.6.4
+redis==4.5.5
+numpy==1.24.4
+pandas==2.0.3
+grpcio==1.65.5
+yappi==1.6.0
+p4runtime
+p4runtime-shell
