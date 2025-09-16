@@ -4,7 +4,6 @@ import time
 from abc import abstractmethod
 from collections import deque
 from dataclasses import dataclass
-from queue import Queue
 from typing import Any, Optional, List, Union
 
 from google.protobuf.text_format import MessageToString
@@ -16,7 +15,6 @@ import common.p4runtime_lib.helper
 
 import os
 from datetime import datetime
-from queue import Queue
 from typing import Optional, List, Union
 
 import grpc
@@ -140,8 +138,6 @@ class SwitchConnection(object):
         else:
             self.client_stub = RateLimitedP4RuntimeStub(self.channel, max_per_sec=rate_limit, buffer_size=rate_limiter_buffer_size)
             self.stream_msg_resp = self.client_stub.real_stub.StreamChannel(self.requests_stream.__aiter__())
-
-
 
         self.batch = []
         self.batch_delay = batch_delay
@@ -404,18 +400,33 @@ class Bmv2SwitchConnection(SwitchConnection):
             return None
 
 
+@dataclass
+class QueueWithInfo:
+    queue: asyncio.Queue
+    extra_information: Optional[Any] = None
 
-class EnviromentSettins(BaseModel):
+@dataclass
+class StreamMessageResponseWithInfo:
+    message: p4runtime_pb2.StreamMessageResponse
+    extra_information: Optional[Any] = None
+
+
+class EnviromentSettings(BaseModel):
     production_mode: bool = False
     p4_config_support: bool = True
 
 if socket.gethostname() == 'dpdk-switch':
-    enviroment_settings = EnviromentSettins(
+    enviroment_settings = EnviromentSettings(
         production_mode = True,
         p4_config_support = False
     )
+elif socket.gethostname() == 'mininet-vm':
+    enviroment_settings = EnviromentSettings(
+        production_mode = False,
+        p4_config_support = True
+    )
 else:
-    enviroment_settings = EnviromentSettins()
+    enviroment_settings = EnviromentSettings()
 
 class HighLevelSwitchConnection:
     def __init__(self,
@@ -466,6 +477,8 @@ class HighLevelSwitchConnection:
             batch_delay=batch_delay
         )
 
+        self.stream_subscribed_queues: List[QueueWithInfo] = []
+
     async def init(self) -> List[asyncio.Task]:
         await self.connection.start()
         await self.connection.MasterArbitrationUpdate(election_id_low=self.election_id_low)
@@ -489,13 +502,22 @@ class HighLevelSwitchConnection:
                 print(self.connection.client_stub.SetForwardingPipelineConfig)
                 await self.connection.SetForwardingPipelineConfig(p4info=self.p4info_helper.p4info,
                                                bmv2_json_file_path=self.bmv2_file_path)
+
+        asyncio.ensure_future(self.proxy_digest())
         return []
+
+    async def proxy_digest(self) -> None:
+        async for x in self.connection.stream_msg_resp:
+            for q in self.stream_subscribed_queues:
+                copy = p4runtime_pb2.StreamMessageResponse()
+                copy.CopyFrom(x)
+                await q.queue.put(StreamMessageResponseWithInfo(copy, q.extra_information))
 
     def stop(self) -> None:
         pass
 
-    def subscribe_to_stream_with_queue(self, queue: Queue, extra_information: Optional[Any] = None) -> None:
-        pass
+    def subscribe_to_stream_with_queue(self, queue: asyncio.Queue, extra_information: Optional[Any] = None) -> None:
+        self.stream_subscribed_queues.append(QueueWithInfo(queue, extra_information))
 
-    def unsubscribe_from_stream_with_queue(self, queue: Queue) -> None:
+    def unsubscribe_from_stream_with_queue(self, queue: asyncio.Queue) -> None:
         pass

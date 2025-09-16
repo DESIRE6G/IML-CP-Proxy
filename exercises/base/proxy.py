@@ -108,7 +108,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.requests_stream = IterableQueue()
         self.redis_mode = redis_mode
 
-        self.stream_queue_from_target = queue.Queue()
+        self.stream_queue_from_target = asyncio.Queue()
         self.target_switches = []
         for target_key, c in enumerate(target_switch_configs):
             converter = P4NameConverter(self.from_p4info_helper, c.high_level_connection.p4info_helper, self.prefix, c.names)
@@ -286,20 +286,20 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     print(f'Sendin back master arbitrage ACK {self.target_switches[0].high_level_connection.p4info_path}')
                 yield response
 
-                # while self.running:
-                #     stream_response: StreamMessageResponseWithInfo = self.stream_queue_from_target.get()
-                #     target_switch = self.target_switches[stream_response.extra_information]
-                #     if self.verbose:
-                #         print('Arrived stream_response_from target')
-                #         print(stream_response)
-                #     which_one = stream_response.message.WhichOneof('update')
-                #     if which_one == 'digest':
-                #         name = target_switch.converter.get_target_p4_name_from_id('digest', stream_response.message.digest.digest_id)
-                #         if name.startswith(self.prefix):
-                #             target_switch.converter.convert_stream_response(stream_response.message)
-                #             yield stream_response.message
-                #     else:
-                #         raise Exception('Only handling digest messages from the dataplane')
+                while self.running:
+                    stream_response: StreamMessageResponseWithInfo = await self.stream_queue_from_target.get()
+                    target_switch = self.target_switches[stream_response.extra_information]
+                    if self.verbose:
+                        print('Arrived stream_response_from target')
+                        print(stream_response)
+                    which_one = stream_response.message.WhichOneof('update')
+                    if which_one == 'digest':
+                        name = target_switch.converter.get_target_p4_name_from_id('digest', stream_response.message.digest.digest_id)
+                        if name.startswith(self.prefix):
+                            target_switch.converter.convert_stream_response(stream_response.message)
+                            yield stream_response.message
+                    else:
+                        raise Exception('Only handling digest messages from the dataplane')
             else:
                 raise Exception(f'Unhandled Stream field type {request.WhichOneof}')
 
