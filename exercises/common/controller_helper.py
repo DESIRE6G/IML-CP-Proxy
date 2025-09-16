@@ -25,8 +25,8 @@ def dump_table_rules(p4info_helper: P4InfoHelper, sw: SwitchConnection) -> None:
 
 
 def create_experimental_model_forwards() -> None:
-    s1 = HighLevelSwitchConnection(0, 'fwd')
-    s2 = HighLevelSwitchConnection(1, 'fwd')
+    s1 = HighLevelSwitchConnection(0, 'fwd', port=50051)
+    s2 = HighLevelSwitchConnection(1, 'fwd', port=50052)
     # PING response can come on this line (s1 and s2 has same p4info)
     table_entry = s1.p4info_helper.buildTableEntry(
         table_name="MyIngress.ipv4_lpm",
