@@ -431,7 +431,8 @@ class HighLevelSwitchConnection:
                  rate_limiter_buffer_size: Optional[int] = None,
                  production_mode: Optional[bool] = None,
                  p4_config_support: Optional[bool] = None,
-                 batch_delay: Optional[float] = None
+                 batch_delay: Optional[float] = None,
+                 host='127.0.0.1'
                  ):
         self.device_id = device_id
         self.filename = filename
@@ -450,11 +451,12 @@ class HighLevelSwitchConnection:
             self.bmv2_file_path = f'./build/{self.filename}.json'
         self.p4info_helper = common.p4runtime_lib.helper.P4InfoHelper(self.p4info_path)
 
+        self.host = host
         self.port = f'5005{device_id+1}' if port is None else port
 
         self.connection = Bmv2SwitchConnection(
             name=f's{device_id+1}',
-            address=f'127.0.0.1:{self.port}',
+            address=f'{self.host}:{self.port}',
             device_id=device_id,
             proto_dump_file=f'logs/port{self.port}-p4runtime-requests.txt',
             rate_limit=rate_limit,
