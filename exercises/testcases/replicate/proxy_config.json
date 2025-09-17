@@ -1,0 +1,41 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "targets": [
+        {
+          "program_name": "replicate_balancer",
+          "port": 50051,
+          "device_id": 0,
+          "names":{}
+        },
+        {
+          "program_name": "fwd",
+          "port": 50052,
+          "device_id": 1,
+          "names": {
+            "MyIngress.ipv4_lpm": "MyIngress.ipv4_lpm"
+          }
+        },
+        {
+          "program_name": "fwd",
+          "port": 50053,
+          "device_id": 2,
+          "names": {
+            "MyIngress.ipv4_lpm": "MyIngress.ipv4_lpm"
+          }
+        },
+        {
+          "program_name": "fwd2p3",
+          "port": 50054,
+          "device_id": 3,
+          "names":{}
+        }
+      ],
+      "source": {
+        "program_name": "fwd",
+        "port": 60051
+      }
+    }
+  ]
+}

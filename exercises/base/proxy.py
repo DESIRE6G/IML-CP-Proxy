@@ -139,6 +139,24 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             target_switch.high_level_connection.unsubscribe_from_stream_with_queue(self.stream_queue_from_target)
 
 
+    def get_multi_target_switch_and_index(self, entity: p4runtime_pb2.Entity) -> List[Tuple[TargetSwitchObject, int]]:
+        if len(self.target_switches) == 1:
+            return [(self.target_switches[0], 0)]
+
+        ret: List[Tuple[TargetSwitchObject, int]] = []
+        entity_name = P4NameConverter.get_entity_name(self.from_p4info_helper, entity)
+        for index, target_switch in enumerate(self.target_switches):
+            if target_switch.names is None or entity_name in target_switch.names:
+                if self.verbose:
+                    print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.port}')
+                ret.append((target_switch, index))
+
+
+        if len(ret) == 0:
+            raise Exception(f'Cannot find a target switch for {entity_name=}')
+
+        return ret
+
     def get_target_switch_and_index(self, entity: p4runtime_pb2.Entity) -> Tuple[TargetSwitchObject, int]:
         if len(self.target_switches) == 1:
             return self.target_switches[0], 0
@@ -167,19 +185,20 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for update in request.updates:
             if update.type == Update.INSERT or update.type == Update.MODIFY or update.type == Update.DELETE:
                 entity = update.entity
-                target_switch, target_switch_index = self.get_target_switch_and_index(entity)
-                which_one = entity.WhichOneof('entity')
-                if save_to_redis and RedisMode.is_writing(self.redis_mode):
-                    if which_one == 'table_entry':
-                        get_redis().rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(update))
-                    elif which_one == 'meter_entry' or which_one == 'direct_meter_entry':
-                        get_redis().rpush(self.redis_keys.METER_ENTRIES, MessageToJson(entity))
 
-                if converter is not None:
-                    converter.convert_entity(entity, verbose=self.verbose)
-                else:
-                    target_switch.converter.convert_entity(entity, verbose=self.verbose)
-                updates_distributed_by_target[target_switch_index].append(update)
+                for target_switch, target_switch_index in self.get_multi_target_switch_and_index(entity):
+                    which_one = entity.WhichOneof('entity')
+                    if save_to_redis and RedisMode.is_writing(self.redis_mode):
+                        if which_one == 'table_entry':
+                            get_redis().rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(update))
+                        elif which_one == 'meter_entry' or which_one == 'direct_meter_entry':
+                            get_redis().rpush(self.redis_keys.METER_ENTRIES, MessageToJson(entity))
+
+                    if converter is not None:
+                        converter.convert_entity(entity, verbose=self.verbose)
+                    else:
+                        target_switch.converter.convert_entity(entity, verbose=self.verbose)
+                    updates_distributed_by_target[target_switch_index].append(update)
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
 
