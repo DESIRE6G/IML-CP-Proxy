@@ -17,6 +17,7 @@ from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, Update, Wri
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 from google.protobuf.json_format import MessageToJson, Parse
 
+from common.enviroment import enviroment_settings
 from common.p4_name_id_helper import P4NameConverter, get_pure_p4_name, EntityCannotHaveZeroId
 from common.p4runtime_lib.helper import P4InfoHelper
 import redis
@@ -181,7 +182,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print(request)
 
         updates_distributed_by_target = [[] for _ in self.target_switches]
-
+        tasks_to_wait = []
         for update in request.updates:
             if update.type == Update.INSERT or update.type == Update.MODIFY or update.type == Update.DELETE:
                 entity = update.entity
@@ -195,9 +196,15 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                             get_redis().rpush(self.redis_keys.METER_ENTRIES, MessageToJson(entity))
 
                     if converter is not None:
-                        converter.convert_entity(entity, verbose=self.verbose)
+                        try:
+                            converter.convert_entity(entity, verbose=self.verbose)
+                        except Exception as e:
+                            raise Exception(f'Conversion failed while trying to convert with converter {entity}') from e
                     else:
-                        target_switch.converter.convert_entity(entity, verbose=self.verbose)
+                        try:
+                            target_switch.converter.convert_entity(entity, verbose=self.verbose)
+                        except Exception as e:
+                            raise Exception(f'Conversion failed while trying to convert to target switch with index {target_switch_index}, entity: {entity}') from e
                     updates_distributed_by_target[target_switch_index].append(update)
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
@@ -208,13 +215,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             if self.verbose:
                 print(f'== SENDING to target {target_switch_index}')
                 print(updates)
-            asyncio.ensure_future(self.target_switches[target_switch_index].high_level_connection.connection.WriteUpdates(updates))
+
+            tasks_to_wait.append(asyncio.ensure_future(self.target_switches[target_switch_index].high_level_connection.connection.WriteUpdates(updates)))
 
         if self.verbose:
             self.runtime_measurer.measure('write', time.time() - start_time)
             if self.ticker.is_tick_passed('write_runtime', 1):
                 print(self.runtime_measurer.get_avg('write'))
                 self.runtime_measurer.reset('write')
+
+        if not enviroment_settings.production_mode:
+            await asyncio.gather(*tasks_to_wait)
 
         return WriteResponse()
 

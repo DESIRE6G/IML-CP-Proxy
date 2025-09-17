@@ -1,14 +1,12 @@
 import asyncio
-import socket
 import time
 from abc import abstractmethod
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Optional, List, Union
+from typing import Any
 
 from google.protobuf.text_format import MessageToString
 from p4.v1 import p4runtime_pb2
-from pydantic import BaseModel
 
 import common.p4runtime_lib.bmv2
 import common.p4runtime_lib.helper
@@ -20,7 +18,7 @@ from typing import Optional, List, Union
 import grpc
 from p4.v1 import p4runtime_pb2, p4runtime_pb2_grpc
 
-
+from common.enviroment import enviroment_settings
 
 # List of all active connections
 connections = []
@@ -410,23 +408,6 @@ class StreamMessageResponseWithInfo:
     message: p4runtime_pb2.StreamMessageResponse
     extra_information: Optional[Any] = None
 
-
-class EnviromentSettings(BaseModel):
-    production_mode: bool = False
-    p4_config_support: bool = True
-
-if socket.gethostname() == 'dpdk-switch':
-    enviroment_settings = EnviromentSettings(
-        production_mode = True,
-        p4_config_support = False
-    )
-elif socket.gethostname() == 'mininet-vm':
-    enviroment_settings = EnviromentSettings(
-        production_mode = False,
-        p4_config_support = True
-    )
-else:
-    enviroment_settings = EnviromentSettings()
 
 class HighLevelSwitchConnection:
     def __init__(self,
