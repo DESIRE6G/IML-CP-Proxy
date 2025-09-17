@@ -468,13 +468,6 @@ async def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[Proxy
                 )
             await mapping_target_switch.init()
 
-            # print('On startup the rules on the target are the following')
-            # for table_entry_response in mapping_target_switch.connection.ReadTableEntries():
-            #     for starter_table_entity in table_entry_response.entities:
-            #         entry = starter_table_entity.table_entry
-            #         print(mapping_target_switch.p4info_helper.get_tables_name(entry.table_id))
-            #         print(entry)
-            #         print('-----')
             target_switch_configs.append(TargetSwitchConfig(mapping_target_switch, target_config_raw.names))
 
         for source in source_configs_raw:
