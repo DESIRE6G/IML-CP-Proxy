@@ -470,24 +470,25 @@ class HighLevelSwitchConnection:
                 if not self.reset_dataplane:
                     request = p4runtime_pb2.GetForwardingPipelineConfigRequest()
                     request.device_id = self.device_id
-                    actual_p4info_raw = self.connection.client_stub.GetForwardingPipelineConfig(request)
+                    actual_p4info_raw = await self.connection.client_stub.GetForwardingPipelineConfig(request)
                     actual_p4info = MessageToString(actual_p4info_raw.config.p4info)
 
                     if actual_p4info == MessageToString(self.p4info_helper.p4info):
                         send_p4info_second_level = False
-            except:
+            except Exception:
                 pass
+                #print('----Reading of p4info failed!!')
+                #print('Stacktrace:')
+                #traceback.print_exc()
 
             if send_p4info_second_level:
-                print(self.connection.SetForwardingPipelineConfig)
-                print(self.connection.client_stub.SetForwardingPipelineConfig)
                 await self.connection.SetForwardingPipelineConfig(p4info=self.p4info_helper.p4info,
                                                bmv2_json_file_path=self.bmv2_file_path)
 
-        asyncio.ensure_future(self.proxy_digest())
+        asyncio.ensure_future(self.proxy_digest_forwarding())
         return []
 
-    async def proxy_digest(self) -> None:
+    async def proxy_digest_forwarding(self) -> None:
         async for x in self.connection.stream_msg_resp:
             for q in self.stream_subscribed_queues:
                 copy = p4runtime_pb2.StreamMessageResponse()
