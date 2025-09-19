@@ -44,7 +44,7 @@ if __name__ == '__main__':
             break
 
         if len(packets_arrived) != 7:
-            message(f'failed, not enough packets arrived {len(packets_arrived)}')
+            message(f'failed, not correct packet num. Arrived packet num: {len(packets_arrived)}')
             output_object['success'] = False
 
         with open(f'test_output{host_postfix}.json','w') as f:

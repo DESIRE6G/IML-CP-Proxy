@@ -22,7 +22,7 @@ from common.p4runtime_lib.helper import P4InfoHelper
 import redis
 
 from common.p4runtime_lib.switch import IterableQueue
-from common.high_level_switch_connection_async import HighLevelSwitchConnection
+from common.high_level_switch_connection_async import HighLevelSwitchConnection, StreamMessageResponseWithInfo
 from common.proxy_config import ProxyConfig, RedisMode, ProxyConfigSource
 from common.redis_helper import RedisKeys, RedisRecords
 
@@ -109,7 +109,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.redis_mode = redis_mode
 
         self.stream_queue_from_target = asyncio.Queue()
-        self.target_switches: List[TargetSwitchObject] = []
+        self._target_switches: Dict[str, TargetSwitchObject] = {}
         for target_key in target_switch_configs:
             self._add_target_switch(target_key)
 
@@ -118,18 +118,24 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.ticker = Ticker()
 
     def _add_target_switch(self, new_target_switch: TargetSwitchConfig) -> None:
-        index = len(self.target_switches)
-        print(f'--->{index=}')
         converter = P4NameConverter(self.from_p4info_helper, new_target_switch.high_level_connection.p4info_helper, self.prefix, new_target_switch.names)
         target_switch = TargetSwitchObject(new_target_switch.high_level_connection, converter, new_target_switch.names)
-        target_switch.high_level_connection.subscribe_to_stream_with_queue(self.stream_queue_from_target, index)
-        self.target_switches.append(target_switch)
+        new_switch_address = target_switch.high_level_connection.get_address()
+        print(f'--->{new_switch_address=}')
+        target_switch.high_level_connection.subscribe_to_stream_with_queue(self.stream_queue_from_target, new_switch_address)
+        self._target_switches[new_switch_address] = target_switch
 
     async def add_target_switch(self, new_target_switch: TargetSwitchConfig) -> None:
         self._add_target_switch(new_target_switch)
         if RedisMode.is_writing(self.redis_mode):
-            index = len(self.target_switches) - 1
-            await self.fill_from_redis_one_target(self.target_switches[index], index)
+            switch_address = new_target_switch.high_level_connection.get_address()
+            await self.fill_from_redis_one_target(self._target_switches[switch_address], switch_address)
+
+    async def remove_target_switch(self, host: str, port: int) -> None:
+        target_switch = self._target_switches.pop(f'{host}:{port}', None)
+        target_switch.high_level_connection.unsubscribe_from_stream_with_queue(self.stream_queue_from_target)
+
+
 
     async def start(self) -> None:
         asyncio.create_task(self.heartbeat())
@@ -146,17 +152,18 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.running = False
         if RedisMode.is_writing(self.redis_mode):
             await self.save_counters_state_to_redis()
-        for target_switch in self.target_switches:
+        for target_switch in self._target_switches.values():
             target_switch.high_level_connection.unsubscribe_from_stream_with_queue(self.stream_queue_from_target)
 
 
-    def get_multi_target_switch_and_index(self, entity: p4runtime_pb2.Entity) -> List[Tuple[TargetSwitchObject, int]]:
-        if len(self.target_switches) == 1:
-            return [(self.target_switches[0], 0)]
+    def get_multi_target_switch_and_index(self, entity: p4runtime_pb2.Entity) -> List[Tuple[TargetSwitchObject, str]]:
+        if len(self._target_switches) == 1:
+            first_element_index, first_element = next(iter(self._target_switches.items()))
+            return [(first_element, first_element_index)]
 
-        ret: List[Tuple[TargetSwitchObject, int]] = []
+        ret: List[Tuple[TargetSwitchObject, str]] = []
         entity_name = P4NameConverter.get_entity_name(self.from_p4info_helper, entity)
-        for index, target_switch in enumerate(self.target_switches):
+        for index, target_switch in self._target_switches.items():
             if target_switch.names is None or entity_name in target_switch.names:
                 if self.verbose:
                     print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.port}')
@@ -168,12 +175,13 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         return ret
 
-    def get_target_switch_and_index(self, entity: p4runtime_pb2.Entity) -> Tuple[TargetSwitchObject, int]:
-        if len(self.target_switches) == 1:
-            return self.target_switches[0], 0
+    def get_target_switch_and_index(self, entity: p4runtime_pb2.Entity) -> Tuple[TargetSwitchObject, str]:
+        if len(self._target_switches) == 1:
+            first_element_index, first_element = next(iter(self._target_switches.items()))
+            return first_element, first_element_index
 
         entity_name = P4NameConverter.get_entity_name(self.from_p4info_helper, entity)
-        for index, target_switch in enumerate(self.target_switches):
+        for index, target_switch in self._target_switches.items():
             if target_switch.names is None or entity_name in target_switch.names:
                 if self.verbose:
                     print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.port}')
@@ -189,15 +197,15 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     request,
                     context,
                     converter_override: Optional[P4NameConverter] = None,
-                    target_switch_override_index: Optional[int] = None,
+                    target_switch_override_index: Optional[str] = None,
                     save_to_redis: bool = True) -> None:
         start_time = time.time()
         if self.verbose:
             print('------------------- Write -------------------')
             print(request)
 
-        print(self.target_switches)
-        updates_distributed_by_target = [[] for _ in self.target_switches]
+        print(self._target_switches)
+        updates_distributed_by_target = {k : [] for k in self._target_switches.keys()}
         tasks_to_wait = []
         for update in request.updates:
             if update.type == Update.INSERT or update.type == Update.MODIFY or update.type == Update.DELETE:
@@ -213,7 +221,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 if target_switch_override_index is None:
                     switches_to_iterate_on = self.get_multi_target_switch_and_index(entity)
                 else:
-                    switches_to_iterate_on = [(self.target_switches[target_switch_override_index], target_switch_override_index)]
+                    switches_to_iterate_on = [(self._target_switches[target_switch_override_index], target_switch_override_index)]
 
                 for target_switch, target_switch_index in switches_to_iterate_on:
                     if converter_override is None:
@@ -229,14 +237,14 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
 
-        for target_switch_index, updates in enumerate(updates_distributed_by_target):
+        for target_switch_index, updates in updates_distributed_by_target.items():
             if len(updates) == 0:
                 continue
             if True:
                 print(f'== SENDING to target {target_switch_index}')
                 print(updates)
 
-            tasks_to_wait.append(asyncio.ensure_future(self.target_switches[target_switch_index].high_level_connection.connection.WriteUpdates(updates)))
+            tasks_to_wait.append(asyncio.ensure_future(self._target_switches[target_switch_index].high_level_connection.connection.WriteUpdates(updates)))
 
         if self.verbose:
             self.runtime_measurer.measure('write', time.time() - start_time)
@@ -256,20 +264,20 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print('------------------- Read -------------------')
 
         ret = ReadResponse()
-        read_entites_by_target_switch = [[] for _ in range(len(self.target_switches))]
+        read_entites_by_target_switch = {k: [] for k in self._target_switches.keys()}
         for entity in original_request.entities:
             try:
                 _, target_switch_index = self.get_target_switch_and_index(entity)
                 read_entites_by_target_switch[target_switch_index].append(entity)
             except EntityCannotHaveZeroId:
-                for target_switch_index, target_switch in enumerate(self.target_switches):
+                for target_switch_index, target_switch in self._target_switches.items():
                     read_entites_by_target_switch[target_switch_index].append(entity)
 
 
-        for target_switch_index, read_entites_for_target_switch in enumerate(read_entites_by_target_switch):
+        for target_switch_index, read_entites_for_target_switch in read_entites_by_target_switch.items():
             if len(read_entites_for_target_switch) == 0:
                 continue
-            target_switch_object = self.target_switches[target_switch_index]
+            target_switch_object = self._target_switches[target_switch_index]
 
             new_request = p4runtime_pb2.ReadRequest()
             new_request.device_id = target_switch_object.high_level_connection.device_id
@@ -333,12 +341,12 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 response.arbitration.election_id.high = 0
                 response.arbitration.election_id.low = 1
                 if self.verbose:
-                    print(f'Sendin back master arbitrage ACK {self.target_switches[0].high_level_connection.p4info_path}')
+                    print('Sendin back master arbitrage ACK')
                 yield response
 
                 while self.running:
                     stream_response: StreamMessageResponseWithInfo = await self.stream_queue_from_target.get()
-                    target_switch = self.target_switches[stream_response.extra_information]
+                    target_switch = self._target_switches[stream_response.extra_information]
                     if self.verbose:
                         print('Arrived stream_response_from target')
                         print(stream_response)
@@ -357,7 +365,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         if self.verbose:
             print('Capabilities')
         versions = []
-        for target_switch in self.target_switches:
+        for target_switch in self._target_switches.values():
             versions.append(await target_switch.high_level_connection.connection.client_stub.Capabilities(request))
 
         if not all(version == versions[0] for version in versions):
@@ -382,10 +390,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         if redis_p4info_helper is None:
             return
 
-        for i, target_switch in enumerate(self.target_switches):
-            await self.fill_from_redis_one_target(target_switch, i, redis_p4info_helper)
+        for address, target_switch in self._target_switches.items():
+            await self.fill_from_redis_one_target(target_switch, address, redis_p4info_helper)
 
-    async def fill_from_redis_one_target(self, target_switch: TargetSwitchObject, target_switch_index: int, redis_p4info_helper: Optional[P4InfoHelper] = None):
+    async def fill_from_redis_one_target(self, target_switch: TargetSwitchObject, target_switch_index: str, redis_p4info_helper: Optional[P4InfoHelper] = None):
         if redis_p4info_helper is None:
             redis_p4info_helper = self.build_source_p4infohelper_from_redis()
             if redis_p4info_helper is None:
@@ -416,7 +424,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 update.entity.CopyFrom(entity)
                 await self._write_update_object(update, p4name_converter, target_switch_index)
 
-    async def _write_update_object(self, update_object, converter: P4NameConverter, target_switch_index: int):
+    async def _write_update_object(self, update_object, converter: P4NameConverter, target_switch_index: str):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = 0
         request.election_id.low = 1
@@ -435,7 +443,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         with get_redis().pipeline() as pipe:
             pipe.multi()
             pipe.delete(self.redis_keys.COUNTER_ENTRIES)
-            for target_switch in self.target_switches:
+            for target_switch in self._target_switches.values():
                 request = p4runtime_pb2.ReadRequest()
                 request.device_id = target_switch.high_level_connection.connection.device_id
 
@@ -464,17 +472,17 @@ class ProxyServer:
                  port: int,
                  prefix: str,
                  from_p4info_path: str,
-                 target_switches: Union[List[TargetSwitchConfig], HighLevelSwitchConnection],
+                 target_switche_configs_or_one_connection: Union[List[TargetSwitchConfig], HighLevelSwitchConnection],
                  redis_mode: RedisMode):
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
-        if isinstance(target_switches, list):
-            self.target_switches = target_switches
-        elif isinstance(target_switches, HighLevelSwitchConnection):
-            self.target_switches = [TargetSwitchConfig(target_switches)]
+        if isinstance(target_switche_configs_or_one_connection, list):
+            self.target_switch_configs = target_switche_configs_or_one_connection
+        elif isinstance(target_switche_configs_or_one_connection, HighLevelSwitchConnection):
+            self.target_switch_configs = [TargetSwitchConfig(target_switche_configs_or_one_connection)]
         else:
-            raise Exception(f'You cannot init target_switches of ProxyServer with "{type(target_switches)}" typed object.')
+            raise Exception(f'You cannot init target_switche_configs_or_one_connection of ProxyServer with "{type(target_switche_configs_or_one_connection)}" typed object.')
 
         self.server = None
         self.servicer = None
@@ -483,7 +491,7 @@ class ProxyServer:
 
     async def start(self) -> None:
         self.server = grpc.aio.server()
-        self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switches, self.redis_mode)
+        self.servicer = ProxyP4RuntimeServicer(self.prefix, self.from_p4info_path, self.target_switch_configs, self.redis_mode)
         servicer_awaitable = self.servicer.start()
         if RedisMode.is_reading(self.redis_mode):
             await self.servicer.fill_from_redis()
@@ -496,6 +504,11 @@ class ProxyServer:
         if self.servicer is None:
             raise Exception('Proxy server has to be started to add a node')
         await self.servicer.add_target_switch(new_switch)
+
+    async def remove_target_switch(self, host: str, port: int) -> None:
+        if self.servicer is None:
+            raise Exception('Proxy server has to be started to remove a node')
+        await self.servicer.remove_target_switch(host, port)
 
     async def wait_for_termination(self) -> None:
         try:

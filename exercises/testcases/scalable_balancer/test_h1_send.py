@@ -39,6 +39,7 @@ with PacketSender():
     time.sleep(1)
     send_one_packet(0)
     send_one_packet(1)
+    # at absolute 2 sec add third node
     time.sleep(2)
     send_one_packet(0)
     send_one_packet(1)

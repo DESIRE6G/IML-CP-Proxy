@@ -503,3 +503,6 @@ class HighLevelSwitchConnection:
 
     def unsubscribe_from_stream_with_queue(self, queue: asyncio.Queue) -> None:
         pass
+
+    def get_address(self) -> str:
+        return f'{self.host}:{self.port}'
