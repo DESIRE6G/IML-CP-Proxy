@@ -166,3 +166,19 @@ class PacketReceiver:
         if exc_type is not None:
             logging.exception('Exception occurred')
         Path('.pcap_receive_finished').touch()
+
+
+
+
+class PacketSender:
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        Path('.pcap_send_started_h1').touch()
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        logging.debug('touch pcap_send_finished_h1')
+        if exc_type is not None:
+            logging.exception('Exception occurred')
+        Path('.pcap_send_finished_h1').touch()

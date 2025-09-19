@@ -2,7 +2,6 @@ import asyncio
 import itertools
 import logging
 import os.path
-import queue
 import signal
 import sys
 import time
@@ -52,7 +51,7 @@ class TargetSwitchObject:
 
 
 class RuntimeMeasurer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.measurements = {}
 
     def measure(self, key: str, value: float) -> None:
@@ -74,7 +73,7 @@ class RuntimeMeasurer:
 
 
 class Ticker:
-    def __init__(self):
+    def __init__(self) -> None:
         self.last_ticks = {}
 
     def is_tick_passed(self, key: str, time_to_wait: float) -> bool:
@@ -110,16 +109,27 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         self.redis_mode = redis_mode
 
         self.stream_queue_from_target = asyncio.Queue()
-        self.target_switches = []
-        for target_key, c in enumerate(target_switch_configs):
-            converter = P4NameConverter(self.from_p4info_helper, c.high_level_connection.p4info_helper, self.prefix, c.names)
-            target_switch = TargetSwitchObject(c.high_level_connection, converter, c.names)
-            target_switch.high_level_connection.subscribe_to_stream_with_queue(self.stream_queue_from_target, target_key)
-            self.target_switches.append(target_switch)
+        self.target_switches: List[TargetSwitchObject] = []
+        for target_key in target_switch_configs:
+            self._add_target_switch(target_key)
 
         self.running = True
         self.runtime_measurer = RuntimeMeasurer()
         self.ticker = Ticker()
+
+    def _add_target_switch(self, new_target_switch: TargetSwitchConfig) -> None:
+        index = len(self.target_switches)
+        print(f'--->{index=}')
+        converter = P4NameConverter(self.from_p4info_helper, new_target_switch.high_level_connection.p4info_helper, self.prefix, new_target_switch.names)
+        target_switch = TargetSwitchObject(new_target_switch.high_level_connection, converter, new_target_switch.names)
+        target_switch.high_level_connection.subscribe_to_stream_with_queue(self.stream_queue_from_target, index)
+        self.target_switches.append(target_switch)
+
+    async def add_target_switch(self, new_target_switch: TargetSwitchConfig) -> None:
+        self._add_target_switch(new_target_switch)
+        if RedisMode.is_writing(self.redis_mode):
+            index = len(self.target_switches) - 1
+            await self.fill_from_redis_one_target(self.target_switches[index], index)
 
     async def start(self) -> None:
         asyncio.create_task(self.heartbeat())
@@ -175,36 +185,46 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         target_switch, _ = self.get_target_switch_and_index(entity)
         return target_switch
 
-    async def Write(self, request, context, converter: P4NameConverter = None, save_to_redis: bool = True) -> None:
+    async def Write(self,
+                    request,
+                    context,
+                    converter_override: Optional[P4NameConverter] = None,
+                    target_switch_override_index: Optional[int] = None,
+                    save_to_redis: bool = True) -> None:
         start_time = time.time()
         if self.verbose:
             print('------------------- Write -------------------')
             print(request)
 
+        print(self.target_switches)
         updates_distributed_by_target = [[] for _ in self.target_switches]
         tasks_to_wait = []
         for update in request.updates:
             if update.type == Update.INSERT or update.type == Update.MODIFY or update.type == Update.DELETE:
                 entity = update.entity
+                which_one = entity.WhichOneof('entity')
 
-                for target_switch, target_switch_index in self.get_multi_target_switch_and_index(entity):
-                    which_one = entity.WhichOneof('entity')
-                    if save_to_redis and RedisMode.is_writing(self.redis_mode):
-                        if which_one == 'table_entry':
-                            get_redis().rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(update))
-                        elif which_one == 'meter_entry' or which_one == 'direct_meter_entry':
-                            get_redis().rpush(self.redis_keys.METER_ENTRIES, MessageToJson(entity))
+                if save_to_redis and RedisMode.is_writing(self.redis_mode):
+                    if which_one == 'table_entry':
+                        get_redis().rpush(self.redis_keys.TABLE_ENTRIES, MessageToJson(update))
+                    elif which_one == 'meter_entry' or which_one == 'direct_meter_entry':
+                        get_redis().rpush(self.redis_keys.METER_ENTRIES, MessageToJson(entity))
 
-                    if converter is not None:
-                        try:
-                            converter.convert_entity(entity, verbose=self.verbose)
-                        except Exception as e:
-                            raise Exception(f'Conversion failed while trying to convert with converter {entity}') from e
+                if target_switch_override_index is None:
+                    switches_to_iterate_on = self.get_multi_target_switch_and_index(entity)
+                else:
+                    switches_to_iterate_on = [(self.target_switches[target_switch_override_index], target_switch_override_index)]
+
+                for target_switch, target_switch_index in switches_to_iterate_on:
+                    if converter_override is None:
+                        converter = target_switch.converter
                     else:
-                        try:
-                            target_switch.converter.convert_entity(entity, verbose=self.verbose)
-                        except Exception as e:
-                            raise Exception(f'Conversion failed while trying to convert to target switch with index {target_switch_index}, entity: {entity}') from e
+                        converter = converter_override
+
+                    try:
+                        converter.convert_entity(entity, verbose=self.verbose)
+                    except Exception as e:
+                        raise Exception(f'Conversion failed while trying to convert to target switch with index {target_switch_index}, entity: {entity}') from e
                     updates_distributed_by_target[target_switch_index].append(update)
             else:
                 raise Exception(f'Unhandled update type {update.Type.Name(update.type)}')
@@ -212,7 +232,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for target_switch_index, updates in enumerate(updates_distributed_by_target):
             if len(updates) == 0:
                 continue
-            if self.verbose:
+            if True:
                 print(f'== SENDING to target {target_switch_index}')
                 print(updates)
 
@@ -345,51 +365,64 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         return versions[0]
 
-    async def fill_from_redis(self) -> None:
-        if self.verbose:
-            print('FILLING FROM REDIS')
+    def build_source_p4infohelper_from_redis(self) -> Optional[P4InfoHelper]:
         self.raw_p4info = get_redis().get(self.redis_keys.P4INFO)
         if self.raw_p4info is None:
             if self.verbose:
                 print('Fillig from redis failed, because p4info cannot be found in redis')
+            return None
+
+        return P4InfoHelper(raw_p4info=self.raw_p4info)
+
+    async def fill_from_redis(self) -> None:
+        if self.verbose:
+            print('FILLING FROM REDIS')
+
+        redis_p4info_helper = self.build_source_p4infohelper_from_redis()
+        if redis_p4info_helper is None:
             return
 
-        redis_p4info_helper = P4InfoHelper(raw_p4info=self.raw_p4info)
+        for i, target_switch in enumerate(self.target_switches):
+            await self.fill_from_redis_one_target(target_switch, i, redis_p4info_helper)
 
-        for target_switch in self.target_switches:
-            high_level_connection = target_switch.high_level_connection
-            p4name_converter = P4NameConverter(redis_p4info_helper, high_level_connection.p4info_helper, self.prefix, target_switch.names)
-            virtual_target_switch_for_load = TargetSwitchObject(high_level_connection, p4name_converter, target_switch.names)
+    async def fill_from_redis_one_target(self, target_switch: TargetSwitchObject, target_switch_index: int, redis_p4info_helper: Optional[P4InfoHelper] = None):
+        if redis_p4info_helper is None:
+            redis_p4info_helper = self.build_source_p4infohelper_from_redis()
+            if redis_p4info_helper is None:
+                print('Cannot find p4infohelper')
+                return
 
-            for protobuf_message_json_object in get_redis().lrange(self.redis_keys.TABLE_ENTRIES,0,-1):
-                parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
-                name = p4name_converter.get_source_entity_name(parsed_update_object.entity)
-                if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
-                    if self.verbose:
-                        print(parsed_update_object)
-                    await self._write_update_object(parsed_update_object, virtual_target_switch_for_load)
+        print(f'FILLING FROM REDIS to {target_switch.high_level_connection.host}:{target_switch.high_level_connection.port}')
 
-            for protobuf_message_json_object in itertools.chain(get_redis().lrange(self.redis_keys.COUNTER_ENTRIES, 0, -1),
-                                                                get_redis().lrange(self.redis_keys.METER_ENTRIES, 0, -1),
-                                                                ):
-                entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
-                name = p4name_converter.get_source_entity_name(entity)
-                if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
-                    if self.verbose:
-                        print(entity)
+        high_level_connection = target_switch.high_level_connection
+        p4name_converter = P4NameConverter(redis_p4info_helper, high_level_connection.p4info_helper, self.prefix, target_switch.names)
+        virtual_target_switch_for_load = TargetSwitchObject(high_level_connection, p4name_converter, target_switch.names)
+        for protobuf_message_json_object in get_redis().lrange(self.redis_keys.TABLE_ENTRIES, 0, -1):
+            parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
+            name = p4name_converter.get_source_entity_name(parsed_update_object.entity)
+            if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
+                if self.verbose:
+                    print(parsed_update_object)
+                await self._write_update_object(parsed_update_object, p4name_converter, target_switch_index)
+        for protobuf_message_json_object in itertools.chain(get_redis().lrange(self.redis_keys.COUNTER_ENTRIES, 0, -1), get_redis().lrange(self.redis_keys.METER_ENTRIES, 0, -1), ):
+            entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
+            name = p4name_converter.get_source_entity_name(entity)
+            if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
+                if self.verbose:
+                    print(entity)
 
-                    update = p4runtime_pb2.Update()
-                    update.type = p4runtime_pb2.Update.MODIFY
-                    update.entity.CopyFrom(entity)
-                    await self._write_update_object(update, virtual_target_switch_for_load)
+                update = p4runtime_pb2.Update()
+                update.type = p4runtime_pb2.Update.MODIFY
+                update.entity.CopyFrom(entity)
+                await self._write_update_object(update, p4name_converter, target_switch_index)
 
-    async def _write_update_object(self, update_object, target_switch: TargetSwitchObject):
+    async def _write_update_object(self, update_object, converter: P4NameConverter, target_switch_index: int):
         request = p4runtime_pb2.WriteRequest()
-        request.device_id = target_switch.high_level_connection.device_id
+        request.device_id = 0
         request.election_id.low = 1
         update = request.updates.add()
         update.CopyFrom(update_object)
-        await self.Write(request, None, target_switch.converter, save_to_redis=False)
+        await self.Write(request, None, converter, target_switch_index, save_to_redis=False)
 
     def delete_redis_entries_for_this_service(self) -> None:
         if RedisMode.is_writing(self.redis_mode):
@@ -432,8 +465,7 @@ class ProxyServer:
                  prefix: str,
                  from_p4info_path: str,
                  target_switches: Union[List[TargetSwitchConfig], HighLevelSwitchConnection],
-                 redis_mode: RedisMode,
-                 config: ProxyConfigSource):
+                 redis_mode: RedisMode):
         self.port = port
         self.prefix = prefix
         self.from_p4info_path = from_p4info_path
@@ -447,7 +479,6 @@ class ProxyServer:
         self.server = None
         self.servicer = None
         self.redis_mode = redis_mode
-        self.config = config
         self.awaitable = None
 
     async def start(self) -> None:
@@ -460,6 +491,11 @@ class ProxyServer:
         self.server.add_insecure_port(f'[::]:{self.port}')
         print(f'Start [::]:{self.port}')
         await asyncio.gather(servicer_awaitable, self.server.start())
+
+    async def add_target_switch(self, new_switch: TargetSwitchConfig) -> None:
+        if self.servicer is None:
+            raise Exception('Proxy server has to be started to add a node')
+        await self.servicer.add_target_switch(new_switch)
 
     async def wait_for_termination(self) -> None:
         try:
@@ -502,7 +538,7 @@ async def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[Proxy
 
         for source in source_configs_raw:
             p4info_path = f"build/{source.program_name}.p4.p4info.txt"
-            proxy_server = ProxyServer(source.port, source.prefix, p4info_path, target_switch_configs, proxy_config.redis, source)
+            proxy_server = ProxyServer(source.port, source.prefix, p4info_path, target_switch_configs, proxy_config.redis)
             proxy_server.awaitable = proxy_server.start()
             servers.append(proxy_server)
 
