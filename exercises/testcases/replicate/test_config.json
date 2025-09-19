@@ -1,5 +1,5 @@
 {
   "file_overrides": {
-    "topology.json": "topology_h1_s123triangle_h2.json"
+    "topology.json": "topology_h1_s1_s23_s4_h2.json"
   }
 }
