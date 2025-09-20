@@ -6,3 +6,4 @@ grpcio==1.65.5
 yappi==1.6.0
 p4runtime
 p4runtime-shell
+aiohttp==3.10.11
