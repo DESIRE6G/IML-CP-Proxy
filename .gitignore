@@ -23,3 +23,9 @@ logs/
 
 # IntelliJ / PyCharm
 .idea/
+
+__temporary_test_folder
+release
+__build_cache
+results
+venv
