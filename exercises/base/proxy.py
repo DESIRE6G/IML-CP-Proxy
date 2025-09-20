@@ -169,10 +169,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.port}')
                 ret.append((target_switch, index))
 
-
-        if len(ret) == 0:
-            raise Exception(f'Cannot find a target switch for {entity_name=}')
-
         return ret
 
     def get_target_switch_and_index(self, entity: p4runtime_pb2.Entity) -> Tuple[TargetSwitchObject, str]:

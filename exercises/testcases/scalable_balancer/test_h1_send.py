@@ -33,14 +33,17 @@ def send_one_packet(choosen_source_id: int) -> None:
     packet_index += 1
 
 with PacketSender():
-    send_one_packet(0)
+    send_one_packet(0) # only this goes, so 1
     send_one_packet(1)
     send_one_packet(2)
     time.sleep(1)
-    send_one_packet(0)
-    send_one_packet(1)
-    # at absolute 2 sec add third node
-    time.sleep(2)
-    send_one_packet(0)
-    send_one_packet(1)
-    send_one_packet(2)
+
+    send_one_packet(0) # this goes, so 2
+    send_one_packet(1) # this gies, so 3
+    send_one_packet(2) # nope
+
+    time.sleep(1)
+
+    send_one_packet(0) # 4
+    send_one_packet(1) # 5
+    send_one_packet(2) # 6

@@ -1,4 +1,5 @@
 {
+  "ongoing_controller": true,
   "proxy_executable": "balancer_manager.py",
   "file_overrides": {
     "topology.json": "topology_h1_s1_s234_s5_h2.json"

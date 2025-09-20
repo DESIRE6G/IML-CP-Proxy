@@ -43,7 +43,7 @@ if __name__ == '__main__':
             output_object['success'] = False
             break
 
-        if len(packets_arrived) != 7:
+        if len(packets_arrived) != 6:
             message(f'failed, not correct packet num. Arrived packet num: {len(packets_arrived)}')
             output_object['success'] = False
 
