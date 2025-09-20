@@ -99,6 +99,7 @@ def prepare_test_folder(test_case: str, subtest:Optional[str]=None):
         f.write(descriptor.model_dump_json(indent=4))
     link_all_files_from_folder('base', TARGET_TEST_FOLDER)
     os.symlink(os.path.realpath('common'), os.path.realpath(f'{TARGET_TEST_FOLDER}/common'))
+    os.symlink(os.path.realpath('proxy.py'), os.path.realpath(f'{TARGET_TEST_FOLDER}/proxy.py'))
 
     assert_folder_existence(f'{TESTCASE_FOLDER}/{test_case}')
 
