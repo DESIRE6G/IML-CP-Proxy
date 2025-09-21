@@ -97,7 +97,7 @@ def prepare_test_folder(test_case: str, subtest:Optional[str]=None):
     with open(TESTCASE_JSON_FILE_PATH, 'wt') as f:
         descriptor = TestcaseDescriptor(test_case=test_case, subtest=subtest)
         f.write(descriptor.model_dump_json(indent=4))
-    link_all_files_from_folder('base', TARGET_TEST_FOLDER)
+    link_all_files_from_folder('testing_base_files', TARGET_TEST_FOLDER)
     os.symlink(os.path.realpath('common'), os.path.realpath(f'{TARGET_TEST_FOLDER}/common'))
     os.symlink(os.path.realpath('proxy.py'), os.path.realpath(f'{TARGET_TEST_FOLDER}/proxy.py'))
 
@@ -450,10 +450,10 @@ def build_up_p4_cache() -> None:
             os.remove(dst)
         os.link(src, dst)
 
-    link_with_override('base/Makefile', f'{BUILD_CACHE_FOLDER}/Makefile')
+    link_with_override('testing_base_files/Makefile', f'{BUILD_CACHE_FOLDER}/Makefile')
     p4files = []
     success = True
-    for root, dirs, files in itertools.chain(os.walk('testcases'), os.walk('base')):
+    for root, dirs, files in itertools.chain(os.walk('testcases'), os.walk('testing_base_files')):
         for file in files:
             if file.endswith('.p4'):
                 filepath = f'{root}/{file}'
@@ -520,12 +520,6 @@ else:
             raise Exception('You cannot use wildcard for building a test case.')
     elif sys.argv[1] == 'prepare':
         prepare_environment()
-    elif sys.argv[1] == 'release':
-        clear_folder('release')
-        shutil.copyfile('base/proxy.py', 'release/proxy.py')
-        shutil.copyfile('requirements.txt', 'release/requirements.txt')
-        shutil.copyfile('testcases/l3fwd/proxy_config.json', 'release/proxy_config.json')
-        shutil.copytree('common','release/common')
     elif sys.argv[1] == 'saveredis':
         if len(sys.argv) < 3:
             raise Exception('For saveredis you have to pass a filename as well')
