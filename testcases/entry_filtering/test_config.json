@@ -1,0 +1,6 @@
+{
+  "file_overrides": {
+    "topology.json": "topology_h1_s1_h2.json"
+  },
+  "without_traffic": true
+}

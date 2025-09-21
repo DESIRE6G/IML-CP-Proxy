@@ -1,0 +1,19 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "target":{
+        "program_name": "fwd_exact",
+        "port": 50051,
+        "device_id": 0,
+        "filter_params_allow_only": {
+          "hdr.ipv4.dstAddr": ["10.0.2.2"]
+        }
+      },
+      "source": {
+        "program_name": "fwd_exact",
+        "port": 60051
+      }
+    }
+  ]
+}

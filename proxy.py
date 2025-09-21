@@ -23,7 +23,7 @@ import redis
 
 from common.p4runtime_lib.switch import IterableQueue
 from common.high_level_switch_connection_async import HighLevelSwitchConnection, StreamMessageResponseWithInfo
-from common.proxy_config import ProxyConfig, RedisMode, ProxyConfigSource
+from common.proxy_config import ProxyConfig, RedisMode, ProxyConfigSource, ProxyAllowedParamsDict
 from common.redis_helper import RedisKeys, RedisRecords
 
 logger = logging.getLogger()
@@ -42,12 +42,14 @@ def get_redis() -> redis.Redis:
 class TargetSwitchConfig:
     high_level_connection: HighLevelSwitchConnection
     names: Optional[Dict[str, str]] = None
+    filter_params_allow_only: Optional[ProxyAllowedParamsDict] = None
 
 @dataclass
 class TargetSwitchObject:
     high_level_connection: HighLevelSwitchConnection
     converter: P4NameConverter
     names: Optional[Dict[str, str]] = None
+    filter_params_allow_only: Optional[ProxyAllowedParamsDict] = None
 
 
 class RuntimeMeasurer:
@@ -119,7 +121,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     def _add_target_switch(self, new_target_switch: TargetSwitchConfig) -> None:
         converter = P4NameConverter(self.from_p4info_helper, new_target_switch.high_level_connection.p4info_helper, self.prefix, new_target_switch.names)
-        target_switch = TargetSwitchObject(new_target_switch.high_level_connection, converter, new_target_switch.names)
+        target_switch = TargetSwitchObject(new_target_switch.high_level_connection, converter, new_target_switch.names, new_target_switch.filter_params_allow_only)
         new_switch_address = target_switch.high_level_connection.get_address()
         print(f'--->{new_switch_address=}')
         target_switch.high_level_connection.subscribe_to_stream_with_queue(self.stream_queue_from_target, new_switch_address)
@@ -189,6 +191,29 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         target_switch, _ = self.get_target_switch_and_index(entity)
         return target_switch
 
+    def is_parameters_allowed_by_filters(self, entity: p4runtime_pb2.Entity, switch: TargetSwitchObject) -> bool:
+        if switch.filter_params_allow_only is None:
+            return True
+
+        which_one = entity.WhichOneof('entity')
+        if which_one == 'table_entry':
+            for match in entity.table_entry.match:
+                if match.WhichOneof('field_match_type') == 'exact':
+                    print(match)
+                    print(match.field_id)
+                    table_name = self.from_p4info_helper.get_tables_name(entity.table_entry.table_id)
+                    match_field_name = self.from_p4info_helper.get_match_field_name(table_name, match.field_id)
+
+                    for allowed_param_rule_key, values in switch.filter_params_allow_only.items():
+                        if allowed_param_rule_key == match_field_name:
+                            encoded_values = [self.from_p4info_helper.get_match_field_pb(table_name, match_field_name, value).exact.value for value in values]
+                            print('value:', match.exact.value)
+                            print(f'{encoded_values=}')
+                            if match.exact.value not in encoded_values:
+                                return False
+
+        return True
+
     async def Write(self,
                     request,
                     context,
@@ -218,6 +243,9 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     switches_to_iterate_on = self.get_multi_target_switch_and_index(entity)
                 else:
                     switches_to_iterate_on = [(self._target_switches[target_switch_override_index], target_switch_override_index)]
+
+                switches_to_iterate_on = [switch_and_index for switch_and_index in switches_to_iterate_on if self.is_parameters_allowed_by_filters(entity, switch_and_index[0])]
+
 
                 for target_switch, target_switch_index in switches_to_iterate_on:
                     if converter_override is None:
@@ -462,7 +490,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             pipe.execute()
 
 
-
 class ProxyServer:
     def __init__(self,
                  port: int,
@@ -543,7 +570,7 @@ async def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[Proxy
                 )
             await mapping_target_switch.init()
 
-            target_switch_configs.append(TargetSwitchConfig(mapping_target_switch, target_config_raw.names))
+            target_switch_configs.append(TargetSwitchConfig(mapping_target_switch, target_config_raw.names, target_config_raw.filter_params_allow_only))
 
         for source in source_configs_raw:
             p4info_path = f"build/{source.program_name}.p4.p4info.txt"

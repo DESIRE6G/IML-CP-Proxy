@@ -67,6 +67,7 @@ test_cases : List[TestCase] = [
     {'name': 'basicv4','subtest': None},
     {'name': 'scalable_balancer','subtest': None},
     {'name': 'replicate','subtest': None},
+    {'name': 'entry_filtering','subtest': None},
 ]
 
 TARGET_TEST_FOLDER = '__temporary_test_folder'
@@ -222,7 +223,10 @@ def run_test_cases(test_cases_to_run: list):
                 'pcap_generator': os.path.exists(f'{TARGET_TEST_FOLDER}/test_h1_send.py'),
                 'validator': os.path.exists(f'{TARGET_TEST_FOLDER}/validator.py') and config.get('run_validator', default=True)
             }
-            active_test_modes['ping'] = not any([active_test_modes[test_mode] for test_mode in active_test_modes])
+            if config.get("without_traffic", False):
+                active_test_modes['ping'] = False
+            else:
+                active_test_modes['ping'] = not any([active_test_modes[test_mode] for test_mode in active_test_modes])
 
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.0 -v -p60')
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')

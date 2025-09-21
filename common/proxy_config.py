@@ -18,6 +18,8 @@ class RedisMode(Enum):
         return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_WRITE
 
 
+ProxyAllowedParamsDict = Dict[str, List[Any]]
+
 class ProxyConfigTarget(BaseModel):
     program_name: str
     port: int
@@ -28,6 +30,7 @@ class ProxyConfigTarget(BaseModel):
     rate_limiter_buffer_size: Optional[int] = None
     batch_delay: Optional[float] = None
     host: Optional[str] = '127.0.0.1'
+    filter_params_allow_only: Optional[ProxyAllowedParamsDict] = None
 
 
 class ProxyConfigSource(BaseModel):
