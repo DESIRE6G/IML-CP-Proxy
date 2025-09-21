@@ -26,9 +26,9 @@ if __name__ == '__main__':
             source_ip = decodeIPv4(counter.match.value)
             node1_direct_counter_dict[source_ip] = counter
     print(node1_direct_counter_dict)
-    validator.should_be_equal(node1_direct_counter_dict['10.0.2.13'].packet_count, 3)
-    validator.should_be_equal(node1_direct_counter_dict['10.0.2.25'].packet_count, 2)
-    validator.should_be_equal(node1_direct_counter_dict['10.0.2.33'].packet_count, 1)
+    validator.should_be_equal(node1_direct_counter_dict['10.0.2.13'].packet_count, 4)
+    validator.should_be_equal(node1_direct_counter_dict['10.0.2.25'].packet_count, 3)
+    validator.should_be_equal(node1_direct_counter_dict['10.0.2.33'].packet_count, 2)
 
     ShutdownAllSwitchConnections()
 

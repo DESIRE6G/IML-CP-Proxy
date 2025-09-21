@@ -48,3 +48,8 @@ with PacketSender():
     send_one_packet(0) # 4
     send_one_packet(1) # 5
     send_one_packet(2) # 6
+
+    time.sleep(1) # redirect
+    send_one_packet(0) # 7
+    send_one_packet(1) # 8
+    send_one_packet(2) # 9

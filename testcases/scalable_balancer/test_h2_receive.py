@@ -24,6 +24,7 @@ if __name__ == '__main__':
         for i, arrived_packet in enumerate(packets_arrived):
             message(f'----- Packet {i}')
             message(f'Ip: {arrived_packet[IP].src} Payload: {bytes(arrived_packet[IP].payload)}')
+            packet_index = bytes(arrived_packet[IP].payload)[0]
 
             if arrived_packet[IP].src == '10.0.1.13':
                 if bytes(arrived_packet[IP].payload)[2] == 2:
@@ -33,8 +34,14 @@ if __name__ == '__main__':
                 if bytes(arrived_packet[IP].payload)[2] == 3:
                     message('OK')
                     continue
+                if 9 < packet_index and bytes(arrived_packet[IP].payload)[2] == 4:
+                    message('OK')
+                    continue
             if arrived_packet[IP].src == '10.0.1.33':
-                if bytes(arrived_packet[IP].payload)[2] == 4:
+                if packet_index <= 9 and bytes(arrived_packet[IP].payload)[2] == 4:
+                    message('OK')
+                    continue
+                if 6 < packet_index and bytes(arrived_packet[IP].payload)[2] == 2:
                     message('OK')
                     continue
 
@@ -43,7 +50,7 @@ if __name__ == '__main__':
             output_object['success'] = False
             break
 
-        if len(packets_arrived) != 6:
+        if len(packets_arrived) != 9:
             message(f'failed, not correct packet num. Arrived packet num: {len(packets_arrived)}')
             output_object['success'] = False
 

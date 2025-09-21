@@ -1,5 +1,7 @@
 import asyncio
 import datetime
+import os
+import time
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 
@@ -126,11 +128,40 @@ if __name__ == "__main__":
             await merger_node_connection.init()
 
             print('Proxy is ready')
+            while not os.path.exists('.pcap_send_started_h1'):
+                await asyncio.sleep(0.05)
+            start_time = time.time()
+            while time.time() - start_time < 2.5:
+                await asyncio.sleep(0.1)
+
+            # reroute 33 to port 2
+            table_entry = balancer_connection.p4info_helper.buildTableEntry(
+                    table_name="MyIngress.ipv4_lpm",
+                    match_fields={
+                        "hdr.ipv4.srcAddr": ('10.0.1.33', 32)
+                    },
+                    action_name="MyIngress.set_port",
+                    action_params={
+                        "port": 2
+                    })
+            await balancer_connection.connection.WriteTableEntry(table_entry, 'MODIFY')
+            # reroute 25 to port 4
+            table_entry = balancer_connection.p4info_helper.buildTableEntry(
+                    table_name="MyIngress.ipv4_lpm",
+                    match_fields={
+                        "hdr.ipv4.srcAddr": ('10.0.1.25', 32)
+                    },
+                    action_name="MyIngress.set_port",
+                    action_params={
+                        "port": 4
+                    })
+            await balancer_connection.connection.WriteTableEntry(table_entry, 'MODIFY')
+
             while True:
                 await asyncio.sleep(1)
         finally:
             print('Proxy stopping')
             if runner is not None:
-                runner.cleanup()
+                await runner.cleanup()
 
     asyncio.run(amain())
