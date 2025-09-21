@@ -22,7 +22,6 @@ services:
       - ./example/controller:/app
       - ./example/p4_build:/app/build
       - ./common:/app/common
-      - ./common/p4runtime_lib:/app/common/p4runtime_lib
     depends_on: 
       - p4runtime-proxy 
 
