@@ -1,0 +1,20 @@
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "target": {
+        "program_name": "basicv3",
+        "port": 50051,
+        "device_id": 0,
+        "host": "dataplane"
+      },
+      "sources": [
+        {
+          "program_name": "basicv3",
+          "prefix": "",
+          "port": 60051
+        }
+      ]
+    }
+  ]
+}

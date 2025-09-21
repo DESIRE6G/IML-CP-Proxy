@@ -1,0 +1,107 @@
+pkg_info {
+  arch: "v1model"
+}
+tables {
+  preamble {
+    id: 48429017
+    name: "MyIngress.ipv4_lpm1"
+    alias: "ipv4_lpm1"
+  }
+  match_fields {
+    id: 1
+    name: "hdr.ipv4.dstAddr"
+    bitwidth: 32
+    match_type: LPM
+  }
+  action_refs {
+    id: 22493106
+  }
+  action_refs {
+    id: 25652968
+  }
+  action_refs {
+    id: 21257015
+  }
+  size: 1024
+}
+tables {
+  preamble {
+    id: 35641939
+    name: "MyIngress.ipv4_lpm2"
+    alias: "ipv4_lpm2"
+  }
+  match_fields {
+    id: 1
+    name: "hdr.ipv4.dstAddr"
+    bitwidth: 32
+    match_type: LPM
+  }
+  action_refs {
+    id: 29586029
+  }
+  action_refs {
+    id: 21257015
+  }
+  size: 1024
+}
+tables {
+  preamble {
+    id: 47049489
+    name: "MyIngress.just_another"
+    alias: "just_another"
+  }
+  match_fields {
+    id: 1
+    name: "hdr.ethernet.dstAddr"
+    bitwidth: 48
+    match_type: EXACT
+  }
+  action_refs {
+    id: 25652968
+  }
+  action_refs {
+    id: 21257015
+  }
+  size: 1024
+}
+actions {
+  preamble {
+    id: 21257015
+    name: "NoAction"
+    alias: "NoAction"
+    annotations: "@noWarn(\"unused\")"
+  }
+}
+actions {
+  preamble {
+    id: 25652968
+    name: "MyIngress.drop"
+    alias: "drop"
+  }
+}
+actions {
+  preamble {
+    id: 29586029
+    name: "MyIngress.set_port"
+    alias: "set_port"
+  }
+}
+actions {
+  preamble {
+    id: 22493106
+    name: "MyIngress.chg_addr"
+    alias: "chg_addr"
+  }
+  params {
+    id: 1
+    name: "port"
+    bitwidth: 9
+  }
+  params {
+    id: 2
+    name: "dstAddr"
+    bitwidth: 48
+  }
+}
+type_info {
+}

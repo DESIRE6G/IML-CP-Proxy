@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  dataplane:
+    image: p4lang/behavioral-model:stable
+    command:  ['sh', '-c', 'simple_switch_grpc --log-console --device-id 0  -i 0@pkt-src-br-1 -i 1@pkt-dst-br-1 /root/build/basicv3.json -- --grpc-server-addr 0.0.0.0:50051']
+    volumes:
+      - ./example/p4_build:/root/build
+
+  p4runtime-proxy:
+    build: .
+    ports: 
+      - "60051:60051"
+    volumes:
+      - ./:/app/
+      - ./example/p4_build:/app/build
+      - ./example/proxy_config.json:/app/proxy_config.json
+
+  test-controller:
+    build: ./example/controller
+    volumes:
+      - ./example/controller:/app
+      - ./example/p4_build:/app/build
+      - ./common:/app/common
+      - ./common/p4runtime_lib:/app/common/p4runtime_lib
+    depends_on: 
+      - p4runtime-proxy 
+
