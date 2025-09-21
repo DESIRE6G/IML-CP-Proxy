@@ -2,7 +2,6 @@ import glob
 import itertools
 import json
 import os
-import shutil
 import signal
 import sys
 import subprocess
