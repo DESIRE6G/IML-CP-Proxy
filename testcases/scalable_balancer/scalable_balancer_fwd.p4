@@ -57,6 +57,7 @@ control MyVerifyChecksum(inout headers hdr, inout metadata meta) {
 control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
+    counter(3, CounterType.packets_and_bytes) packetCounter;
     direct_counter(CounterType.packets_and_bytes) directIpCounter;
 
     action drop() {
@@ -86,6 +87,9 @@ control MyIngress(inout headers hdr,
 
     apply {
         ipv4_lpm.apply();
+        packetCounter.count((bit<32>) 0);
+        packetCounter.count((bit<32>) 2);
+        packetCounter.count((bit<32>) 2);
     }
 }
 

@@ -9,7 +9,7 @@ from common.controller_helper import ControllerExceptionHandling
 from common.high_level_switch_connection import HighLevelSwitchConnection
 
 with ControllerExceptionHandling():
-    s1 = HighLevelSwitchConnection(0, 'fwd_with_count_per_ip', '60051')
+    s1 = HighLevelSwitchConnection(0, 'scalable_balancer_fwd', '60051')
 
     response = requests.post('http://127.0.0.1:8080/add_node', json={'host': '127.0.0.1', 'port': 50052, 'device_id':1})
     response.raise_for_status()

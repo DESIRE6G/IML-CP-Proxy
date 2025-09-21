@@ -9,10 +9,12 @@ from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 from common.validator_tools import Validator
 
 if __name__ == '__main__':
-    s1 = HighLevelSwitchConnection(0, 'fwd_with_count_per_ip', '60051', send_p4info=False)
+    s1 = HighLevelSwitchConnection(0, 'scalable_balancer_fwd', '60051', send_p4info=False)
 
 
     node1_direct_counter = get_direct_counter_objects(s1, 'MyIngress.ipv4_lpm')
+    counter1 = get_counter_objects(s1, 'MyIngress.packetCounter')
+    counter1_all_objects = get_counter_objects_by_id(s1.connection, None)
 
     print('node1_direct_counter')
     pprint(node1_direct_counter)
@@ -29,6 +31,16 @@ if __name__ == '__main__':
     validator.should_be_equal(node1_direct_counter_dict['10.0.2.13'].packet_count, 4)
     validator.should_be_equal(node1_direct_counter_dict['10.0.2.25'].packet_count, 3)
     validator.should_be_equal(node1_direct_counter_dict['10.0.2.33'].packet_count, 2)
+
+    validator.should_be_equal(counter1[0].packet_count, 9)
+    validator.should_be_equal(counter1[1].packet_count, 0)
+    validator.should_be_equal(counter1[2].packet_count, 18)
+
+    validator.should_be_equal(counter1[0].byte_count, 9 * 37)
+    validator.should_be_equal(counter1[1].byte_count, 0)
+    validator.should_be_equal(counter1[2].byte_count, 18 * 37)
+
+    validator.should_be_equal(counter1_all_objects, counter1)
 
     ShutdownAllSwitchConnections()
 
