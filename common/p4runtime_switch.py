@@ -21,8 +21,8 @@ from time import sleep
 from mininet.log import debug, error, info
 from mininet.moduledeps import pathCheck
 from mininet.node import Switch
-from netstat import check_listening_on_port
-from p4_mininet import SWITCH_START_TIMEOUT, P4Switch
+from common.netstat import check_listening_on_port
+from common.p4_mininet import SWITCH_START_TIMEOUT, P4Switch
 
 
 class P4RuntimeSwitch(P4Switch):

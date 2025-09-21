@@ -21,7 +21,7 @@ from time import sleep
 from mininet.log import debug, error, info
 from mininet.moduledeps import pathCheck
 from mininet.node import Host, Switch
-from netstat import check_listening_on_port
+from common.netstat import check_listening_on_port
 
 SWITCH_START_TIMEOUT = 10 # seconds
 
