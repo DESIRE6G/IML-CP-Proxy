@@ -325,7 +325,7 @@ def run_test_cases(test_cases_to_run: list):
 
                 print(f'{COLOR_GREEN}PCAP Test successful{COLOR_END}')
             if active_test_modes['validator']:
-                if not active_test_modes['pcap'] and not active_test_modes['ping']:
+                if not active_test_modes['pcap'] and not active_test_modes['ping'] and not active_test_modes['pcap_generator']:
                     exact_ping_packet_num = config.get("exact_ping_packet_num",None)
                     if exact_ping_packet_num is not None:
                         tmux_shell(f'h1 ping -c {exact_ping_packet_num} h2', mininet_pane_name)

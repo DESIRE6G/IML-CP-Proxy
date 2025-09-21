@@ -114,7 +114,7 @@ if __name__ == "__main__":
             site = web.TCPSite(runner, '127.0.0.1', 8080)
             await site.start()
             global manager
-            manager = ReplicatedNodeBalancerManager('fwd')
+            manager = ReplicatedNodeBalancerManager('fwd_with_count_per_ip')
             await manager.init()
 
             global balancer_connection

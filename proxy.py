@@ -168,7 +168,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for index, target_switch in self._target_switches.items():
             if target_switch.names is None or entity_name in target_switch.names:
                 if self.verbose:
-                    print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.port}')
+                    print(f'Choosen target switch: {target_switch.high_level_connection.filename}, {target_switch.high_level_connection.host}:{target_switch.high_level_connection.port}')
                 ret.append((target_switch, index))
 
         return ret
@@ -264,7 +264,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         for target_switch_index, updates in updates_distributed_by_target.items():
             if len(updates) == 0:
                 continue
-            if True:
+            if self.verbose:
                 print(f'== SENDING to target {target_switch_index}')
                 print(updates)
 
@@ -287,17 +287,16 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         if self.verbose:
             print('------------------- Read -------------------')
 
-        ret = ReadResponse()
         read_entites_by_target_switch = {k: [] for k in self._target_switches.keys()}
         for entity in original_request.entities:
             try:
-                _, target_switch_index = self.get_target_switch_and_index(entity)
-                read_entites_by_target_switch[target_switch_index].append(entity)
+                for target_switch, target_switch_index in self.get_multi_target_switch_and_index(entity):
+                    read_entites_by_target_switch[target_switch_index].append(entity)
             except EntityCannotHaveZeroId:
                 for target_switch_index, target_switch in self._target_switches.items():
                     read_entites_by_target_switch[target_switch_index].append(entity)
 
-
+        received_entries = []
         for target_switch_index, read_entites_for_target_switch in read_entites_by_target_switch.items():
             if len(read_entites_for_target_switch) == 0:
                 continue
@@ -323,12 +322,73 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     entity_name = target_switch_object.converter.get_target_entity_name(entity)
                     if get_pure_p4_name(entity_name).startswith(self.prefix):
                         target_switch_object.converter.convert_entity(entity, reverse=True, verbose=self.verbose)
-                        ret_entity = ret.entities.add()
-                        ret_entity.CopyFrom(entity)
+                        received_entries.append(entity)
 
+        received_entries = self.merge_duplicates_for_read_answer(received_entries)
+        print(received_entries)
 
+        ret = ReadResponse()
+        for entity in received_entries:
+            ret_entity = ret.entities.add()
+            ret_entity.CopyFrom(entity)
+
+        if self.verbose:
+            print('--------- Response for read:')
+            print(ret)
 
         yield ret
+
+    def merge_duplicates_for_read_answer(self, received_entries: List[p4runtime_pb2.Entity]) -> List[p4runtime_pb2.Entity]:
+        def get_entity_identifier(entity: p4runtime_pb2.Entity) -> Union[str, int]:
+            which_one = entity.WhichOneof('entity')
+            if which_one == 'table_entry':
+                return entity.table_entry.table_id
+            if which_one == 'meter_entry':
+                return entity.meter_entry.meter_id
+            if which_one == 'direct_meter_entry':
+                return entity.direct_meter_entry.table_entry.table_id
+            if which_one == 'counter_entry':
+                return f'{entity.counter_entry.counter_id}-{entity.counter_entry.index}'
+            if which_one == 'direct_counter_entry':
+                return MessageToJson(entity.direct_counter_entry.table_entry) #table and match are both in
+            raise NotImplementedError(f'{which_one} is not handled by read feedback')
+
+        groupped_entries: Dict[Union[str, int], p4runtime_pb2.Entity] = {}
+        for entity in received_entries:
+            identifier = get_entity_identifier(entity)
+            if identifier not in groupped_entries:
+                groupped_entries[identifier] = []
+
+            groupped_entries[identifier].append(entity)
+
+        ret: List[p4runtime_pb2.Entity] = []
+        def are_all_same_entity(entities: List[p4runtime_pb2.Entity]) -> bool:
+            json_dump = None
+            for entity in entities:
+                if json_dump is None:
+                    json_dump = MessageToJson(entity)
+                elif json_dump != MessageToJson(entity):
+                    return False
+            return True
+
+        for group in groupped_entries.values():
+            first_entity = group[0]
+            which_one = first_entity.WhichOneof('entity')
+            if which_one in ['table_entry', 'meter_entry', 'direct_meter_entry']:
+                if not are_all_same_entity(group):
+                    raise Exception(f'Cannot merge, because responses are differs on different targets {group}')
+            elif which_one == 'counter_entry':
+                for entity in group[1:]:
+                    first_entity.counter_entry.data.byte_count += entity.counter_entry.data.byte_count
+                    first_entity.counter_entry.data.packet_count += entity.counter_entry.data.packet_count
+            elif which_one == 'direct_counter_entry':
+                for entity in group[1:]:
+                    first_entity.direct_counter_entry.data.byte_count += entity.direct_counter_entry.data.byte_count
+                    first_entity.direct_counter_entry.data.packet_count += entity.direct_counter_entry.data.packet_count
+            else:
+                raise NotImplementedError(f'{which_one} is not handled by read feedback')
+            ret.append(first_entity)
+        return ret
 
     async def SetForwardingPipelineConfig(self, request: p4runtime_pb2.SetForwardingPipelineConfigRequest, context):
         if self.verbose:
