@@ -52,4 +52,9 @@ with PacketSender():
     time.sleep(1) # redirect
     send_one_packet(0) # 7
     send_one_packet(1) # 8
-    send_one_packet(2) # 9
+    send_one_packet(2) # not allowed ip, packet 11
+
+    time.sleep(1) # allow 2 route redirected packet
+    send_one_packet(0) # 9
+    send_one_packet(1) # 10
+    send_one_packet(2) # 11

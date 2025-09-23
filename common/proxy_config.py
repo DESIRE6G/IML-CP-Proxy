@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union, Tuple
 
 from pydantic import BaseModel, Field, AliasChoices
 
@@ -18,7 +18,7 @@ class RedisMode(Enum):
         return redis_mode == RedisMode.READWRITE or redis_mode == RedisMode.ONLY_WRITE
 
 
-ProxyAllowedParamsDict = Dict[str, List[Any]]
+ProxyAllowedParamsDict = Dict[str, List[Union[str, float, Tuple[str, int]]]]
 
 class ProxyConfigTarget(BaseModel):
     program_name: str

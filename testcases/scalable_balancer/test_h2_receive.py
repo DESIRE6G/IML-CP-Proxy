@@ -31,17 +31,17 @@ if __name__ == '__main__':
                     message('OK')
                     continue
             if arrived_packet[IP].src == '10.0.1.25':
-                if bytes(arrived_packet[IP].payload)[2] == 3:
+                if packet_index <= 9 and bytes(arrived_packet[IP].payload)[2] == 3:
                     message('OK')
                     continue
-                if 9 < packet_index and bytes(arrived_packet[IP].payload)[2] == 4:
+                if 9 <= packet_index and bytes(arrived_packet[IP].payload)[2] == 4:
                     message('OK')
                     continue
             if arrived_packet[IP].src == '10.0.1.33':
                 if packet_index <= 9 and bytes(arrived_packet[IP].payload)[2] == 4:
                     message('OK')
                     continue
-                if 6 < packet_index and bytes(arrived_packet[IP].payload)[2] == 2:
+                if 9 < packet_index and bytes(arrived_packet[IP].payload)[2] == 2:
                     message('OK')
                     continue
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
             output_object['success'] = False
             break
 
-        if len(packets_arrived) != 9:
+        if len(packets_arrived) != 11:
             message(f'failed, not correct packet num. Arrived packet num: {len(packets_arrived)}')
             output_object['success'] = False
 

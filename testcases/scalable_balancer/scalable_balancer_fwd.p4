@@ -69,11 +69,14 @@ control MyIngress(inout headers hdr,
         hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
         hdr.ethernet.dstAddr = dstAddr;
         hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+        packetCounter.count((bit<32>) 0);
+        packetCounter.count((bit<32>) 2);
+        packetCounter.count((bit<32>) 2);
     }
 
-    table ipv4_lpm {
+    table ipv4_exact {
         key = {
-            hdr.ipv4.dstAddr: lpm;
+            hdr.ipv4.dstAddr: exact;
         }
         actions = {
             ipv4_forward;
@@ -86,10 +89,7 @@ control MyIngress(inout headers hdr,
     }
 
     apply {
-        ipv4_lpm.apply();
-        packetCounter.count((bit<32>) 0);
-        packetCounter.count((bit<32>) 2);
-        packetCounter.count((bit<32>) 2);
+        ipv4_exact.apply();
     }
 }
 

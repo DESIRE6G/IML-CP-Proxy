@@ -15,9 +15,9 @@ with ControllerExceptionHandling():
     response.raise_for_status()
 
     table_entry = s1.p4info_helper.buildTableEntry(
-        table_name="MyIngress.ipv4_lpm",
+        table_name="MyIngress.ipv4_exact",
         match_fields={
-            "hdr.ipv4.dstAddr": ('10.0.2.13', 32)
+            "hdr.ipv4.dstAddr": '10.0.2.13'
         },
         action_name="MyIngress.ipv4_forward",
         action_params={
@@ -26,9 +26,9 @@ with ControllerExceptionHandling():
         })
     s1.connection.WriteTableEntry(table_entry)
     table_entry = s1.p4info_helper.buildTableEntry(
-        table_name="MyIngress.ipv4_lpm",
+        table_name="MyIngress.ipv4_exact",
         match_fields={
-            "hdr.ipv4.dstAddr": ('10.0.2.25', 32)
+            "hdr.ipv4.dstAddr": '10.0.2.25'
         },
         action_name="MyIngress.ipv4_forward",
         action_params={
@@ -37,9 +37,9 @@ with ControllerExceptionHandling():
         })
     s1.connection.WriteTableEntry(table_entry)
     table_entry = s1.p4info_helper.buildTableEntry(
-        table_name="MyIngress.ipv4_lpm",
+        table_name="MyIngress.ipv4_exact",
         match_fields={
-            "hdr.ipv4.dstAddr": ('10.0.2.33', 32)
+            "hdr.ipv4.dstAddr": '10.0.2.33'
         },
         action_name="MyIngress.ipv4_forward",
         action_params={
@@ -64,3 +64,7 @@ with ControllerExceptionHandling():
 
     response = requests.post('http://127.0.0.1:8080/add_node', json={'host': '127.0.0.1', 'port': 50054, 'device_id':3})
     response.raise_for_status()
+
+    while time.time() - start_time < 3.5:
+        time.sleep(0.1)
+
