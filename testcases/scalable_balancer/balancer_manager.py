@@ -89,11 +89,7 @@ def get_actual_time_to_log():
 
 manager: Optional[ReplicatedNodeBalancerManager] = None
 balancer_connection: Optional[HighLevelSwitchConnection] = None
-BALANCER_MAPPING = {
-    2: '10.0.1.13',
-    3: '10.0.1.25',
-    4: '10.0.1.33',
-}
+source_address_data: Dict[str, int] = {}
 async def add_node(request):
     global manager
     data = await request.json()
@@ -103,21 +99,35 @@ async def add_node(request):
 
     print(f'add_node request arrived: {data} {get_actual_time_to_log()}')
     print(filter_params_allow_only)
-    s1_output_port = int(data['device_id']) + 1
     await manager.add_node(host, port, int(data['device_id']), filter_params_allow_only=filter_params_allow_only)
+
+    print(f'add_node finished {data}: {get_actual_time_to_log()}')
+    return web.json_response({'status': 'OK'})
+
+async def set_route(request):
+    global manager, balancer_connection, source_address_data
+    data = await request.json()
+    print(f'set_route request arrived {data}')
+    source_address = data['source_address']
+    target_port = int(data['target_port'])
+    subnet = int(data.get('subnet', 32))
+
+    source_key = f'{source_address}/{subnet}'
+
+    is_new_record = source_key not in source_address_data
+    print(source_key, source_address_data, is_new_record)
+    source_address_data[source_key] = target_port
 
     table_entry = balancer_connection.p4info_helper.buildTableEntry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
-            "hdr.ipv4.srcAddr": (BALANCER_MAPPING[s1_output_port], 32)
+            "hdr.ipv4.srcAddr": (source_address, subnet)
         },
         action_name="MyIngress.set_port",
         action_params={
-            "port": s1_output_port
+            "port": target_port
         })
-
-    await balancer_connection.connection.WriteTableEntry(table_entry)
-    print(f'add_node finished {data}: {get_actual_time_to_log()}')
+    await balancer_connection.connection.WriteTableEntry(table_entry, 'INSERT' if is_new_record else 'MODIFY')
     return web.json_response({'status': 'OK'})
 
 if __name__ == "__main__":
@@ -127,7 +137,8 @@ if __name__ == "__main__":
             app = web.Application()
             app.add_routes([
                 web.get('/hello', handle),
-                (web.post('/add_node', add_node))
+                web.post('/add_node', add_node),
+                web.post('/set_route', set_route)
             ])
 
             runner = web.AppRunner(app)
@@ -149,31 +160,6 @@ if __name__ == "__main__":
             while not os.path.exists('.pcap_send_started_h1'):
                 await asyncio.sleep(0.05)
             start_time = time.time()
-            while time.time() - start_time < 2.5:
-                await asyncio.sleep(0.1)
-
-            # reroute 33 to port 2
-            table_entry = balancer_connection.p4info_helper.buildTableEntry(
-                    table_name="MyIngress.ipv4_lpm",
-                    match_fields={
-                        "hdr.ipv4.srcAddr": ('10.0.1.33', 32)
-                    },
-                    action_name="MyIngress.set_port",
-                    action_params={
-                        "port": 2
-                    })
-            await balancer_connection.connection.WriteTableEntry(table_entry, 'MODIFY')
-            # reroute 25 to port 4
-            table_entry = balancer_connection.p4info_helper.buildTableEntry(
-                    table_name="MyIngress.ipv4_lpm",
-                    match_fields={
-                        "hdr.ipv4.srcAddr": ('10.0.1.25', 32)
-                    },
-                    action_name="MyIngress.set_port",
-                    action_params={
-                        "port": 4
-                    })
-            await balancer_connection.connection.WriteTableEntry(table_entry, 'MODIFY')
 
             while time.time() - start_time < 3.5:
                 await asyncio.sleep(0.1)

@@ -11,8 +11,8 @@ from common.high_level_switch_connection import HighLevelSwitchConnection
 with ControllerExceptionHandling():
     s1 = HighLevelSwitchConnection(0, 'scalable_balancer_fwd', '60051')
 
-    response = requests.post('http://127.0.0.1:8080/add_node', json={'host': '127.0.0.1', 'port': 50052, 'device_id':1})
-    response.raise_for_status()
+    requests.post('http://127.0.0.1:8080/add_node', json={'host': '127.0.0.1', 'port': 50052, 'device_id':1}).raise_for_status()
+    requests.post('http://127.0.0.1:8080/set_route', json={'source_address': '10.0.1.13', 'target_port': 2}).raise_for_status()
 
     table_entry = s1.p4info_helper.buildTableEntry(
         table_name="MyIngress.ipv4_exact",
@@ -57,18 +57,25 @@ with ControllerExceptionHandling():
     while time.time() - start_time < 0.5:
         time.sleep(0.1)
 
-    response = requests.post('http://127.0.0.1:8080/add_node', json={'host': '127.0.0.1', 'port': 50053, 'device_id':2})
-    response.raise_for_status()
+    requests.post('http://127.0.0.1:8080/add_node', json={'host': '127.0.0.1', 'port': 50053, 'device_id':2}).raise_for_status()
+    requests.post('http://127.0.0.1:8080/set_route', json={'source_address': '10.0.1.25', 'target_port': 3}).raise_for_status()
     while time.time() - start_time < 1.5:
         time.sleep(0.1)
 
-    response = requests.post('http://127.0.0.1:8080/add_node', json={
+    requests.post('http://127.0.0.1:8080/add_node', json={
         'host': '127.0.0.1',
         'port': 50054,
         'device_id':3,
         'filter_params_allow_only': {'hdr.ipv4.dstAddr': ['10.0.2.33']}
-    })
-    response.raise_for_status()
+    }).raise_for_status()
+    requests.post('http://127.0.0.1:8080/set_route', json={'source_address': '10.0.1.33', 'target_port':4}).raise_for_status()
+
+    while time.time() - start_time < 2.5:
+        time.sleep(0.1)
+    requests.post('http://127.0.0.1:8080/set_route', json={'source_address': '10.0.1.33','target_port': 2}).raise_for_status()
+    requests.post('http://127.0.0.1:8080/set_route', json={'source_address': '10.0.1.25','target_port': 4}).raise_for_status()
+
+
 
     while time.time() - start_time < 3.5:
         time.sleep(0.1)

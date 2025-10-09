@@ -199,7 +199,11 @@ class SwitchConnection(object):
         else:
             update.type = p4runtime_pb2.Update.INSERT
         update.entity.table_entry.CopyFrom(table_entry)
-        await self.client_stub.Write(request)
+        try:
+            await self.client_stub.Write(request)
+        except:
+            print('Exception occured while sending ', request)
+            raise
 
 
     async def ReadTableEntries(self, table_id=None):
