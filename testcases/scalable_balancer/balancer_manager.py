@@ -1,12 +1,12 @@
 import asyncio
 import datetime
-import os
-import time
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 
+from pydantic import BaseModel
+
 from common.high_level_switch_connection_async import HighLevelSwitchConnection
-from common.proxy_config import RedisMode, ProxyConfigSource, ProxyAllowedParamsDict
+from common.proxy_config import RedisMode, ProxyAllowedParamsDict
 from proxy import TargetSwitchConfig, ProxyServer
 from aiohttp import web
 
@@ -78,61 +78,67 @@ class ReplicatedNodeBalancerManager:
         await self.proxy_server.add_filter_params_allow_only_to_host(host, port, filters_to_add)
 
 
-def get_actual_time_to_log():
+def get_actual_time_to_log() -> str:
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
 
 manager: Optional[ReplicatedNodeBalancerManager] = None
 balancer_connection: Optional[HighLevelSwitchConnection] = None
 source_address_data: Dict[str, int] = {}
 
+class AddNodeParameters(BaseModel):
+    host: str
+    port: int
+    device_id: int
+    filter_params_allow_only: Optional[ProxyAllowedParamsDict] = None
+
 async def add_node(request):
     global manager
-    data = await request.json()
-    host = data['host']
-    port = int(data['port'])
-    filter_params_allow_only = data.get('filter_params_allow_only')
+    params = AddNodeParameters.model_validate(await request.json())
+    print(f'API::add_node request arrived {params}')
 
-    print(f'add_node request arrived: {data} {get_actual_time_to_log()}')
-    print(filter_params_allow_only)
-    await manager.add_node(host, port, int(data['device_id']), filter_params_allow_only=filter_params_allow_only)
+    await manager.add_node(params.host, params.port, int(params.device_id), filter_params_allow_only=params.filter_params_allow_only)
 
-    print(f'add_node finished {data}: {get_actual_time_to_log()}')
     return web.json_response({'status': 'OK'})
+
+class SetRouteParameters(BaseModel):
+    source_address: str
+    target_port: int
+    subnet: int = 32
 
 async def set_route(request):
     global manager, balancer_connection, source_address_data
-    data = await request.json()
-    print(f'API::set_route request arrived {data}')
-    source_address = data['source_address']
-    target_port = int(data['target_port'])
-    subnet = int(data.get('subnet', 32))
+    params = SetRouteParameters.model_validate(await request.json())
+    print(f'API::set_route request arrived {params}')
 
-    source_key = f'{source_address}/{subnet}'
+    source_key = f'{params.source_address}/{params.subnet}'
 
     is_new_record = source_key not in source_address_data
     print(source_key, source_address_data, is_new_record)
-    source_address_data[source_key] = target_port
+    source_address_data[source_key] = params.target_port
 
     table_entry = balancer_connection.p4info_helper.buildTableEntry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
-            "hdr.ipv4.srcAddr": (source_address, subnet)
+            "hdr.ipv4.srcAddr": (params.source_address, params.subnet)
         },
         action_name="MyIngress.set_port",
         action_params={
-            "port": target_port
+            "port": params.target_port
         })
     await balancer_connection.connection.WriteTableEntry(table_entry, 'INSERT' if is_new_record else 'MODIFY')
     return web.json_response({'status': 'OK'})
 
+
+class SetFilterParameters(BaseModel):
+    host: str
+    port: int
+    filter: ProxyAllowedParamsDict
+
 async def set_filter(request):
     global manager, balancer_connection, source_address_data
-    data = await request.json()
-    print(f'API::set_filtering request arrived {data}')
-    host = data['host']
-    port = int(data['port'])
-    filter = data['filter']
-    await manager.add_filter_params_allow_only_to_host(host, port, filter)
+    params = SetFilterParameters.model_validate(await request.json())
+    print(f'API::set_filter request arrived {params}')
+    await manager.add_filter_params_allow_only_to_host(params.host, params.port, params.filter)
 
     return web.json_response({'status': 'OK'})
 

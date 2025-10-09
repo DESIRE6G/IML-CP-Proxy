@@ -304,7 +304,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
         if not enviroment_settings.production_mode:
             await asyncio.gather(*tasks_to_wait)
-        print('------ End Write')
+        if self.verbose:
+            print('------ End Write')
         return WriteResponse()
 
     async def Read(self, original_request: p4runtime_pb2.ReadRequest, context):
