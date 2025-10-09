@@ -9,7 +9,19 @@ from common.controller_helper import ControllerExceptionHandling
 from common.high_level_switch_connection import HighLevelSwitchConnection
 
 with ControllerExceptionHandling():
+
+    merger_node_connection = HighLevelSwitchConnection(
+        4,
+        'fwd2p1',
+        50055,
+        send_p4info=True,
+        reset_dataplane=False,
+        host='127.0.0.1'
+    )
+
     s1 = HighLevelSwitchConnection(0, 'scalable_balancer_fwd', '60051')
+
+
 
     requests.post('http://127.0.0.1:8080/add_node', json={'host': '127.0.0.1', 'port': 50052, 'device_id':1}).raise_for_status()
     requests.post('http://127.0.0.1:8080/set_route', json={'source_address': '10.0.1.13', 'target_port': 2}).raise_for_status()

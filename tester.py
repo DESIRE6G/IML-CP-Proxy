@@ -81,7 +81,7 @@ class TestcaseDescriptor(BaseModel):
     test_case: str
     subtest: Optional[str] = None
 
-necessary_files = ['*.p4', '*.py', '*.json', '*.pcap', 'Makefile']
+necessary_files = ['*.p4', '*.py', '*.json', '*.pcap', 'Makefile', '.env']
 
 
 def copy_prebuilt_files() -> None:

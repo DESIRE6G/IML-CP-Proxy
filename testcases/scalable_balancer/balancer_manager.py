@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional, Callable, Awaitable, Type
 
 from pydantic import BaseModel
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from common.high_level_switch_connection_async import HighLevelSwitchConnection
 from common.proxy_config import RedisMode, ProxyAllowedParamsDict
@@ -157,7 +158,21 @@ async def set_filter(params: SetFilterParameters) -> web.Response:
     return web.json_response({'status': 'OK'})
 
 
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+    api_host: str = '127.0.0.1'
+    api_port: int = 8080
+
+    node_p4_program_name: str = 'scalable_balancer_fwd'
+
+    balancer_host: str = '127.0.0.1'
+    balancer_port: int = 50051
+    balancer_device_id: int = 0
+    balancer_p4_program_name: str = 'scalable_simple_balancer'
+
+
 if __name__ == "__main__":
+    settings = Settings()
     async def amain():
         runner = None
         try:
@@ -166,18 +181,23 @@ if __name__ == "__main__":
 
             runner = web.AppRunner(app)
             await runner.setup()
-            site = web.TCPSite(runner, '127.0.0.1', 8080)
+            site = web.TCPSite(runner, settings.api_host, settings.api_port)
             await site.start()
+
             global manager
-            manager = ReplicatedNodeBalancerManager('scalable_balancer_fwd')
+            manager = ReplicatedNodeBalancerManager(settings.node_p4_program_name)
             await manager.init()
 
             global balancer_connection
-            balancer_connection = HighLevelSwitchConnection(0,'scalable_simple_balancer',50051, send_p4info=True, reset_dataplane=False, host='127.0.0.1')
+            balancer_connection = HighLevelSwitchConnection(
+                settings.balancer_device_id,
+                settings.balancer_p4_program_name,
+                settings.balancer_port,
+                send_p4info=True,
+                reset_dataplane=False,
+                host=settings.balancer_host
+            )
             await balancer_connection.init()
-
-            merger_node_connection = HighLevelSwitchConnection(4,'fwd2p1',50055, send_p4info=True, reset_dataplane=False, host='127.0.0.1')
-            await merger_node_connection.init()
 
             print('Proxy is ready')
             while True:
