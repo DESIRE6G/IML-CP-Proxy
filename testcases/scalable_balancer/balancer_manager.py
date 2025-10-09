@@ -78,18 +78,13 @@ class ReplicatedNodeBalancerManager:
         await self.proxy_server.add_filter_params_allow_only_to_host(host, port, filters_to_add)
 
 
-async def handle(request):
-    print('HANDLE function called, HELLOOO')
-    name = request.match_info.get('name', "Anonymous")
-    text = "Hello, " + name
-    return web.Response(text=text)
-
 def get_actual_time_to_log():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
 
 manager: Optional[ReplicatedNodeBalancerManager] = None
 balancer_connection: Optional[HighLevelSwitchConnection] = None
 source_address_data: Dict[str, int] = {}
+
 async def add_node(request):
     global manager
     data = await request.json()
@@ -107,7 +102,7 @@ async def add_node(request):
 async def set_route(request):
     global manager, balancer_connection, source_address_data
     data = await request.json()
-    print(f'set_route request arrived {data}')
+    print(f'API::set_route request arrived {data}')
     source_address = data['source_address']
     target_port = int(data['target_port'])
     subnet = int(data.get('subnet', 32))
@@ -130,15 +125,27 @@ async def set_route(request):
     await balancer_connection.connection.WriteTableEntry(table_entry, 'INSERT' if is_new_record else 'MODIFY')
     return web.json_response({'status': 'OK'})
 
+async def set_filter(request):
+    global manager, balancer_connection, source_address_data
+    data = await request.json()
+    print(f'API::set_filtering request arrived {data}')
+    host = data['host']
+    port = int(data['port'])
+    filter = data['filter']
+    await manager.add_filter_params_allow_only_to_host(host, port, filter)
+
+    return web.json_response({'status': 'OK'})
+
+
 if __name__ == "__main__":
     async def amain():
         runner = None
         try:
             app = web.Application()
             app.add_routes([
-                web.get('/hello', handle),
                 web.post('/add_node', add_node),
-                web.post('/set_route', set_route)
+                web.post('/set_route', set_route),
+                web.post('/set_filter', set_filter),
             ])
 
             runner = web.AppRunner(app)
@@ -157,15 +164,6 @@ if __name__ == "__main__":
             await merger_node_connection.init()
 
             print('Proxy is ready')
-            while not os.path.exists('.pcap_send_started_h1'):
-                await asyncio.sleep(0.05)
-            start_time = time.time()
-
-            while time.time() - start_time < 3.5:
-                await asyncio.sleep(0.1)
-            await manager.add_filter_params_allow_only_to_host('127.0.0.1', 50054, {'hdr.ipv4.dstAddr': ['10.0.2.25']})
-
-
             while True:
                 await asyncio.sleep(1)
         finally:

@@ -530,7 +530,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             name = p4name_converter.get_source_entity_name(parsed_update_object.entity)
             if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
                 if used_filter_params_allow_only is not None and not self.is_parameters_allowed_by_filters(parsed_update_object.entity, used_filter_params_allow_only):
-                    print('Skipping this')
                     continue
 
                 if self.verbose:
