@@ -9,11 +9,11 @@ from typing import Union
 from scapy.all import sendp, IP, TCP, Ether, wrpcap
 
 from common.logging_helper import configure_logger_with_common_settings
-from common.traffic_helper import get_eth0_interface
+from common.traffic_helper import get_network_interface
 
 configure_logger_with_common_settings('send.log')
 
-iface = get_eth0_interface()
+iface = get_network_interface()
 
 source_mac = '08:00:00:00:01:11'
 dst_mac = '08:00:00:00:02:22'

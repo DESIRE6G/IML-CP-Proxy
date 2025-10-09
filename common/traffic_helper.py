@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import sys
@@ -18,12 +17,13 @@ from scapy.all import (
 
 from common.validator_tools import diff_strings
 
-def get_eth0_interface():
+def get_network_interface():
+    target_interface = os.getenv("NETWORK_INTERFACE", "eth0")
     for interface in get_if_list():
-        if "eth0" in interface:
+        if target_interface in interface:
             return interface
     else:
-        print("Cannot find eth0 interface")
+        print(f"Cannot find {target_interface} interface")
         exit(1)
 
 
@@ -105,7 +105,7 @@ class PacketReceiver:
         self.attach_timestamps = attach_timestamps
 
     def __enter__(self):
-        iface = get_eth0_interface()
+        iface = get_network_interface()
         logging.debug(f"sniffing on {iface}")
         sys.stdout.flush()
         packets_arrived = []

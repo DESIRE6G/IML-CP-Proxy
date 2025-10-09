@@ -6,7 +6,7 @@ import logging
 from scapy.all import sendp, rdpcap
 
 from common.logging_helper import configure_logger_with_common_settings
-from common.traffic_helper import get_eth0_interface
+from common.traffic_helper import get_network_interface
 
 configure_logger_with_common_settings('send.log')
 
@@ -14,7 +14,7 @@ if len(sys.argv)<2:
     print('pass 1 arguments: input_file')
     exit(1)
 
-iface = get_eth0_interface()
+iface = get_network_interface()
 
 packets = rdpcap(sys.argv[1])
 for pkt in packets:
