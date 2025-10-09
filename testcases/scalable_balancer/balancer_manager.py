@@ -84,7 +84,12 @@ def get_actual_time_to_log() -> str:
 
 manager: Optional[ReplicatedNodeBalancerManager] = None
 balancer_connection: Optional[HighLevelSwitchConnection] = None
-source_address_data: Dict[str, int] = {}
+
+
+class SourceAddressData(BaseModel):
+    port: int
+
+source_address_data: Dict[str, SourceAddressData] = {}
 
 
 api_routes: List[web.RouteDef] = []
@@ -118,6 +123,18 @@ async def add_node(params: AddNodeParameters) -> web.Response:
     await manager.add_node(params.host, params.port, int(params.device_id), filter_params_allow_only=params.filter_params_allow_only)
     return web.json_response({'status': 'OK'})
 
+
+class RemoveNodeParameters(BaseModel):
+    host: str
+    port: int
+
+@api_endpoint('post', '/remove_node', RemoveNodeParameters)
+async def remove_node(params: RemoveNodeParameters) -> web.Response:
+    global manager
+    await manager.remove_node(params.host, params.port)
+    return web.json_response({'status': 'OK'})
+
+
 class SetRouteParameters(BaseModel):
     source_address: str
     target_port: int
@@ -130,7 +147,7 @@ async def set_route(params: SetRouteParameters) -> web.Response:
 
     is_new_record = source_key not in source_address_data
     print(source_key, source_address_data, is_new_record)
-    source_address_data[source_key] = params.target_port
+    source_address_data[source_key] = SourceAddressData(port=params.target_port)
 
     table_entry = balancer_connection.p4info_helper.buildTableEntry(
         table_name="MyIngress.ipv4_lpm",

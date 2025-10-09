@@ -34,27 +34,48 @@ def send_one_packet(choosen_source_id: int) -> None:
     packet_index += 1
 
 with PacketSender():
-    send_one_packet(0) # only this goes, so 1
-    send_one_packet(1)
-    send_one_packet(2)
+    # packet index 0-2
+    send_one_packet(0) # 0 packet_index -> only this goes, so 1. packet [0, 0, 2]
+    send_one_packet(1) # 1 packet_index -> no route
+    send_one_packet(2) # 2 packet_index -> no route
+    # AT 0.5 sec: add route 3 at 0.5sec
     time.sleep(1)
 
-    send_one_packet(0) # this goes, so 2
-    send_one_packet(1) # this gies, so 3
-    send_one_packet(2) # nope
+    # packet index 3-5
+    send_one_packet(0) # 3 packet_index -> this goes, so 2. packet [3, 0, 2]
+    send_one_packet(1) # 4 packet_index -> this goes, so 3. packet [4, 0, 3]
+    send_one_packet(2) # 5 packet_index -> no route
+
+    # At 1.5 sec: add route 4 with filter only to source 2
+    time.sleep(1)
+
+    # packet index 6-8
+    send_one_packet(0) # 6 packet_index -> 4. packet [6, 0, 2]
+    send_one_packet(1) # 7 packet_index -> 5. packet [7, 0, 3]
+    send_one_packet(2) # 8 packet_index -> 6. packet [8, 0, 4]
+
+    # At 2.5 sec:
+    #   redirect source 2 (33) -> route 2 it wil work
+    #   redirect source 1 (25) -> route 4 it wont work
 
     time.sleep(1)
 
-    send_one_packet(0) # 4
-    send_one_packet(1) # 5
-    send_one_packet(2) # 6
+    # packet index 9-11
+    send_one_packet(0) # 9 packet_index -> 7. packet [9, 0, 2]
+    send_one_packet(1) # 10 packet_index -> not allowed source IP
+    send_one_packet(2) # 11 packet_index -> 8. packet [11, 0, 2]
 
-    time.sleep(1) # redirect
-    send_one_packet(0) # 7
-    send_one_packet(1) # 8
-    send_one_packet(2) # not allowed ip, packet 11
+    # At 3.5 sec: allow source 1 on route 4 filter
 
     time.sleep(1) # allow 2 route redirected packet
-    send_one_packet(0) # 9
-    send_one_packet(1) # 10
-    send_one_packet(2) # 11
+    # packet index 12-14
+    send_one_packet(0) # 12 packet_index -> 9. packet [12, 0, 2]
+    send_one_packet(1) # 13 packet_index -> 10. packet [13, 0, 4]
+    send_one_packet(2) # 14 packet_index -> 11. packet [14, 0, 2]
+
+    # At 4.5 sec: remove route 2
+    time.sleep(1)
+    # packet index 15-17
+    send_one_packet(0) # 15 packet_index count -> 12. packet [15, 0, 2]
+    send_one_packet(1) # 16 packet_index count -> missing route
+    send_one_packet(2) # 17 packet_index count -> 13. packet [17, 0, 2]

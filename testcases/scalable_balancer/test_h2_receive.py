@@ -22,35 +22,43 @@ if __name__ == '__main__':
             output_object['message'] += f'{msg}\n'
 
         for i, arrived_packet in enumerate(packets_arrived):
-            message(f'----- Packet {i}')
-            message(f'Ip: {arrived_packet[IP].src} Payload: {bytes(arrived_packet[IP].payload)}')
+            message(f'----- {i+1}. packet')
+            src = arrived_packet[IP].src
+            payload = bytes(arrived_packet[IP].payload)
+            message(f'Ip: {src} Payload: {payload} = {[int(x) for x in payload]}')
             packet_index = bytes(arrived_packet[IP].payload)[0]
+            route_index = bytes(arrived_packet[IP].payload)[2]
 
-            if arrived_packet[IP].src == '10.0.1.13':
-                if bytes(arrived_packet[IP].payload)[2] == 2:
+
+            if src == '10.0.1.13' and route_index == 2 and packet_index in [0,3,6,9,12,15]:
+                message('OK')
+                continue
+
+            if src == '10.0.1.25':
+                if packet_index in [4, 7] and route_index == 3:
                     message('OK')
                     continue
-            if arrived_packet[IP].src == '10.0.1.25':
-                if packet_index <= 9 and bytes(arrived_packet[IP].payload)[2] == 3:
+
+                if packet_index in [10, 13] and route_index == 4:
                     message('OK')
                     continue
-                if 9 <= packet_index and bytes(arrived_packet[IP].payload)[2] == 4:
+
+            if src == '10.0.1.33':
+                if packet_index in [8] and route_index == 4:
                     message('OK')
                     continue
-            if arrived_packet[IP].src == '10.0.1.33':
-                if packet_index <= 9 and bytes(arrived_packet[IP].payload)[2] == 4:
+
+                if packet_index in [11, 14, 17] and route_index == 2:
                     message('OK')
                     continue
-                if 9 < packet_index and bytes(arrived_packet[IP].payload)[2] == 2:
-                    message('OK')
-                    continue
+
 
             message('failed')
 
             output_object['success'] = False
             break
 
-        if len(packets_arrived) != 11:
+        if len(packets_arrived) != 13:
             message(f'failed, not correct packet num. Arrived packet num: {len(packets_arrived)}')
             output_object['success'] = False
 
