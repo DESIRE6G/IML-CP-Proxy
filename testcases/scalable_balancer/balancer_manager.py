@@ -86,6 +86,7 @@ async def handle(request):
 
 def get_actual_time_to_log():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
+
 manager: Optional[ReplicatedNodeBalancerManager] = None
 balancer_connection: Optional[HighLevelSwitchConnection] = None
 BALANCER_MAPPING = {
@@ -98,13 +99,12 @@ async def add_node(request):
     data = await request.json()
     host = data['host']
     port = int(data['port'])
-    print(f'add_node request arrived: {data} {get_actual_time_to_log()}')
+    filter_params_allow_only = data.get('filter_params_allow_only')
 
+    print(f'add_node request arrived: {data} {get_actual_time_to_log()}')
+    print(filter_params_allow_only)
     s1_output_port = int(data['device_id']) + 1
-    if s1_output_port == 4:
-        await manager.add_node(host, port, int(data['device_id']), filter_params_allow_only={'hdr.ipv4.dstAddr': ['10.0.2.33']})
-    else:
-        await manager.add_node(host, port, int(data['device_id']))
+    await manager.add_node(host, port, int(data['device_id']), filter_params_allow_only=filter_params_allow_only)
 
     table_entry = balancer_connection.p4info_helper.buildTableEntry(
         table_name="MyIngress.ipv4_lpm",
@@ -125,7 +125,11 @@ if __name__ == "__main__":
         runner = None
         try:
             app = web.Application()
-            app.add_routes([web.get('/hello', handle), (web.post('/add_node', add_node))])
+            app.add_routes([
+                web.get('/hello', handle),
+                (web.post('/add_node', add_node))
+            ])
+
             runner = web.AppRunner(app)
             await runner.setup()
             site = web.TCPSite(runner, '127.0.0.1', 8080)
@@ -137,7 +141,6 @@ if __name__ == "__main__":
             global balancer_connection
             balancer_connection = HighLevelSwitchConnection(0,'scalable_simple_balancer',50051, send_p4info=True, reset_dataplane=False, host='127.0.0.1')
             await balancer_connection.init()
-
 
             merger_node_connection = HighLevelSwitchConnection(4,'fwd2p1',50055, send_p4info=True, reset_dataplane=False, host='127.0.0.1')
             await merger_node_connection.init()

@@ -62,7 +62,12 @@ with ControllerExceptionHandling():
     while time.time() - start_time < 1.5:
         time.sleep(0.1)
 
-    response = requests.post('http://127.0.0.1:8080/add_node', json={'host': '127.0.0.1', 'port': 50054, 'device_id':3})
+    response = requests.post('http://127.0.0.1:8080/add_node', json={
+        'host': '127.0.0.1',
+        'port': 50054,
+        'device_id':3,
+        'filter_params_allow_only': {'hdr.ipv4.dstAddr': ['10.0.2.33']}
+    })
     response.raise_for_status()
 
     while time.time() - start_time < 3.5:
