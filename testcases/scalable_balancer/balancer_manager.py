@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 from dataclasses import dataclass
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Callable, Awaitable, Type
 
 from pydantic import BaseModel
 
@@ -85,19 +85,36 @@ manager: Optional[ReplicatedNodeBalancerManager] = None
 balancer_connection: Optional[HighLevelSwitchConnection] = None
 source_address_data: Dict[str, int] = {}
 
+
+api_routes: List[web.RouteDef] = []
+
+def api_endpoint(method: str, endpoint: str, parameter_model: Type[BaseModel]):
+    def decorator(function: Callable[[any], Awaitable[web.Response]]) -> Callable[[web.Request], Awaitable[web.StreamResponse]]:
+        async def wrapper(request: web.Request) -> web.StreamResponse:
+            params = parameter_model.model_validate(await request.json())
+            print(f'API::{function.__name__} request arrived {params}')
+            return await function(params)
+        wrapper.__name__ = function.__name__
+
+        method_lower = method.lower()
+        if method_lower in ['get', 'post']:
+            api_routes.append(getattr(web, method_lower)(endpoint, wrapper))
+        else:
+            raise NotImplementedError(f'Unknown method for api_endpoint decorator: {method}')
+
+        return wrapper
+    return decorator
+
 class AddNodeParameters(BaseModel):
     host: str
     port: int
     device_id: int
     filter_params_allow_only: Optional[ProxyAllowedParamsDict] = None
 
-async def add_node(request):
+@api_endpoint('post', '/add_node', AddNodeParameters)
+async def add_node(params: AddNodeParameters) -> web.Response:
     global manager
-    params = AddNodeParameters.model_validate(await request.json())
-    print(f'API::add_node request arrived {params}')
-
     await manager.add_node(params.host, params.port, int(params.device_id), filter_params_allow_only=params.filter_params_allow_only)
-
     return web.json_response({'status': 'OK'})
 
 class SetRouteParameters(BaseModel):
@@ -105,11 +122,9 @@ class SetRouteParameters(BaseModel):
     target_port: int
     subnet: int = 32
 
-async def set_route(request):
+@api_endpoint('post', '/set_route', SetRouteParameters)
+async def set_route(params: SetRouteParameters) -> web.Response:
     global manager, balancer_connection, source_address_data
-    params = SetRouteParameters.model_validate(await request.json())
-    print(f'API::set_route request arrived {params}')
-
     source_key = f'{params.source_address}/{params.subnet}'
 
     is_new_record = source_key not in source_address_data
@@ -134,10 +149,9 @@ class SetFilterParameters(BaseModel):
     port: int
     filter: ProxyAllowedParamsDict
 
-async def set_filter(request):
+@api_endpoint('post', '/set_filter', SetFilterParameters)
+async def set_filter(params: SetFilterParameters) -> web.Response:
     global manager, balancer_connection, source_address_data
-    params = SetFilterParameters.model_validate(await request.json())
-    print(f'API::set_filter request arrived {params}')
     await manager.add_filter_params_allow_only_to_host(params.host, params.port, params.filter)
 
     return web.json_response({'status': 'OK'})
@@ -148,11 +162,7 @@ if __name__ == "__main__":
         runner = None
         try:
             app = web.Application()
-            app.add_routes([
-                web.post('/add_node', add_node),
-                web.post('/set_route', set_route),
-                web.post('/set_filter', set_filter),
-            ])
+            app.add_routes(api_routes)
 
             runner = web.AppRunner(app)
             await runner.setup()
