@@ -27,20 +27,18 @@ if __name__ == '__main__':
         if isinstance(counter.match, ExactMatchObject):
             source_ip = decodeIPv4(counter.match.value)
             node1_direct_counter_dict[source_ip] = counter
-    print(node1_direct_counter_dict)
+
     validator.should_be_equal(node1_direct_counter_dict['10.0.2.13'].packet_count, 6)
-    # TODO: It should be 3, removed node counter lost
-    # validator.should_be_equal(node1_direct_counter_dict['10.0.2.25'].packet_count, 3)
-    validator.should_be_equal(node1_direct_counter_dict['10.0.2.25'].packet_count, 1)
+    validator.should_be_equal(node1_direct_counter_dict['10.0.2.25'].packet_count, 3)
     validator.should_be_equal(node1_direct_counter_dict['10.0.2.33'].packet_count, 4)
 
-    validator.should_be_equal(counter1[0].packet_count, 11)
+    validator.should_be_equal(counter1[0].packet_count, 13)
     validator.should_be_equal(counter1[1].packet_count, 0)
-    validator.should_be_equal(counter1[2].packet_count, 22)
+    validator.should_be_equal(counter1[2].packet_count, 26)
 
-    validator.should_be_equal(counter1[0].byte_count, 11 * 37)
+    validator.should_be_equal(counter1[0].byte_count, 13 * 37)
     validator.should_be_equal(counter1[1].byte_count, 0)
-    validator.should_be_equal(counter1[2].byte_count, 22 * 37)
+    validator.should_be_equal(counter1[2].byte_count, 26 * 37)
 
     validator.should_be_equal(counter1_all_objects, counter1)
 

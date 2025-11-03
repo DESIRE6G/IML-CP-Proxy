@@ -6,7 +6,7 @@ import signal
 import sys
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Dict, List, Optional, Union, Tuple, AsyncIterator
 import google
 import grpc
 import grpc.aio
@@ -16,6 +16,7 @@ from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, Update, Wri
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 from google.protobuf.json_format import MessageToJson, Parse
 
+from common.entity_helper import EntityHelper
 from common.enviroment import enviroment_settings
 from common.p4_name_id_helper import P4NameConverter, get_pure_p4_name, EntityCannotHaveZeroId
 from common.p4runtime_lib.helper import P4InfoHelper
@@ -105,7 +106,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             P4INFO= f'{redis_prefix}{RedisRecords.P4INFO.postfix}',
             COUNTER_ENTRIES=f'{redis_prefix}{RedisRecords.COUNTER_ENTRIES.postfix}',
             METER_ENTRIES=f'{redis_prefix}{RedisRecords.METER_ENTRIES.postfix}',
-            HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}'
+            HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}',
+            REMOVED_NODES_COUNTER_ENTRIES=f'{redis_prefix}{RedisRecords.REMOVED_NODES_COUNTER_ENTRIES.postfix}',
         )
 
         self.from_p4info_helper = P4InfoHelper(from_p4info_path)
@@ -144,7 +146,15 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     async def remove_target_switch(self, host: str, port: int) -> None:
         target_switch = self._target_switches.pop(f'{host}:{port}', None)
+        await self._save_removed_counter_nodes(target_switch)
         target_switch.high_level_connection.unsubscribe_from_stream_with_queue(self.stream_queue_from_target)
+
+    async def _save_removed_counter_nodes(self, target_switch):
+        if RedisMode.is_writing(self.redis_mode):
+            async for entity in self.return_all_counter_entity(target_switch):
+                print('SAVING TO REMOVED NODES------')
+                print(entity)
+                get_redis().rpush(self.redis_keys.REMOVED_NODES_COUNTER_ENTRIES, MessageToJson(entity))
 
     async def add_filter_params_allow_only_to_host(self, host: str, port: int, filters_to_add: ProxyAllowedParamsDict) -> None:
         key = f'{host}:{port}'
@@ -351,8 +361,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                         target_switch_object.converter.convert_entity(entity, reverse=True, verbose=self.verbose_name_converting)
                         received_entries.append(entity)
 
-        received_entries = self.merge_duplicates_for_read_answer(received_entries)
-        print(received_entries)
+        if RedisMode.is_reading(self.redis_mode):
+            for protobuf_entity_json_object in get_redis().lrange(self.redis_keys.REMOVED_NODES_COUNTER_ENTRIES, 0, -1):
+                entity = Parse(protobuf_entity_json_object, p4runtime_pb2.Entity())
+                if EntityHelper.is_entity_mergable_to_entity_list(entity, received_entries):
+                    if self.verbose:
+                        print('Found relevant entity in removed nodes: ')
+                        print(entity)
+                    received_entries.append(entity)
+
+
+        received_entries = EntityHelper.merge_duplicates_for_read_answer(received_entries)
 
         ret = ReadResponse()
         for entity in received_entries:
@@ -364,58 +383,6 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             print(ret)
 
         yield ret
-
-    def merge_duplicates_for_read_answer(self, received_entries: List[p4runtime_pb2.Entity]) -> List[p4runtime_pb2.Entity]:
-        def get_entity_identifier(entity: p4runtime_pb2.Entity) -> Union[str, int]:
-            which_one = entity.WhichOneof('entity')
-            if which_one == 'table_entry':
-                return entity.table_entry.table_id
-            if which_one == 'meter_entry':
-                return entity.meter_entry.meter_id
-            if which_one == 'direct_meter_entry':
-                return entity.direct_meter_entry.table_entry.table_id
-            if which_one == 'counter_entry':
-                return f'{entity.counter_entry.counter_id}-{entity.counter_entry.index}'
-            if which_one == 'direct_counter_entry':
-                return MessageToJson(entity.direct_counter_entry.table_entry) #table and match are both in
-            raise NotImplementedError(f'{which_one} is not handled by read feedback')
-
-        groupped_entries: Dict[Union[str, int], p4runtime_pb2.Entity] = {}
-        for entity in received_entries:
-            identifier = get_entity_identifier(entity)
-            if identifier not in groupped_entries:
-                groupped_entries[identifier] = []
-
-            groupped_entries[identifier].append(entity)
-
-        ret: List[p4runtime_pb2.Entity] = []
-        def are_all_same_entity(entities: List[p4runtime_pb2.Entity]) -> bool:
-            json_dump = None
-            for entity in entities:
-                if json_dump is None:
-                    json_dump = MessageToJson(entity)
-                elif json_dump != MessageToJson(entity):
-                    return False
-            return True
-
-        for group in groupped_entries.values():
-            first_entity = group[0]
-            which_one = first_entity.WhichOneof('entity')
-            if which_one in ['table_entry', 'meter_entry', 'direct_meter_entry']:
-                if not are_all_same_entity(group):
-                    raise Exception(f'Cannot merge, because responses are differs on different targets {group}')
-            elif which_one == 'counter_entry':
-                for entity in group[1:]:
-                    first_entity.counter_entry.data.byte_count += entity.counter_entry.data.byte_count
-                    first_entity.counter_entry.data.packet_count += entity.counter_entry.data.packet_count
-            elif which_one == 'direct_counter_entry':
-                for entity in group[1:]:
-                    first_entity.direct_counter_entry.data.byte_count += entity.direct_counter_entry.data.byte_count
-                    first_entity.direct_counter_entry.data.packet_count += entity.direct_counter_entry.data.packet_count
-            else:
-                raise NotImplementedError(f'{which_one} is not handled by read feedback')
-            ret.append(first_entity)
-        return ret
 
     async def SetForwardingPipelineConfig(self, request: p4runtime_pb2.SetForwardingPipelineConfigRequest, context):
         if self.verbose:
@@ -573,26 +540,35 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             pipe.multi()
             pipe.delete(self.redis_keys.COUNTER_ENTRIES)
             for target_switch in self._target_switches.values():
-                request = p4runtime_pb2.ReadRequest()
-                request.device_id = target_switch.high_level_connection.connection.device_id
-
-                for direct_counter in self.from_p4info_helper.p4info.direct_counters:
-                    name = P4NameConverter.get_p4_name_from_id(self.from_p4info_helper, 'table', direct_counter.direct_table_id)
-                    if target_switch.names is None or name in target_switch.names:
-                        entity = request.entities.add()
-                        entity.direct_counter_entry.table_entry.table_id = direct_counter.direct_table_id
-                        target_switch.converter.convert_entity(entity, verbose=self.verbose_name_converting)
-
-                entity = request.entities.add()
-                entity.counter_entry.counter_id = 0
-                async for response in target_switch.high_level_connection.connection.client_stub.Read(request):
-                    for entity in response.entities:
-                        entity_name = target_switch.converter.get_target_entity_name(entity)
-                        if get_pure_p4_name(entity_name).startswith(self.prefix):
-                            target_switch.converter.convert_entity(entity, reverse=True, verbose=self.verbose_name_converting)
-                            pipe.rpush(self.redis_keys.COUNTER_ENTRIES, MessageToJson(entity))
+                async for entity in self.return_all_counter_entity(target_switch):
+                    pipe.rpush(self.redis_keys.COUNTER_ENTRIES, MessageToJson(entity))
             pipe.set(self.redis_keys.HEARTBEAT, time.time())
             pipe.execute()
+
+    async def return_all_counter_entity(self, target_switch: TargetSwitchObject) -> AsyncIterator[p4runtime_pb2.Entity]:
+        request = p4runtime_pb2.ReadRequest()
+        request.device_id = target_switch.high_level_connection.connection.device_id
+        for direct_counter in self.from_p4info_helper.p4info.direct_counters:
+            name = P4NameConverter.get_p4_name_from_id(self.from_p4info_helper, 'table', direct_counter.direct_table_id)
+            if target_switch.names is None or name in target_switch.names:
+                entity = request.entities.add()
+                entity.direct_counter_entry.table_entry.table_id = direct_counter.direct_table_id
+                target_switch.converter.convert_entity(entity, verbose=self.verbose_name_converting)
+
+        entity = request.entities.add()
+        entity.counter_entry.counter_id = 0
+        async for response in target_switch.high_level_connection.connection.client_stub.Read(request):
+            for entity in response.entities:
+                entity_name = target_switch.converter.get_target_entity_name(entity)
+                if not get_pure_p4_name(entity_name).startswith(self.prefix):
+                    continue
+
+                if EntityHelper.is_counter_entity_data_empty(entity):
+                    continue
+
+                target_switch.converter.convert_entity(entity, reverse=True, verbose=self.verbose_name_converting)
+                yield entity
+
 
 
 class ProxyServer:
