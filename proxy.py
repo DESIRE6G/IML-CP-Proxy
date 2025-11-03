@@ -509,7 +509,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 entity = Parse(protobuf_message_json_object, p4runtime_pb2.Entity())
                 name = p4name_converter.get_source_entity_name(entity)
                 if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
-                    if used_filter_params_allow_only is not None and not self.is_parameters_allowed_by_filters(entity, target_switchused_filter_params_allow_only):
+                    if used_filter_params_allow_only is not None and not self.is_parameters_allowed_by_filters(entity, used_filter_params_allow_only):
                         continue
 
                     if self.verbose:
