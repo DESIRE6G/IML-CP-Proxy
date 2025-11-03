@@ -151,7 +151,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     async def _save_removed_counter_nodes(self, target_switch):
         if RedisMode.is_writing(self.redis_mode):
-            async for entity in self.return_all_counter_entity(target_switch):
+            async for entity in self.return_all_counter_entity(target_switch, skip_empty_data=True):
                 print('SAVING TO REMOVED NODES------')
                 print(entity)
                 get_redis().rpush(self.redis_keys.REMOVED_NODES_COUNTER_ENTRIES, MessageToJson(entity))
@@ -545,7 +545,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             pipe.set(self.redis_keys.HEARTBEAT, time.time())
             pipe.execute()
 
-    async def return_all_counter_entity(self, target_switch: TargetSwitchObject) -> AsyncIterator[p4runtime_pb2.Entity]:
+    async def return_all_counter_entity(self,
+                                        target_switch: TargetSwitchObject,
+                                        skip_empty_data: bool = False
+                                        ) -> AsyncIterator[p4runtime_pb2.Entity]:
+
         request = p4runtime_pb2.ReadRequest()
         request.device_id = target_switch.high_level_connection.connection.device_id
         for direct_counter in self.from_p4info_helper.p4info.direct_counters:
@@ -563,7 +567,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 if not get_pure_p4_name(entity_name).startswith(self.prefix):
                     continue
 
-                if EntityHelper.is_counter_entity_data_empty(entity):
+                if skip_empty_data and EntityHelper.is_counter_entity_data_empty(entity):
                     continue
 
                 target_switch.converter.convert_entity(entity, reverse=True, verbose=self.verbose_name_converting)
