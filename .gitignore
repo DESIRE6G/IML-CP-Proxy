@@ -29,3 +29,5 @@ release
 __build_cache
 results
 venv
+
+.env
