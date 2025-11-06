@@ -2,16 +2,15 @@ import os
 import shutil
 import time
 
-import numpy as np
 import pandas as pd
 
 from common.colors import COLOR_RED_BG, COLOR_END
-from common.proxy_config import ProxyConfig
-from common.rates import TickOutputJSON
+from common.model.proxy_config import ProxyConfig
+from common.model.rates import TickOutputJSON
 from common.simulator import Simulator
 from common.sync import wait_for_condition_blocking
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
-from common.tester_config import TestConfig
+from common.model.tester_config import TestConfig
 
 for case in ['sending_rate_changing', 'fake_proxy', 'batch_size_changing', 'buffer_size_changing', 'batch_delay_test']:
 #for case in ['buffer_size_changing']:

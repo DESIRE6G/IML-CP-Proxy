@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
 import argparse
 import multiprocessing
-import queue
 import time
-import numpy as np
-from p4.v1 import p4runtime_pb2, p4runtime_pb2_grpc
+from p4.v1 import p4runtime_pb2_grpc
 
 from concurrent import futures
 from dataclasses import dataclass
-from typing import List, Tuple, Dict
+from typing import List
 
 import grpc
-from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, ReadResponse, WriteResponse
-from pydantic import BaseModel
+from p4.v1.p4runtime_pb2 import WriteResponse
 
-from common.controller_helper import ControllerExceptionHandling, get_now_ts_us_int32, diff_ts_us_int32
-from common.high_level_switch_connection import HighLevelSwitchConnection
+from common.controller_helper import ControllerExceptionHandling
 from p4.v1 import p4runtime_pb2
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 
 from common.p4runtime_lib.switch import IterableQueue
-from common.rates import TickOutputJSON
 
 
 class ProxyP4RuntimeServicer(P4RuntimeServicer):

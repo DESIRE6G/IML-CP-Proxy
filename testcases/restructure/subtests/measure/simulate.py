@@ -1,14 +1,12 @@
 import os
 import shutil
 import time
-from functools import partial
 
-import numpy as np
 import pandas as pd
 
 from common.colors import COLOR_RED_BG, COLOR_END
-from common.proxy_config import ProxyConfig
-from common.rates import TickOutputJSON
+from common.model.proxy_config import ProxyConfig
+from common.model.rates import TickOutputJSON
 from common.simulator import Simulator, SimulatorMultipleResult
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 

@@ -2,7 +2,6 @@
 import argparse
 import json
 import os.path
-import sys
 import time
 from pathlib import Path
 import numpy as np
@@ -10,8 +9,7 @@ import numpy as np
 from p4.v1 import p4runtime_pb2
 
 from common.high_level_switch_connection import HighLevelSwitchConnection
-from common.p4runtime_lib.convert import decodeMac
-from common.rates import TickOutputJSON
+from common.model.rates import TickOutputJSON
 
 parser = argparse.ArgumentParser(prog='Validator')
 parser.add_argument('--batch_size', default=1, type=int)

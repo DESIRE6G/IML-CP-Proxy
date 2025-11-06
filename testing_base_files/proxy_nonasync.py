@@ -24,7 +24,7 @@ import redis
 
 from common.p4runtime_lib.switch import IterableQueue
 from common.high_level_switch_connection import HighLevelSwitchConnection, StreamMessageResponseWithInfo
-from common.proxy_config import ProxyConfig, RedisMode, ProxyConfigSource
+from common.model.proxy_config import ProxyConfig, RedisMode, ProxyConfigSource
 from common.redis_helper import RedisKeys, RedisRecords
 
 logger = logging.getLogger()

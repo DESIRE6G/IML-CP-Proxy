@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, List
 
 from common.high_level_switch_connection_async import HighLevelSwitchConnection
-from common.proxy_config import ProxyAllowedParamsDict, RedisMode
+from common.model.proxy_config import ProxyAllowedParamsDict, RedisMode
 from proxy import ProxyServer, TargetSwitchConfig
 
 @dataclass

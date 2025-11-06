@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import multiprocessing
-import queue
 import threading
 import time
 import numpy as np
@@ -12,14 +11,12 @@ from typing import List, Tuple, Dict
 
 import grpc
 from p4.v1.p4runtime_pb2 import SetForwardingPipelineConfigResponse, ReadResponse, WriteResponse
-from pydantic import BaseModel
 
 from common.controller_helper import ControllerExceptionHandling, get_now_ts_us_int32, diff_ts_us_int32
-from common.high_level_switch_connection import HighLevelSwitchConnection
 from p4.v1 import p4runtime_pb2
 from p4.v1.p4runtime_pb2_grpc import P4RuntimeServicer, add_P4RuntimeServicer_to_server
 
-from common.rates import TickOutputJSON
+from common.model.rates import TickOutputJSON
 
 
 class TickCounter:

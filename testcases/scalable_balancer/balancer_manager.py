@@ -1,12 +1,11 @@
 import asyncio
-from dataclasses import dataclass
 from typing import List, Dict, Optional, Callable, Awaitable, Type
 
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from common.high_level_switch_connection_async import HighLevelSwitchConnection
-from common.proxy_config import ProxyAllowedParamsDict
+from common.model.proxy_config import ProxyAllowedParamsDict
 from common.replicated_node_balancer import ReplicatedNodeBalancerManager
 from aiohttp import web
 
