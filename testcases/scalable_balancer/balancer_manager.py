@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Callable, Awaitable, Type
 
@@ -7,90 +6,17 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from common.high_level_switch_connection_async import HighLevelSwitchConnection
-from common.proxy_config import RedisMode, ProxyAllowedParamsDict
-from proxy import TargetSwitchConfig, ProxyServer
+from common.proxy_config import ProxyAllowedParamsDict
+from common.replicated_node_balancer import ReplicatedNodeBalancerManager
 from aiohttp import web
-
-@dataclass
-class NodeHolder:
-    host: str
-    port: int
-    device_id: int
-    connection: Optional[HighLevelSwitchConnection] = None
-    flagged_to_remove: bool = False
-    filter_params_allow_only: Optional[ProxyAllowedParamsDict] = None
-
-
-def get_address_from_host_and_port(host: str, port: int) -> str:
-    return f'{host}:{port}'
-
-class ReplicatedNodeBalancerManager:
-    def __init__(self, program_name: str) -> None:
-        self.program_name = program_name
-        self._nodes: Dict[str, NodeHolder] = {}
-        self.proxy_server: Optional[ProxyServer] = None
-
-    async def add_node(self, host: str, port: int, device_id: int, do_init: bool=True, filter_params_allow_only: Optional[ProxyAllowedParamsDict] = None) -> None:
-        self._nodes[get_address_from_host_and_port(host, port)] = NodeHolder(
-            host=host,
-            port=port,
-            device_id=device_id,
-            filter_params_allow_only=filter_params_allow_only
-        )
-
-        if do_init:
-            await self.init()
-
-    async def remove_node(self, host: str, port: int) -> None:
-        address = get_address_from_host_and_port(host, port)
-        self._nodes.pop(address)
-        await self.proxy_server.remove_target_switch(host, port)
-
-
-    async def init(self) -> None:
-        new_target_switch_configs: List[TargetSwitchConfig] = []
-        for node in self._nodes.values():
-            if node.connection is None:
-                address = get_address_from_host_and_port(node.host, node.port)
-                print(f'initializing node connection {address}, {self.program_name=} {node.device_id=}')
-                connection = HighLevelSwitchConnection(
-                    node.device_id,
-                    self.program_name,
-                    node.port,
-                    send_p4info=True,
-                    reset_dataplane=False,
-                    host=node.host
-                )
-                await connection.init()
-                node.connection = connection
-                target_switch_config = TargetSwitchConfig(node.connection, None, node.filter_params_allow_only, fill_counter_from_redis=False)
-                new_target_switch_configs.append(target_switch_config)
-
-        if self.proxy_server is None:
-            p4info_path = f"build/{self.program_name}.p4.p4info.txt"
-            self.proxy_server = ProxyServer(60051, '', p4info_path, new_target_switch_configs, RedisMode.READWRITE)
-
-            await self.proxy_server.start()
-        else:
-            for new_target_switch_config in new_target_switch_configs:
-                await self.proxy_server.add_target_switch(new_target_switch_config)
-
-    async def add_filter_params_allow_only_to_host(self, host: str, port: int, filters_to_add: ProxyAllowedParamsDict) -> None:
-        await self.proxy_server.add_filter_params_allow_only_to_host(host, port, filters_to_add)
-
-
-def get_actual_time_to_log() -> str:
-    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]
 
 manager: Optional[ReplicatedNodeBalancerManager] = None
 balancer_connection: Optional[HighLevelSwitchConnection] = None
-
 
 class SourceAddressData(BaseModel):
     port: int
 
 source_address_data: Dict[str, SourceAddressData] = {}
-
 
 api_routes: List[web.RouteDef] = []
 
@@ -162,17 +88,31 @@ async def set_route(params: SetRouteParameters) -> web.Response:
     return web.json_response({'status': 'OK'})
 
 
-class SetFilterParameters(BaseModel):
+class AddFilterParameters(BaseModel):
     host: str
     port: int
     filter: ProxyAllowedParamsDict
 
-@api_endpoint('post', '/set_filter', SetFilterParameters)
-async def set_filter(params: SetFilterParameters) -> web.Response:
+@api_endpoint('post', '/add_to_filter', AddFilterParameters)
+async def add_to_filter(params: AddFilterParameters) -> web.Response:
     global manager, balancer_connection, source_address_data
     await manager.add_filter_params_allow_only_to_host(params.host, params.port, params.filter)
 
     return web.json_response({'status': 'OK'})
+
+class RemoveFromFilterParameters(BaseModel):
+    host: str
+    port: int
+    filter: ProxyAllowedParamsDict
+
+@api_endpoint('post', '/remove_from_filter', AddFilterParameters)
+async def remove_from_filter(params: AddFilterParameters) -> web.Response:
+    global manager, balancer_connection, source_address_data
+    await manager.remove_from_filter_params_allow_only_to_host(params.host, params.port, params.filter)
+
+    return web.json_response({'status': 'OK'})
+
+
 
 
 class Settings(BaseSettings):

@@ -39,7 +39,7 @@ if __name__ == '__main__':
                     message('OK')
                     continue
 
-                if packet_index in [10, 13] and route_index == 4:
+                if packet_index in [13] and route_index == 4:
                     message('OK')
                     continue
 

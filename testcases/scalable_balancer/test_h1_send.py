@@ -55,14 +55,14 @@ with PacketSender():
     send_one_packet(2) # 8 packet_index -> 6. packet [8, 0, 4]
 
     # At 2.5 sec:
-    #   redirect source 2 (33) -> route 2 it wil work
-    #   redirect source 1 (25) -> route 4 it wont work
+    #   redirect source 2 (33) -> route 2 it will work
+    #   redirect source 1 (25) -> route 4 it won't work
 
     time.sleep(1)
 
     # packet index 9-11
     send_one_packet(0) # 9 packet_index -> 7. packet [9, 0, 2]
-    send_one_packet(1) # 10 packet_index -> not allowed source IP
+    send_one_packet(1) # 10 packet_index -> source 1 filtered out
     send_one_packet(2) # 11 packet_index -> 8. packet [11, 0, 2]
 
     # At 3.5 sec: allow source 1 on route 4 filter
@@ -73,9 +73,10 @@ with PacketSender():
     send_one_packet(1) # 13 packet_index -> 10. packet [13, 0, 4]
     send_one_packet(2) # 14 packet_index -> 11. packet [14, 0, 2]
 
-    # At 4.5 sec: remove route 2
+    # At 4.5 sec: remove_from_filter source 1
     time.sleep(1)
     # packet index 15-17
     send_one_packet(0) # 15 packet_index count -> 12. packet [15, 0, 2]
-    send_one_packet(1) # 16 packet_index count -> missing route
+    send_one_packet(1) # 16 packet_index count -> source 1 filtered out
     send_one_packet(2) # 17 packet_index count -> 13. packet [17, 0, 2]
+

@@ -90,7 +90,7 @@ with ControllerExceptionHandling():
     while time.time() - start_time < 3.5:
         time.sleep(0.1)
 
-    requests.post('http://127.0.0.1:8080/set_filter', json={
+    requests.post('http://127.0.0.1:8080/add_to_filter', json={
         'host': '127.0.0.1',
         'port': 50054,
         'filter': {'hdr.ipv4.dstAddr': ['10.0.2.25']}
@@ -98,8 +98,10 @@ with ControllerExceptionHandling():
 
     while time.time() - start_time < 4.5:
         time.sleep(0.1)
-    requests.post('http://127.0.0.1:8080/set_route', json={'source_address': '10.0.1.25','target_port': 5}).raise_for_status()
     requests.post('http://127.0.0.1:8080/remove_node', json={'host': '127.0.0.1', 'port': 50053}).raise_for_status()
-
-
+    requests.post('http://127.0.0.1:8080/remove_from_filter', json={
+        'host': '127.0.0.1',
+        'port': 50054,
+        'filter': {'hdr.ipv4.dstAddr': ['10.0.2.25']}
+    }).raise_for_status()
 

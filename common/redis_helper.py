@@ -29,7 +29,7 @@ class RedisRecords:
     COUNTER_ENTRIES: RedisRecord = RedisRecord(postfix='COUNTER_ENTRIES', type=RedisFieldType.LIST)
     METER_ENTRIES: RedisRecord = RedisRecord(postfix='METER_ENTRIES', type=RedisFieldType.LIST)
     HEARTBEAT: RedisRecord = RedisRecord(postfix='HEARTBEAT', type=RedisFieldType.STRING)
-    REMOVED_NODES_COUNTER_ENTRIES: RedisRecord = RedisRecord(postfix='REMOVED_NODES_COUNTER_ENTRIES', type=RedisFieldType.LIST)
+    REMOVED_COUNTER_ENTRIES: RedisRecord = RedisRecord(postfix='REMOVED_COUNTER_ENTRIES', type=RedisFieldType.LIST)
 
 @dataclass
 class RedisKeys:
@@ -38,7 +38,7 @@ class RedisKeys:
     COUNTER_ENTRIES: str
     METER_ENTRIES: str
     HEARTBEAT: str
-    REMOVED_NODES_COUNTER_ENTRIES: str
+    REMOVED_COUNTER_ENTRIES: str
 
 def json_equals(actual_value: str, expected_value: str, verbose_on_fail=False) -> bool:
     try:

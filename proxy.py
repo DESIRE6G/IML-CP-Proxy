@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import itertools
 import logging
 import os.path
@@ -107,7 +108,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             COUNTER_ENTRIES=f'{redis_prefix}{RedisRecords.COUNTER_ENTRIES.postfix}',
             METER_ENTRIES=f'{redis_prefix}{RedisRecords.METER_ENTRIES.postfix}',
             HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}',
-            REMOVED_NODES_COUNTER_ENTRIES=f'{redis_prefix}{RedisRecords.REMOVED_NODES_COUNTER_ENTRIES.postfix}',
+            REMOVED_COUNTER_ENTRIES=f'{redis_prefix}{RedisRecords.REMOVED_COUNTER_ENTRIES.postfix}',
         )
 
         self.from_p4info_helper = P4InfoHelper(from_p4info_path)
@@ -152,17 +153,18 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
     async def _save_removed_counter_nodes(self, target_switch):
         if RedisMode.is_writing(self.redis_mode):
             async for entity in self.return_all_counter_entity(target_switch, skip_empty_data=True):
-                print('SAVING TO REMOVED NODES------')
-                print(entity)
-                get_redis().rpush(self.redis_keys.REMOVED_NODES_COUNTER_ENTRIES, MessageToJson(entity))
+                if self.verbose:
+                    print('SAVING TO REMOVED_COUNTER_ENTRIES------')
+                    print(entity)
+                get_redis().rpush(self.redis_keys.REMOVED_COUNTER_ENTRIES, MessageToJson(entity))
 
     async def add_filter_params_allow_only_to_host(self, host: str, port: int, filters_to_add: ProxyAllowedParamsDict) -> None:
         key = f'{host}:{port}'
         if key not in self._target_switches:
             raise ValueError(f'Cannot find {key} address target switch')
+        target_switch = self._target_switches[key]
 
         new_added_params_dict: ProxyAllowedParamsDict = {k: [] for k in filters_to_add}
-        target_switch = self._target_switches[key]
         if target_switch.filter_params_allow_only is None:
             target_switch.filter_params_allow_only = {}
         actual_params_dict = target_switch.filter_params_allow_only
@@ -177,6 +179,49 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 new_added_params_dict[param_name] = allowed_values[:]
 
         await self.fill_from_redis_one_target(target_switch, key, filter_by_params_allow_only=new_added_params_dict)
+
+    async def remove_from_filter_params_allow_only_to_host(self, host: str, port: int, filters_to_remove: ProxyAllowedParamsDict):
+        target_switch_index = f'{host}:{port}'
+        if target_switch_index not in self._target_switches:
+            raise ValueError(f'Cannot find {target_switch_index} address target switch')
+        target_switch = self._target_switches[target_switch_index]
+
+        before_params_dict = copy.deepcopy(target_switch.filter_params_allow_only)
+        actual_params_dict = target_switch.filter_params_allow_only
+        for param_name, values_to_remove in filters_to_remove.items():
+            if param_name in actual_params_dict:
+                for value in values_to_remove:
+                    if value in actual_params_dict[param_name]:
+                        actual_params_dict[param_name].remove(value)
+        print(target_switch.filter_params_allow_only)
+        redis_p4info_helper = self.build_source_p4infohelper_from_redis()
+        if redis_p4info_helper is None:
+            print('Cannot find p4infohelper, skipping filling from redis')
+            return
+
+        high_level_connection = target_switch.high_level_connection
+        p4name_converter = P4NameConverter(redis_p4info_helper, high_level_connection.p4info_helper, self.prefix, target_switch.names)
+        virtual_target_switch_for_load = TargetSwitchObject(high_level_connection, p4name_converter, target_switch.names)
+        for protobuf_message_json_object in get_redis().lrange(self.redis_keys.TABLE_ENTRIES, 0, -1):
+            parsed_update_object = Parse(protobuf_message_json_object, p4runtime_pb2.Update())
+
+            print('READ FROM REDIS')
+            print(parsed_update_object)
+            name = p4name_converter.get_source_entity_name(parsed_update_object.entity)
+            if virtual_target_switch_for_load.names is None or name in virtual_target_switch_for_load.names:
+                if (self.is_parameters_allowed_by_filters(parsed_update_object.entity, before_params_dict)
+                        and not self.is_parameters_allowed_by_filters(parsed_update_object.entity, target_switch.filter_params_allow_only)):
+
+                    if RedisMode.is_writing(self.redis_mode):
+                        async for entity in self.return_all_counter_entity(target_switch, skip_empty_data=True, load_simple_counters=False):
+                            if EntityHelper.is_table_id_and_match_equals(parsed_update_object.entity.table_entry, entity.direct_counter_entry.table_entry):
+                                if self.verbose:
+                                    print('SAVING TO REMOVED_COUNTER_ENTRIES------')
+                                    print(entity)
+                                get_redis().rpush(self.redis_keys.REMOVED_COUNTER_ENTRIES, MessageToJson(entity))
+                    parsed_update_object.type = Update.DELETE
+                    await self._write_update_object(parsed_update_object, p4name_converter, target_switch_index, use_filtering=False)
+
 
     async def start(self) -> None:
         asyncio.create_task(self.heartbeat())
@@ -256,8 +301,10 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     context,
                     converter_override: Optional[P4NameConverter] = None,
                     target_switch_override_index: Optional[str] = None,
-                    save_to_redis: bool = True) -> None:
+                    save_to_redis: bool = True,
+                    use_filtering: bool = True) -> None:
         start_time = time.time()
+        self.verbose = True
         if self.verbose:
             print('------------------- Write -------------------')
             print(request)
@@ -280,7 +327,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                 else:
                     switches_to_iterate_on = [(self._target_switches[target_switch_override_index], target_switch_override_index)]
 
-                switches_to_iterate_on = [switch_and_index for switch_and_index in switches_to_iterate_on if self.is_parameters_allowed_by_filters(entity, switch_and_index[0].filter_params_allow_only)]
+                if use_filtering:
+                    switches_to_iterate_on = [
+                        switch_and_index for switch_and_index in switches_to_iterate_on
+                            if self.is_parameters_allowed_by_filters(entity, switch_and_index[0].filter_params_allow_only)
+                    ]
 
 
                 for target_switch, target_switch_index in switches_to_iterate_on:
@@ -362,7 +413,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                         received_entries.append(entity)
 
         if RedisMode.is_reading(self.redis_mode):
-            for protobuf_entity_json_object in get_redis().lrange(self.redis_keys.REMOVED_NODES_COUNTER_ENTRIES, 0, -1):
+            for protobuf_entity_json_object in get_redis().lrange(self.redis_keys.REMOVED_COUNTER_ENTRIES, 0, -1):
                 entity = Parse(protobuf_entity_json_object, p4runtime_pb2.Entity())
                 if EntityHelper.is_entity_mergable_to_entity_list(entity, received_entries):
                     if self.verbose:
@@ -481,7 +532,7 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
         if redis_p4info_helper is None:
             redis_p4info_helper = self.build_source_p4infohelper_from_redis()
             if redis_p4info_helper is None:
-                print('Cannot find p4infohelper')
+                print('Cannot find p4infohelper, skipping filling from redis')
                 return
 
         print(f'FILLING FROM REDIS to {target_switch.high_level_connection.host}:{target_switch.high_level_connection.port}')
@@ -520,13 +571,17 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     update.entity.CopyFrom(entity)
                     await self._write_update_object(update, p4name_converter, target_switch_index)
 
-    async def _write_update_object(self, update_object, converter: P4NameConverter, target_switch_index: str):
+    async def _write_update_object(self,
+                                   update_object: p4runtime_pb2.Update,
+                                   converter: P4NameConverter,
+                                   target_switch_index: str,
+                                   use_filtering: bool = True):
         request = p4runtime_pb2.WriteRequest()
         request.device_id = 0
         request.election_id.low = 1
         update = request.updates.add()
         update.CopyFrom(update_object)
-        await self.Write(request, None, converter, target_switch_index, save_to_redis=False)
+        await self.Write(request, None, converter, target_switch_index, save_to_redis=False, use_filtering=use_filtering)
 
     def delete_redis_entries_for_this_service(self) -> None:
         if RedisMode.is_writing(self.redis_mode):
@@ -547,20 +602,25 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
 
     async def return_all_counter_entity(self,
                                         target_switch: TargetSwitchObject,
-                                        skip_empty_data: bool = False
+                                        skip_empty_data: bool = False,
+                                        load_simple_counters: bool = True,
+                                        load_direct_counters: bool = True,
                                         ) -> AsyncIterator[p4runtime_pb2.Entity]:
 
         request = p4runtime_pb2.ReadRequest()
-        request.device_id = target_switch.high_level_connection.connection.device_id
-        for direct_counter in self.from_p4info_helper.p4info.direct_counters:
-            name = P4NameConverter.get_p4_name_from_id(self.from_p4info_helper, 'table', direct_counter.direct_table_id)
-            if target_switch.names is None or name in target_switch.names:
-                entity = request.entities.add()
-                entity.direct_counter_entry.table_entry.table_id = direct_counter.direct_table_id
-                target_switch.converter.convert_entity(entity, verbose=self.verbose_name_converting)
+        if load_direct_counters:
+            request.device_id = target_switch.high_level_connection.connection.device_id
+            for direct_counter in self.from_p4info_helper.p4info.direct_counters:
+                name = P4NameConverter.get_p4_name_from_id(self.from_p4info_helper, 'table', direct_counter.direct_table_id)
+                if target_switch.names is None or name in target_switch.names:
+                    entity = request.entities.add()
+                    entity.direct_counter_entry.table_entry.table_id = direct_counter.direct_table_id
+                    target_switch.converter.convert_entity(entity, verbose=self.verbose_name_converting)
 
-        entity = request.entities.add()
-        entity.counter_entry.counter_id = 0
+        if load_simple_counters:
+            entity = request.entities.add()
+            entity.counter_entry.counter_id = 0
+
         async for response in target_switch.high_level_connection.connection.client_stub.Read(request):
             for entity in response.entities:
                 entity_name = target_switch.converter.get_target_entity_name(entity)
@@ -619,6 +679,11 @@ class ProxyServer:
     async def add_filter_params_allow_only_to_host(self, host: str, port: int, filters_to_add: ProxyAllowedParamsDict) -> None:
         self.assert_inited()
         await self.servicer.add_filter_params_allow_only_to_host(host, port, filters_to_add)
+
+    async def remove_from_filter_params_allow_only_to_host(self, host: str, port: int, filters_to_remove: ProxyAllowedParamsDict) -> None:
+        self.assert_inited()
+        await self.servicer.remove_from_filter_params_allow_only_to_host(host, port, filters_to_remove)
+
 
     def assert_inited(self) -> None:
         if self.servicer is None:

@@ -3,7 +3,6 @@ from typing import List, Union, Dict
 from google.protobuf.json_format import MessageToJson
 from p4.v1 import p4runtime_pb2
 
-
 def calculate_read_entity_custom_identifier(entity: p4runtime_pb2.Entity) -> Union[str, int]:
     which_one = entity.WhichOneof('entity')
     if which_one == 'table_entry':
@@ -80,3 +79,16 @@ class EntityHelper:
             raise Exception(f'Here only counter entry should arrive: {which_one}')
 
         return data.packet_count == 0 and data.byte_count == 0
+
+    @classmethod
+    def is_table_id_and_match_equals(cls, table_entry1: p4runtime_pb2.TableEntry, table_entry2: p4runtime_pb2.TableEntry) -> bool:
+        if table_entry1.table_id != table_entry2.table_id:
+            return False
+
+        for match1, match2 in zip(table_entry1.match, table_entry2.match):
+            if MessageToJson(match1) != MessageToJson(match2):
+                return False
+
+        return True
+
+
