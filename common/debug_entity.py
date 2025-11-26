@@ -35,19 +35,20 @@ def format_table_entry(entry: p4runtime_pb2.TableEntry) -> str:
 
         output.append(f"   {match_type}: {val_str}")
 
-    action_data = table_entry['action']['action']
-    action_name = action_data['actionName']
+    if 'action' in table_entry and 'actionId' in table_entry['action']:
+        action_data = table_entry['action']['action']
+        action_name = action_data['actionName']
 
-    param_values = []
-    if 'params' in action_data:
-        sorted_params = sorted(action_data['params'], key=lambda x: x['paramId'])
-        for p in sorted_params:
-            if isinstance(p['value'], str):
-                param_values.append(f'"{p["value"]}"')
-            else:
-                param_values.append(str(p['value']))
+        param_values = []
+        if 'params' in action_data:
+            sorted_params = sorted(action_data['params'], key=lambda x: x['paramId'])
+            for p in sorted_params:
+                if isinstance(p['value'], str):
+                    param_values.append(f'"{p["value"]}"')
+                else:
+                    param_values.append(str(p['value']))
 
-    output.append(f"   {action_name}({', '.join(param_values)})")
+        output.append(f"   {action_name}({', '.join(param_values)})")
 
     return "\n".join(output)
 
