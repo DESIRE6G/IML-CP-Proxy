@@ -63,21 +63,20 @@ async def remove_node(params: RemoveNodeParameters) -> web.Response:
 class SetRouteParameters(BaseModel):
     source_address: str
     target_port: int
-    subnet: int = 32
 
 @api_endpoint('post', '/set_route', SetRouteParameters)
 async def set_route(params: SetRouteParameters) -> web.Response:
     global manager, balancer_connection, source_address_data
-    source_key = f'{params.source_address}/{params.subnet}'
+    source_address = params.source_address
 
-    is_new_record = source_key not in source_address_data
-    print(source_key, source_address_data, is_new_record)
-    source_address_data[source_key] = SourceAddressData(port=params.target_port)
+    is_new_record = source_address not in source_address_data
+    print(source_address, source_address_data, is_new_record)
+    source_address_data[source_address] = SourceAddressData(port=params.target_port)
 
     table_entry = balancer_connection.p4info_helper.build_table_entry(
-        table_name="MyIngress.ipv4_lpm",
+        table_name="MyIngress.ipv4_exact",
         match_fields={
-            "hdr.ipv4.srcAddr": (params.source_address, params.subnet)
+            "hdr.ipv4.srcAddr": source_address
         },
         action_name="MyIngress.set_port",
         action_params={

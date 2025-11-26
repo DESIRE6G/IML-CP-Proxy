@@ -90,14 +90,16 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
+    direct_counter(CounterType.packets) directIpCounter;
+
     action set_port(egressSpec_t port) {
         standard_metadata.egress_spec = port;
         hdr.flags.flag1 = port;
     }
 
-    table ipv4_lpm {
+    table ipv4_exact {
         key = {
-            hdr.ipv4.srcAddr: lpm;
+            hdr.ipv4.srcAddr: exact;
         }
         actions = {
             set_port;
@@ -105,10 +107,11 @@ control MyIngress(inout headers hdr,
         }
         size = 1024;
         default_action = NoAction();
+        counters = directIpCounter;
     }
 
     apply {
-        ipv4_lpm.apply();
+        ipv4_exact.apply();
     }
 }
 
