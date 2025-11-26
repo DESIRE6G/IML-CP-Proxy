@@ -6,7 +6,7 @@ from common.p4runtime_lib.convert import decodeIPv4
 
 with ControllerExceptionHandling():
     s1 = HighLevelSwitchConnection(0, 'arp_icmp', '60051')
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name='MyIngress.arp_exact',
         match_fields={
             'hdr.arp.dst_ip': '10.0.2.20'
@@ -18,7 +18,7 @@ with ControllerExceptionHandling():
     )
     s1.connection.WriteTableEntry(table_entry)
 
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name='MyIngress.icmp_responder',
         match_fields={
             'hdr.ethernet.dstAddr': 'ff:ff:ff:ff:ff:ff',

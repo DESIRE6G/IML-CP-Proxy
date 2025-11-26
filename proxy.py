@@ -304,10 +304,11 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
                     save_to_redis: bool = True,
                     use_filtering: bool = True) -> None:
         start_time = time.time()
-        self.verbose = True
+
         if self.verbose:
             print('------------------- Write -------------------')
             print(request)
+
 
         updates_distributed_by_target = {k : [] for k in self._target_switches.keys()}
         tasks_to_wait = []
@@ -739,19 +740,19 @@ async def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[Proxy
                 target_high_level_connection = target_switch_configs[entry.target_index].high_level_connection
                 entry_type = entry.type
                 if entry_type == 'table':
-                    table_entry = target_high_level_connection.p4info_helper.buildTableEntry(**entry.parameters)
+                    table_entry = target_high_level_connection.p4info_helper.build_table_entry(**entry.parameters)
                     await target_high_level_connection.connection.WriteTableEntry(table_entry)
                 elif entry_type == 'meter':
-                    meter_entry = target_high_level_connection.p4info_helper.buildMeterConfigEntry(**entry.parameters)
+                    meter_entry = target_high_level_connection.p4info_helper.build_meter_config_entry(**entry.parameters)
                     await target_high_level_connection.connection.WriteMeterEntry(meter_entry)
                 elif entry_type == 'direct_meter':
-                    meter_entry = target_high_level_connection.p4info_helper.buildDirectMeterConfigEntry(**entry.parameters)
+                    meter_entry = target_high_level_connection.p4info_helper.build_direct_meter_config_entry(**entry.parameters)
                     await target_high_level_connection.connection.WriteDirectMeterEntry(meter_entry)
                 elif entry_type == 'counter':
-                    counter_entry = target_high_level_connection.p4info_helper.buildCounterEntry(**entry.parameters)
+                    counter_entry = target_high_level_connection.p4info_helper.build_counter_entry(**entry.parameters)
                     await target_high_level_connection.connection.WriteCountersEntry(counter_entry)
                 elif entry_type == 'direct_counter':
-                    counter_entry = target_high_level_connection.p4info_helper.buildDirectCounterEntry(**entry.parameters)
+                    counter_entry = target_high_level_connection.p4info_helper.build_direct_counter_entry(**entry.parameters)
                     await target_high_level_connection.connection.WriteDirectCounterEntry(counter_entry)
                 else:
                     raise Exception(f'Preload does not handle {entry_type} yet, inform the author to add what you need.')

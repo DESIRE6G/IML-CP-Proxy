@@ -176,7 +176,7 @@ def insertTableEntry(sw, flow, p4info_helper):
     action_params = flow['action_params']
     priority = flow.get('priority')  # None if not found
 
-    table_entry = p4info_helper.buildTableEntry(
+    table_entry = p4info_helper.build_table_entry(
         table_name=table_name,
         match_fields=match_fields,
         default_action=default_action,
@@ -242,12 +242,12 @@ def cloneEntryToString(rule):
     return 'Clone Session {0} => ({1}) ({2})'.format(clone_id, ports_str, packet_length_bytes)
 
 def insertMulticastGroupEntry(sw, rule, p4info_helper):
-    mc_entry = p4info_helper.buildMulticastGroupEntry(rule["multicast_group_id"], rule['replicas'])
+    mc_entry = p4info_helper.build_multicast_group_entry(rule["multicast_group_id"], rule['replicas'])
     sw.WritePREEntry(mc_entry)
 
 def insertCloneGroupEntry(sw, rule, p4info_helper):
-    clone_entry = p4info_helper.buildCloneSessionEntry(rule['clone_session_id'], rule['replicas'],
-                                                       rule.get('packet_length_bytes', 0))
+    clone_entry = p4info_helper.build_clone_session_entry(rule['clone_session_id'], rule['replicas'],
+                                                          rule.get('packet_length_bytes', 0))
     sw.WritePREEntry(clone_entry)
 
 

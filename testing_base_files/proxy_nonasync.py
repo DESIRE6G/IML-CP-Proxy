@@ -486,19 +486,19 @@ def start_servers_by_proxy_config(proxy_config: ProxyConfig) -> List[ProxyServer
             for entry in mapping.preload_entries:
                 entry_type = entry.type
                 if entry_type == 'table':
-                    table_entry = target_high_level_connection.p4info_helper.buildTableEntry(**entry.parameters)
+                    table_entry = target_high_level_connection.p4info_helper.build_table_entry(**entry.parameters)
                     target_high_level_connection.connection.WriteTableEntry(table_entry)
                 elif entry_type == 'meter':
-                    meter_entry = target_high_level_connection.p4info_helper.buildMeterConfigEntry(**entry.parameters)
+                    meter_entry = target_high_level_connection.p4info_helper.build_meter_config_entry(**entry.parameters)
                     target_high_level_connection.connection.WriteMeterEntry(meter_entry)
                 elif entry_type == 'direct_meter':
-                    meter_entry = target_high_level_connection.p4info_helper.buildDirectMeterConfigEntry(**entry.parameters)
+                    meter_entry = target_high_level_connection.p4info_helper.build_direct_meter_config_entry(**entry.parameters)
                     target_high_level_connection.connection.WriteDirectMeterEntry(meter_entry)
                 elif entry_type == 'counter':
-                    counter_entry = target_high_level_connection.p4info_helper.buildCounterEntry(**entry.parameters)
+                    counter_entry = target_high_level_connection.p4info_helper.build_counter_entry(**entry.parameters)
                     target_high_level_connection.connection.WriteCountersEntry(counter_entry)
                 elif entry_type == 'direct_counter':
-                    counter_entry = target_high_level_connection.p4info_helper.buildDirectCounterEntry(**entry.parameters)
+                    counter_entry = target_high_level_connection.p4info_helper.build_direct_counter_entry(**entry.parameters)
                     target_high_level_connection.connection.WriteDirectCounterEntry(counter_entry)
                 else:
                     raise Exception(f'Preload does not handle {entry_type} yet, inform the author to add what you need.')

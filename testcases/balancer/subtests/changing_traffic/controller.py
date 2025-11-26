@@ -17,7 +17,7 @@ with ControllerExceptionHandling():
     balancer.add_node(s2, 2)
     balancer.add_node(s3, 3)
 
-    table_entry = s2.p4info_helper.buildTableEntry(
+    table_entry = s2.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.srcAddr": ('10.0.1.13', 32)
@@ -27,7 +27,7 @@ with ControllerExceptionHandling():
             "port": 2
         })
     s2.connection.WriteTableEntry(table_entry)
-    table_entry = s2.p4info_helper.buildTableEntry(
+    table_entry = s2.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.srcAddr": ('10.0.1.25', 32)
@@ -42,7 +42,7 @@ with ControllerExceptionHandling():
     balancer.load_entries()
 
     # Fill Flagger for nodes
-    table_entry = s2.p4info_helper.buildTableEntry(
+    table_entry = s2.p4info_helper.build_table_entry(
         table_name="MyIngress.flagger",
         match_fields={
             "hdr.ipv4.srcAddr": ('10.0.1.0', 24)
@@ -52,7 +52,7 @@ with ControllerExceptionHandling():
             "flag": 10
         })
     s2.connection.WriteTableEntry(table_entry)
-    table_entry = s3.p4info_helper.buildTableEntry(
+    table_entry = s3.p4info_helper.build_table_entry(
         table_name="MyIngress.flagger",
         match_fields={
             "hdr.ipv4.srcAddr": ('10.0.1.0', 24)
@@ -65,7 +65,7 @@ with ControllerExceptionHandling():
 
     # Fill last aggregator switch to forward everything to H2
     s4 = HighLevelSwitchConnection(3, 'portfwd', '50054')
-    table_entry = s4.p4info_helper.buildTableEntry(
+    table_entry = s4.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.srcAddr": ('10.0.1.0', 24)

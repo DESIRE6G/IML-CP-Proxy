@@ -28,7 +28,7 @@ def create_experimental_model_forwards() -> None:
     s1 = HighLevelSwitchConnection(0, 'fwd', port=50051)
     s2 = HighLevelSwitchConnection(1, 'fwd', port=50052)
     # PING response can come on this line (s1 and s2 has same p4info)
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.1.1', 32)
@@ -42,7 +42,7 @@ def create_experimental_model_forwards() -> None:
     s2.connection.WriteTableEntry(table_entry)
 
     # s2 forwards packet to h2 if arrives
-    table_entry = s2.p4info_helper.buildTableEntry(
+    table_entry = s2.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
@@ -56,7 +56,7 @@ def create_experimental_model_forwards() -> None:
 
 
     # s1 forwards packet to the experimental track
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
@@ -147,11 +147,11 @@ def get_direct_counter_objects(s1: HighLevelSwitchConnection, table_name: str) -
 
 
 def init_l3fwd_table_rules_for_both_directions(s1: HighLevelSwitchConnection, s2: HighLevelSwitchConnection):
-    table_entry = s1.p4info_helper.buildTableEntry(table_name="MyIngress.ipv4_lpm", match_fields={"hdr.ipv4.dstAddr": ('10.0.1.1', 32)}, action_name="MyIngress.ipv4_forward", action_params={"dstAddr": '08:00:00:00:01:11', "port": 1})
+    table_entry = s1.p4info_helper.build_table_entry(table_name="MyIngress.ipv4_lpm", match_fields={"hdr.ipv4.dstAddr": ('10.0.1.1', 32)}, action_name="MyIngress.ipv4_forward", action_params={"dstAddr": '08:00:00:00:01:11', "port": 1})
     s1.connection.WriteTableEntry(table_entry)
     s2.connection.WriteTableEntry(table_entry)
     # s2 forwards packet to h2 if arrives
-    table_entry = s2.p4info_helper.buildTableEntry(table_name="MyIngress.ipv4_lpm", match_fields={"hdr.ipv4.dstAddr": ('10.0.2.2', 32)}, action_name="MyIngress.ipv4_forward", action_params={"dstAddr": '08:00:00:00:02:22', "port": 2})
+    table_entry = s2.p4info_helper.build_table_entry(table_name="MyIngress.ipv4_lpm", match_fields={"hdr.ipv4.dstAddr": ('10.0.2.2', 32)}, action_name="MyIngress.ipv4_forward", action_params={"dstAddr": '08:00:00:00:02:22', "port": 2})
     s1.connection.WriteTableEntry(table_entry)
     s2.connection.WriteTableEntry(table_entry)
 

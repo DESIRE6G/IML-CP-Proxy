@@ -26,7 +26,7 @@ with ControllerExceptionHandling():
     requests.post('http://127.0.0.1:8080/add_node', json={'host': '127.0.0.1', 'port': 50052, 'device_id':1}).raise_for_status()
     requests.post('http://127.0.0.1:8080/set_route', json={'source_address': '10.0.1.13', 'target_port': 2}).raise_for_status()
 
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_exact",
         match_fields={
             "hdr.ipv4.dstAddr": '10.0.2.13'
@@ -37,7 +37,7 @@ with ControllerExceptionHandling():
             "port": 2
         })
     s1.connection.WriteTableEntry(table_entry)
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_exact",
         match_fields={
             "hdr.ipv4.dstAddr": '10.0.2.25'
@@ -48,7 +48,7 @@ with ControllerExceptionHandling():
             "port": 2
         })
     s1.connection.WriteTableEntry(table_entry)
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_exact",
         match_fields={
             "hdr.ipv4.dstAddr": '10.0.2.33'

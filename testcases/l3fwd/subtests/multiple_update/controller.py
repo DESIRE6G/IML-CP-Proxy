@@ -14,7 +14,7 @@ with ControllerExceptionHandling():
     request.election_id.low = 1
 
     update = request.updates.add()
-    table_entry = s3.p4info_helper.buildTableEntry(
+    table_entry = s3.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm1",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
@@ -28,7 +28,7 @@ with ControllerExceptionHandling():
     update.entity.table_entry.CopyFrom(table_entry)
 
     update = request.updates.add()
-    table_entry = s3.p4info_helper.buildTableEntry(
+    table_entry = s3.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm1",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
@@ -42,7 +42,7 @@ with ControllerExceptionHandling():
     update.entity.table_entry.CopyFrom(table_entry)
 
     update = request.updates.add()
-    table_entry = s3.p4info_helper.buildTableEntry(
+    table_entry = s3.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm1",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
@@ -61,7 +61,7 @@ with ControllerExceptionHandling():
 
 
 
-    table_entry = s4.p4info_helper.buildTableEntry(
+    table_entry = s4.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm2",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)

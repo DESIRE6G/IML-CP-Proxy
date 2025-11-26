@@ -6,7 +6,7 @@ from common.high_level_switch_connection import HighLevelSwitchConnection
 with ControllerExceptionHandling():
     s1 = HighLevelSwitchConnection(0, 'aggregated1234', '60051')
     updates = []
-    updates.append(s1.p4info_helper.buildUpdate(s1.p4info_helper.buildTableEntry(
+    updates.append(s1.p4info_helper.build_update(s1.p4info_helper.build_table_entry(
         table_name="MyIngress.part1_state_setter",
         match_fields={
             'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
@@ -16,7 +16,7 @@ with ControllerExceptionHandling():
             "newState":66
         })))
 
-    updates.append(s1.p4info_helper.buildUpdate(s1.p4info_helper.buildTableEntry(
+    updates.append(s1.p4info_helper.build_update(s1.p4info_helper.build_table_entry(
         table_name="MyIngress.part2_state_setter",
         match_fields={
             'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
@@ -26,7 +26,7 @@ with ControllerExceptionHandling():
             "newState": 80
         })))
 
-    updates.append(s1.p4info_helper.buildUpdate(s1.p4info_helper.buildTableEntry(
+    updates.append(s1.p4info_helper.build_update(s1.p4info_helper.build_table_entry(
         table_name="MyIngress.part3_state_setter",
         match_fields={
             'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
@@ -36,7 +36,7 @@ with ControllerExceptionHandling():
             "newState": 88
         })))
 
-    updates.append(s1.p4info_helper.buildUpdate(s1.p4info_helper.buildTableEntry(
+    updates.append(s1.p4info_helper.build_update(s1.p4info_helper.build_table_entry(
         table_name="MyIngress.part4_state_setter",
         match_fields={
             'hdr.ethernet.dstAddr': '08:00:00:00:02:22'

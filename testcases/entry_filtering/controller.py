@@ -10,7 +10,7 @@ from common.high_level_switch_connection import HighLevelSwitchConnection
 with ControllerExceptionHandling():
     s1 = HighLevelSwitchConnection(0, 'fwd_exact', '60051')
 
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_exact",
         match_fields={
             "hdr.ipv4.dstAddr": '10.0.2.2'
@@ -21,7 +21,7 @@ with ControllerExceptionHandling():
             "port": 2
         })
     s1.connection.WriteTableEntry(table_entry)
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_exact",
         match_fields={
             "hdr.ipv4.dstAddr": '10.0.2.3'
@@ -32,7 +32,7 @@ with ControllerExceptionHandling():
             "port": 2
         })
     s1.connection.WriteTableEntry(table_entry)
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_exact",
         match_fields={
             "hdr.ipv4.dstAddr": '10.0.2.4'

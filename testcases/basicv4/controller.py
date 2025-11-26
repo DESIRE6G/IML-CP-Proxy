@@ -6,7 +6,7 @@ from common.p4runtime_lib.convert import decodeIPv4
 
 with ControllerExceptionHandling():
     s1 = HighLevelSwitchConnection(0, 'basicv4', '60051')
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm1",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.20', 32)
@@ -20,7 +20,7 @@ with ControllerExceptionHandling():
     s1.connection.WriteTableEntry(table_entry)
 
 
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm2",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.20', 32)
@@ -30,7 +30,7 @@ with ControllerExceptionHandling():
     s1.connection.WriteTableEntry(table_entry)
 
 
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.just_another",
         match_fields={
             "hdr.ethernet.dstAddr": '08:00:00:00:02:23'

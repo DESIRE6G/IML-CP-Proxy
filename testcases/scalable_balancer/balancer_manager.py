@@ -74,7 +74,7 @@ async def set_route(params: SetRouteParameters) -> web.Response:
     print(source_key, source_address_data, is_new_record)
     source_address_data[source_key] = SourceAddressData(port=params.target_port)
 
-    table_entry = balancer_connection.p4info_helper.buildTableEntry(
+    table_entry = balancer_connection.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.srcAddr": (params.source_address, params.subnet)

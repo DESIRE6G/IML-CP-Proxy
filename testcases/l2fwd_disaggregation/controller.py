@@ -13,7 +13,7 @@ with ControllerExceptionHandling():
 
     validator = Validator()
 
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.dmac",
         match_fields={
             "hdr.ethernet.dstAddr": '08:00:00:00:02:22'
@@ -39,14 +39,14 @@ with ControllerExceptionHandling():
     mac, port = [member.bitstring for member in stream_message_response.message.digest.data[0].struct.members]
     mac_hex = mac.hex()
     mac_str = ":".join([x+y for x,y in zip(mac_hex[::2],mac_hex[1::2])])
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.smac",
         match_fields={
             "hdr.ethernet.srcAddr": mac_str
         },
         action_name="NoAction")
     s1.connection.WriteTableEntry(table_entry)
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.dmac",
         match_fields={
             "hdr.ethernet.dstAddr": mac_str

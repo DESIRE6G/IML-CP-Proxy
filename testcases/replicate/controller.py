@@ -7,7 +7,7 @@ from common.validator_tools import Validator
 with ControllerExceptionHandling():
     s1 = HighLevelSwitchConnection(0, 'fwd', '60051')
 
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.1.13', 32)
@@ -19,7 +19,7 @@ with ControllerExceptionHandling():
         })
     s1.connection.WriteTableEntry(table_entry)
 
-    table_entry = s1.p4info_helper.buildTableEntry(
+    table_entry = s1.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.1.25', 32)

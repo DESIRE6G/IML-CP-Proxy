@@ -13,5 +13,5 @@ from common.p4runtime_lib.switch import ShutdownAllSwitchConnections
 
 with ControllerExceptionHandling():
     s1 = HighLevelSwitchConnection(0, 'meter1', '60051')
-    meter_entry = s1.p4info_helper.buildMeterConfigEntry('my_meter',cir=0,cburst=1,pir=2,pburst=200)
+    meter_entry = s1.p4info_helper.build_meter_config_entry('my_meter', cir=0, cburst=1, pir=2, pburst=200)
     s1.connection.WriteMeterEntry(meter_entry)

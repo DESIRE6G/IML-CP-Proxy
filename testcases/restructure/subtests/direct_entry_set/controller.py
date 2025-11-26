@@ -11,7 +11,7 @@ with ControllerExceptionHandling():
     s4 = HighLevelSwitchConnection(3, 'part4', '60054')
 
     s5 = HighLevelSwitchConnection(0, 'aggregated1234', '51051')
-    table_entry = s5.p4info_helper.buildTableEntry(
+    table_entry = s5.p4info_helper.build_table_entry(
         table_name="MyIngress.part1_state_setter",
         match_fields={
             'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
@@ -22,7 +22,7 @@ with ControllerExceptionHandling():
         })
     s5.connection.WriteTableEntry(table_entry)
 
-    table_entry = s5.p4info_helper.buildTableEntry(
+    table_entry = s5.p4info_helper.build_table_entry(
         table_name="MyIngress.part2_state_setter",
         match_fields={
             'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
@@ -33,7 +33,7 @@ with ControllerExceptionHandling():
         })
     s5.connection.WriteTableEntry(table_entry)
 
-    table_entry = s5.p4info_helper.buildTableEntry(
+    table_entry = s5.p4info_helper.build_table_entry(
         table_name="MyIngress.part3_state_setter",
         match_fields={
             'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
@@ -44,7 +44,7 @@ with ControllerExceptionHandling():
         })
     s5.connection.WriteTableEntry(table_entry)
 
-    table_entry = s5.p4info_helper.buildTableEntry(
+    table_entry = s5.p4info_helper.build_table_entry(
         table_name="MyIngress.part4_state_setter",
         match_fields={
             'hdr.ethernet.dstAddr': '08:00:00:00:02:22'

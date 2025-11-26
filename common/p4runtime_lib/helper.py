@@ -192,13 +192,13 @@ class P4InfoHelper(object):
         p4runtime_param.value = encode(value, p4info_param.bitwidth)
         return p4runtime_param
 
-    def buildTableEntry(self,
-                        table_name,
-                        match_fields=None,
-                        default_action=False,
-                        action_name=None,
-                        action_params=None,
-                        priority=None):
+    def build_table_entry(self,
+                          table_name,
+                          match_fields=None,
+                          default_action=False,
+                          action_name=None,
+                          action_params=None,
+                          priority=None):
         table_entry = p4runtime_pb2.TableEntry()
         table_entry.table_id = self.get_tables_id(table_name)
 
@@ -224,11 +224,11 @@ class P4InfoHelper(object):
                 ])
         return table_entry
 
-    def buildCounterEntry(self,
-                        counter_name,
-                          index,
-                          packet_count,
-                          byte_count):
+    def build_counter_entry(self,
+                            counter_name,
+                            index,
+                            packet_count,
+                            byte_count):
         counter_entry = p4runtime_pb2.CounterEntry()
         counter_entry.counter_id = self.get_counters_id(counter_name)
         counter_entry.index.index = index
@@ -236,11 +236,11 @@ class P4InfoHelper(object):
         counter_entry.data.packet_count = packet_count
         return counter_entry
 
-    def buildDirectCounterEntry(self,
-                          table_name,
-                          match_fields,
-                          packet_count,
-                          byte_count):
+    def build_direct_counter_entry(self,
+                                   table_name,
+                                   match_fields,
+                                   packet_count,
+                                   byte_count):
 
         direct_counter_entry = p4runtime_pb2.DirectCounterEntry()
         direct_counter_entry.table_entry.table_id = self.get_tables_id(table_name)
@@ -254,13 +254,13 @@ class P4InfoHelper(object):
         direct_counter_entry.data.packet_count = packet_count
         return direct_counter_entry
 
-    def buildMeterConfigEntry(self,
-                              meter_name,
-                              cir,
-                              cburst,
-                              pir,
-                              pburst,
-                              index=0):
+    def build_meter_config_entry(self,
+                                 meter_name,
+                                 cir,
+                                 cburst,
+                                 pir,
+                                 pburst,
+                                 index=0):
         meter_entry = p4runtime_pb2.MeterEntry()
         meter_entry.meter_id = self.get_meters_id(meter_name)
         meter_entry.index.index = index
@@ -271,13 +271,13 @@ class P4InfoHelper(object):
 
         return meter_entry
 
-    def buildDirectMeterConfigEntry(self,
-                              table_name,
-                              match_fields,
-                              cir,
-                              cburst,
-                              pir,
-                              pburst):
+    def build_direct_meter_config_entry(self,
+                                        table_name,
+                                        match_fields,
+                                        cir,
+                                        cburst,
+                                        pir,
+                                        pburst):
         direct_meter_entry = p4runtime_pb2.DirectMeterEntry()
         direct_meter_entry.table_entry.table_id = self.get_tables_id(table_name)
         table_entry = direct_meter_entry.table_entry
@@ -294,7 +294,7 @@ class P4InfoHelper(object):
         return direct_meter_entry
 
 
-    def buildMulticastGroupEntry(self, multicast_group_id, replicas):
+    def build_multicast_group_entry(self, multicast_group_id, replicas):
         mc_entry = p4runtime_pb2.PacketReplicationEngineEntry()
         mc_entry.multicast_group_entry.multicast_group_id = multicast_group_id
         for replica in replicas:
@@ -304,7 +304,7 @@ class P4InfoHelper(object):
             mc_entry.multicast_group_entry.replicas.extend([r])
         return mc_entry
 
-    def buildCloneSessionEntry(self, clone_session_id, replicas, packet_length_bytes=0):
+    def build_clone_session_entry(self, clone_session_id, replicas, packet_length_bytes=0):
         clone_entry = p4runtime_pb2.PacketReplicationEngineEntry()
         clone_entry.clone_session_entry.session_id = clone_session_id
         clone_entry.clone_session_entry.packet_length_bytes = packet_length_bytes
@@ -316,7 +316,7 @@ class P4InfoHelper(object):
             clone_entry.clone_session_entry.replicas.extend([r])
         return clone_entry
 
-    def buildUpdate(self, entry, update_type = 'INSERT'):
+    def build_update(self, entry, update_type ='INSERT'):
         update = p4runtime_pb2.Update()
         if update_type == 'MODIFY':
             update.type = p4runtime_pb2.Update.MODIFY

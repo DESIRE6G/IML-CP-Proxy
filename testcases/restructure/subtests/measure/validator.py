@@ -18,7 +18,7 @@ def sender_process(index: int, program_name: str, prefix: str, target_port: int,
         request.election_id.low = 1
         ts = get_now_ts_us_int32()
         for _ in range(batch_size):
-            table_entry = s.p4info_helper.buildTableEntry(
+            table_entry = s.p4info_helper.build_table_entry(
             table_name=f"MyIngress.{prefix}state_setter",
                 match_fields={
                     'hdr.ethernet.dstAddr': '08:00:00:00:02:22'

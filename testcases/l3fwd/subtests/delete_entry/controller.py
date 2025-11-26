@@ -8,7 +8,7 @@ with ControllerExceptionHandling():
     s3 = HighLevelSwitchConnection(2, 'basic_part1', '60053')
     s4 = HighLevelSwitchConnection(3, 'basic_part2', '60054')
 
-    table_entry = s3.p4info_helper.buildTableEntry(
+    table_entry = s3.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm1",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
@@ -19,13 +19,13 @@ with ControllerExceptionHandling():
             "port": 21
         })
     s3.connection.WriteTableEntry(table_entry)
-    table_entry = s3.p4info_helper.buildTableEntry(
+    table_entry = s3.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm1",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
         })
     s3.connection.WriteTableEntry(table_entry, update_type= 'DELETE')
-    table_entry = s3.p4info_helper.buildTableEntry(
+    table_entry = s3.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm1",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)
@@ -38,7 +38,7 @@ with ControllerExceptionHandling():
     s3.connection.WriteTableEntry(table_entry, update_type= 'INSERT')
 
 
-    table_entry = s4.p4info_helper.buildTableEntry(
+    table_entry = s4.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_lpm2",
         match_fields={
             "hdr.ipv4.dstAddr": ('10.0.2.2', 32)

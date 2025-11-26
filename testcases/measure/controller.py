@@ -37,7 +37,7 @@ if __name__ == '__main__':
             actual_mac_int = start_mac_int + update_counter
             actual_mac_bytes = actual_mac_int.to_bytes(6, 'big')
             actual_mac_str = ':'.join(hex(s)[2:].rjust(2,'0') for s in actual_mac_bytes)
-            table_entry = s[actual_target_index].p4info_helper.buildTableEntry(
+            table_entry = s[actual_target_index].p4info_helper.build_table_entry(
             table_name="MyIngress.table_entry_drop_counter",
                 match_fields={
                     'hdr.ethernet.dstAddr': actual_mac_str
@@ -71,7 +71,7 @@ if __name__ == '__main__':
         time.sleep(1)
 
     def generate_timed_table_entry():
-        return s[0].p4info_helper.buildTableEntry(
+        return s[0].p4info_helper.build_table_entry(
             table_name="MyIngress.table_write_time",
             match_fields={
                 'hdr.ethernet.dstAddr': '08:00:00:00:02:22'
