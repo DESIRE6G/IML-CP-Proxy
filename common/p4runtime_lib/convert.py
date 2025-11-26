@@ -31,7 +31,7 @@ def encodeMac(mac_addr_string):
     return bytes.fromhex(mac_addr_string.replace(':', ''))
 
 def decodeMac(encoded_mac_addr):
-    return ':'.join(s.hex() for s in encoded_mac_addr)
+    return ':'.join(hex(s)[2:].rjust(2, '0') for s in encoded_mac_addr)
 
 ip_pattern = re.compile('^(\d{1,3}\.){3}(\d{1,3})$')
 def matchesIPv4(ip_addr_string):
