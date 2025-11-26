@@ -25,6 +25,10 @@ class Validator:
         if a <= b:
             self.__error(f'{a} is lower or equal than {b}')
 
+    def should_be_in_order(self, a, b, c) -> None:
+        if not (a <= b <= c):
+            self.__error(f'{a} {b} {c} is not in order')
+
     def __error(self, message) -> None:
         print(f'ERROR: {message} at:')
         print(f'   >>> {get_caller_line()}')

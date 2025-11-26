@@ -95,6 +95,10 @@ class ReplicatedNodeBalancerManager:
             )
             await self.balancer_connection.init()
 
+            p4info_path = f"build/{self.balancer_program_name}.p4.p4info.txt"
+            self.balancer_proxy_server = ProxyServer(60059, '', p4info_path, self.balancer_connection, RedisMode.OFF)
+            await self.balancer_proxy_server.start()
+
 
     async def add_filter_params_allow_only_to_host(self, host: str, port: int, filters_to_add: ProxyAllowedParamsDict) -> None:
         await self.proxy_server.add_filter_params_allow_only_to_host(host, port, filters_to_add)
