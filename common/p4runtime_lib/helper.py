@@ -38,10 +38,6 @@ class P4InfoHelper(object):
 
         self.p4info = p4info
 
-        for entity_name in ['tables', 'meters', 'actions', 'counters', 'registers', 'digests']:
-            setattr(self, f'get_{entity_name}_id', functools.partial(self.get_id, entity_name))
-            setattr(self, f'get_{entity_name}_name', functools.partial(self.get_name, entity_name))
-
     def get(self, entity_type, name=None, id=None):
         if name is not None and id is not None:
             raise AssertionError("name or id must be None")
@@ -60,11 +56,47 @@ class P4InfoHelper(object):
         else:
             raise AttributeError("Could not find id %r of type %s" % (id, entity_type))
 
-    def get_id(self, entity_type, name):
+    def get_id(self, entity_type: str, name: str) -> int:
         return self.get(entity_type, name=name).preamble.id
 
-    def get_name(self, entity_type, id):
+    def get_tables_id(self, entity_name: str) -> int:
+        return self.get_id('tables', entity_name)
+
+    def get_actions_id(self, entity_name: str) -> int:
+        return self.get_id('actions', entity_name)
+
+    def get_meters_id(self, meter_name: str) -> int:
+        return self.get_id('meters', meter_name)
+
+    def get_counters_id(self, counter_name: str) -> int:
+        return self.get_id('counters', counter_name)
+
+    def get_registers_id(self, register_name: str) -> int:
+        return self.get_id('registers', register_name)
+
+    def get_digests_id(self, digest_name: str) -> int:
+        return self.get_id('digests', digest_name)
+
+    def get_name(self, entity_type: str, id: int) -> str:
         return self.get(entity_type, id=id).preamble.name
+
+    def get_tables_name(self, table_id: int) -> str:
+        return self.get_name('tables', table_id)
+
+    def get_actions_name(self, action_id: int) -> str:
+        return self.get_name('actions', action_id)
+
+    def get_meters_name(self, meter_id: int) -> str:
+        return self.get_name('meters', meter_id)
+
+    def get_counters_name(self, counter_id: int) -> str:
+        return self.get_name('counters', counter_id)
+
+    def get_registers_name(self, register_id: int) -> str:
+        return self.get_name('registers', register_id)
+
+    def get_digests_name(self, digest_id: int) -> str:
+        return self.get_name('digests', digest_id)
 
     def get_alias(self, entity_type, id):
         return self.get(entity_type, id=id).preamble.alias
