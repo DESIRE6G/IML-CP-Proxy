@@ -20,10 +20,22 @@ def get_address_from_host_and_port(host: str, port: int) -> str:
 
 
 class ReplicatedNodeBalancerManager:
-    def __init__(self, program_name: str) -> None:
+    def __init__(self, program_name: str,
+                           balancer_host: str,
+                           balancer_port: int,
+                           balancer_device_id: int,
+                           balancer_program_name: str) -> None:
         self.program_name = program_name
         self._nodes: Dict[str, NodeHolder] = {}
         self.proxy_server: Optional[ProxyServer] = None
+
+        self.balancer_host = balancer_host
+        self.balancer_port = balancer_port
+        self.balancer_device_id = balancer_device_id
+        self.balancer_program_name = balancer_program_name
+        self.balancer_connection: Optional[HighLevelSwitchConnection] = None
+
+        self.balancer_proxy_server: Optional[ProxyServer] = None
 
     async def add_node(self, host: str, port: int, device_id: int, do_init: bool=True, filter_params_allow_only: Optional[ProxyAllowedParamsDict] = None) -> None:
         self._nodes[get_address_from_host_and_port(host, port)] = NodeHolder(
@@ -36,11 +48,13 @@ class ReplicatedNodeBalancerManager:
         if do_init:
             await self.init()
 
+    def get_balancer_connection(self) -> HighLevelSwitchConnection:
+        return self.balancer_connection
+
     async def remove_node(self, host: str, port: int) -> None:
         address = get_address_from_host_and_port(host, port)
         self._nodes.pop(address)
         await self.proxy_server.remove_target_switch(host, port)
-
 
     async def init(self) -> None:
         new_target_switch_configs: List[TargetSwitchConfig] = []
@@ -69,6 +83,18 @@ class ReplicatedNodeBalancerManager:
         else:
             for new_target_switch_config in new_target_switch_configs:
                 await self.proxy_server.add_target_switch(new_target_switch_config)
+
+        if self.balancer_connection is None:
+            self.balancer_connection = HighLevelSwitchConnection(
+                self.balancer_device_id,
+                self.balancer_program_name,
+                self.balancer_port,
+                send_p4info=True,
+                reset_dataplane=False,
+                host=self.balancer_host
+            )
+            await self.balancer_connection.init()
+
 
     async def add_filter_params_allow_only_to_host(self, host: str, port: int, filters_to_add: ProxyAllowedParamsDict) -> None:
         await self.proxy_server.add_filter_params_allow_only_to_host(host, port, filters_to_add)

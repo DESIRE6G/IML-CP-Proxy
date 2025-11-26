@@ -10,7 +10,6 @@ from common.replicated_node_balancer import ReplicatedNodeBalancerManager
 from aiohttp import web
 
 manager: Optional[ReplicatedNodeBalancerManager] = None
-balancer_connection: Optional[HighLevelSwitchConnection] = None
 
 class SourceAddressData(BaseModel):
     port: int
@@ -66,13 +65,13 @@ class SetRouteParameters(BaseModel):
 
 @api_endpoint('post', '/set_route', SetRouteParameters)
 async def set_route(params: SetRouteParameters) -> web.Response:
-    global manager, balancer_connection, source_address_data
+    global manager, source_address_data
     source_address = params.source_address
 
     is_new_record = source_address not in source_address_data
     print(source_address, source_address_data, is_new_record)
     source_address_data[source_address] = SourceAddressData(port=params.target_port)
-
+    balancer_connection = manager.get_balancer_connection()
     table_entry = balancer_connection.p4info_helper.build_table_entry(
         table_name="MyIngress.ipv4_exact",
         match_fields={
@@ -82,7 +81,7 @@ async def set_route(params: SetRouteParameters) -> web.Response:
         action_params={
             "port": params.target_port
         })
-    await balancer_connection.connection.WriteTableEntry(table_entry, 'INSERT' if is_new_record else 'MODIFY')
+    await manager.balancer_connection.connection.WriteTableEntry(table_entry, 'INSERT' if is_new_record else 'MODIFY')
     return web.json_response({'status': 'OK'})
 
 
@@ -93,7 +92,7 @@ class AddFilterParameters(BaseModel):
 
 @api_endpoint('post', '/add_to_filter', AddFilterParameters)
 async def add_to_filter(params: AddFilterParameters) -> web.Response:
-    global manager, balancer_connection, source_address_data
+    global manager, source_address_data
     await manager.add_filter_params_allow_only_to_host(params.host, params.port, params.filter)
 
     return web.json_response({'status': 'OK'})
@@ -105,12 +104,10 @@ class RemoveFromFilterParameters(BaseModel):
 
 @api_endpoint('post', '/remove_from_filter', AddFilterParameters)
 async def remove_from_filter(params: AddFilterParameters) -> web.Response:
-    global manager, balancer_connection, source_address_data
+    global manager, source_address_data
     await manager.remove_from_filter_params_allow_only_to_host(params.host, params.port, params.filter)
 
     return web.json_response({'status': 'OK'})
-
-
 
 
 class Settings(BaseSettings):
@@ -140,19 +137,14 @@ if __name__ == "__main__":
             await site.start()
 
             global manager
-            manager = ReplicatedNodeBalancerManager(settings.node_p4_program_name)
-            await manager.init()
-
-            global balancer_connection
-            balancer_connection = HighLevelSwitchConnection(
-                settings.balancer_device_id,
-                settings.balancer_p4_program_name,
+            manager = ReplicatedNodeBalancerManager(
+                settings.node_p4_program_name,
+                settings.balancer_host,
                 settings.balancer_port,
-                send_p4info=True,
-                reset_dataplane=False,
-                host=settings.balancer_host
+                settings.balancer_device_id,
+                settings.balancer_p4_program_name
             )
-            await balancer_connection.init()
+            await manager.init()
 
             print('Proxy is ready')
             while True:
