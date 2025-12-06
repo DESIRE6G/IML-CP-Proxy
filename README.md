@@ -1,26 +1,46 @@
+# IML-CP-Proxy
+### P4Runtime-based Control Plane Proxy
+
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+[![CI](https://github.com/DESIRE6G/IML-CP-Proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/DESIRE6G/IML-CP-Proxy/actions/workflows/ci.yml)
 
-IML-CP-Proxy is a middleware layer between the data and control plane levels to hide underlying aggregation and disaggregation.
+**IML-CP-Proxy** is a lightweight middleware that sits between a P4 Controller and your data plane. It allows you to **aggregate and disaggregate** P4 programs, merging multiple physical pipelines into a single virtual device (or vice versa). This simplifies control plane logic for complex, multi-switch topologies.
 
-## Quick Demo Start
+## Quick Start (Demo)
 
-Start the proxy and database in one command:
+See the proxy in action immediately with our self-contained demo. This launches the Proxy, a simulated Switch, and a dummy Controller.
+
 ```bash
 git clone [https://github.com/DESIRE6G/IML-CP-Proxy.git](https://github.com/DESIRE6G/IML-CP-Proxy.git)
 cd IML-CP-Proxy
 ./run_demo.sh
 ```
 
-## Local installation
+- The script starts the full stack (Proxy, Redis, Switch, Controller).
+- It automatically backs up any existing proxy_config.json you have.
 
+
+## Production usage
+
+To use IML-CP-Proxy with your own hardware and controller:
+
+1) Configure: Copy the example config and edit it to match your physical switches.
 ```bash
-pip3 install --upgrade pip
-python3 -m pip install --upgrade setuptools
-sudo apt-get install python3-dev
-pip3 install --no-cache-dir --force-reinstall -Iv grpcio==1.65.5
+cp example/proxy_config.json proxy_config.json
+nano proxy_config.json
+```
+2) Run: Start only the Proxy and Redis (without the demo components). 
+```bash
+docker-compose up -d
 ```
 
-## Structure
+3) Connect
+- Point your P4 Controller to the correct port configured in proxy_config.json (e.g.: localhost:60051)
+- The Proxy will route and transform requests to the switches defined in your config.
+
+## Architecture
+
+The proxy acts as a translation layer. It presents a "Virtual Device" to the controller(s), while managing the complexity of routing flow entries to the correct physical switches (S1, S2, etc.) in the background.
 
 ```mermaid
 graph TD
@@ -56,6 +76,21 @@ graph TD
     linkStyle 0,2,3 stroke:#333,stroke-width:2px,fill:none;
     linkStyle 1 stroke:#856404,stroke-width:2px,fill:none,stroke-dasharray: 5 5;
 ```
+
+**Key Features**
+- Virtualization: Merges distinct P4 pipelines (e.g., L2FWD + Firewall) into one logical view.
+- Transparent Proxy: Uses standard P4Runtime gRPC; no changes needed on the Controller side.
+- State Management: Uses Redis to track flow rule mappings and device states.
+
+## Manual installation
+
+```bash
+pip3 install --upgrade pip
+python3 -m pip install --upgrade setuptools
+sudo apt-get install python3-dev
+pip3 install --no-cache-dir --force-reinstall -Iv grpcio==1.65.5
+```
+
 
 ## JSON Usage
 
@@ -201,3 +236,7 @@ To decrease redundancy there are `testcase_common` folder, that files are all co
 
 If you want to only extend or override some fields of the `test_config.json` placed into the test case folder, you can create a `test_case_extend.json`, that does not override fully the base config.
 This feature is for further redundancy decrease.
+
+##  Contributing
+
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
