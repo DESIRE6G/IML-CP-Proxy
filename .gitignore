@@ -31,3 +31,5 @@ results
 venv
 
 .env
+
+/proxy_config.json

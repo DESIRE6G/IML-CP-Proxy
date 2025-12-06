@@ -36,7 +36,9 @@ _redis: Optional[redis.Redis] = None
 def get_redis() -> redis.Redis:
     global _redis
     if _redis is None:
-        _redis = redis.Redis()
+        redis_host = os.getenv('REDIS_HOST', 'localhost')
+        redis_port = int(os.getenv('REDIS_PORT', 6379))
+        _redis = redis.Redis(host=redis_host, port=redis_port)
 
     return _redis
 
