@@ -233,7 +233,7 @@ class SwitchConnection(object):
 
         config.p4info.CopyFrom(p4info)
         if device_config is not None:
-            config.p4_device_config = device_config.SerializeToString()
+            config.p4_device_config = device_config
 
         request.action = p4runtime_pb2.SetForwardingPipelineConfigRequest.VERIFY_AND_COMMIT
         if dry_run:

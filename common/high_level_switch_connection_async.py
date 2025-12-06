@@ -182,7 +182,7 @@ class SwitchConnection(object):
 
         config.p4info.CopyFrom(p4info)
         if device_config is not None:
-            config.p4_device_config = device_config.SerializeToString()
+            config.p4_device_config = device_config
 
         request.action = p4runtime_pb2.SetForwardingPipelineConfigRequest.VERIFY_AND_COMMIT
         await self.client_stub.SetForwardingPipelineConfig(request)
@@ -385,14 +385,9 @@ class GrpcRequestLogger(grpc.UnaryUnaryClientInterceptor,
         return continuation(client_call_details, request)
 
 
-def buildDeviceConfig(bmv2_json_file_path=None):
-    from p4.tmp import p4config_pb2
-    "Builds the device config for BMv2"
-    device_config = p4config_pb2.P4DeviceConfig()
-    device_config.reassign = True
-    with open(bmv2_json_file_path) as f:
-        device_config.device_data = f.read().encode('utf-8')
-    return device_config
+def buildDeviceConfig(bmv2_json_file_path):
+    with open(bmv2_json_file_path, 'rb') as f:
+        return f.read()
 
 class Bmv2SwitchConnection(SwitchConnection):
     def buildDeviceConfig(self, **kwargs):
