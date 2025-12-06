@@ -2,7 +2,6 @@ pydantic==2.10.6
 pydantic-settings==2.6.1
 redis==4.5.5
 grpcio==1.65.5
-yappi==1.6.0
 p4runtime==1.4.1
 p4runtime-shell==0.0.6
 aiohttp==3.10.11

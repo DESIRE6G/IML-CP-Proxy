@@ -11,7 +11,7 @@
 See the proxy in action immediately with our self-contained demo. This launches the Proxy, a simulated Switch, and a dummy Controller.
 
 ```bash
-git clone [https://github.com/DESIRE6G/IML-CP-Proxy.git](https://github.com/DESIRE6G/IML-CP-Proxy.git)
+git clone https://github.com/DESIRE6G/IML-CP-Proxy.git
 cd IML-CP-Proxy
 ./run_demo.sh
 ```
@@ -84,6 +84,7 @@ graph TD
 
 ## Manual installation
 
+1. Install dependencies:
 ```bash
 pip3 install --upgrade pip
 python3 -m pip install --upgrade setuptools
@@ -91,6 +92,14 @@ sudo apt-get install python3-dev
 pip3 install --no-cache-dir --force-reinstall -Iv grpcio==1.65.5
 ```
 
+## Manual installation on Mininet virtual machine
+
+```bash
+pip3 install --upgrade pip
+python3 -m pip install --upgrade setuptools
+sudo apt-get install python3-dev
+pip3 install --no-cache-dir --force-reinstall -Iv grpcio==1.65.5
+```
 
 ## JSON Usage
 
@@ -146,7 +155,7 @@ In production the typical mode is used for Redis is `READWRITE`, but for testing
 | ONLY_READ  | Only load entries from redis on startup, but do not save any change |
 | OFF        | Do not use redis entirely                                           |
 
-The configuration can accept `source` for one source, `sources` for mutliple sources. `target` and `targets` similarly handled.
+The configuration can accept `source` for one source, `sources` for multiple sources. `target` and `targets` similarly handled.
 
 For fully detailed paraméters, you can find `ProxyConfig` Pydantic model in proxy.py that determines the structure of the configuration files or you can find multiple testcases in the repository.
 
