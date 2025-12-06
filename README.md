@@ -2,7 +2,7 @@
 
 IML-CP-Proxy is a middleware layer between the data and control plane levels to hide underlying aggregation and disaggregation.
 
-## Quick Start
+## Quick Demo Start
 
 Start the proxy and database in one command:
 ```bash
@@ -13,7 +13,7 @@ cd IML-CP-Proxy
 
 ## Local installation
 
-```
+```bash
 pip3 install --upgrade pip
 python3 -m pip install --upgrade setuptools
 sudo apt-get install python3-dev
