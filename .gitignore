@@ -33,3 +33,6 @@ venv
 .env
 
 /proxy_config.json
+
+__pycache__/
+.vscode/
