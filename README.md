@@ -9,8 +9,8 @@ Start the proxy and database in one command:
 git clone [https://github.com/DESIRE6G/IML-CP-Proxy.git](https://github.com/DESIRE6G/IML-CP-Proxy.git)
 cd IML-CP-Proxy
 cp example/proxy_config.json ./
-cp -r example/build ./
-docker-compose up
+cp -r example/p4_build ./build
+./run_demo.sh
 ```
 
 ## Local installation

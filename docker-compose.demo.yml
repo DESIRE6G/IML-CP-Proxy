@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   dataplane:
     image: p4lang/behavioral-model:stable
@@ -14,5 +12,4 @@ services:
       - ./example/p4_build:/app/build
       - ./common:/app/common
     depends_on: 
-      - p4runtime-proxy 
-
+      - p4runtime-proxy
