@@ -1,13 +1,63 @@
-# P4 Runtime Proxy 
+[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 
-The goal of the P4Runtime Proxy is to create a layer between the data and control plane levels.
-Its primary purpose is to be able to rearrange executive units hidden to the control plane without having to modify the control plane.
-Its second purpose is that even if the data plane is rearranged, the control plane does not have to upload the various data again.
+IML-CP-Proxy is a middleware layer between the data and control plane levels to hide underlying aggregation and disaggregation.
 
-The combination of these two goals gives us the opportunity to 
-1) break down the network functionalities into small elements and instead of having to maintain a larger P4 individual program, we create smaller functions and corresponding controllers and combine them;
-2) break down a complex p4 program to multiple switches.
-Since the Proxy also stores the entries, when a rearrangement takes place, almost nothing is sensible from the control plane and the user side.
+## Quick Start
+
+Start the proxy and database in one command:
+```bash
+git clone [https://github.com/DESIRE6G/IML-CP-Proxy.git](https://github.com/DESIRE6G/IML-CP-Proxy.git)
+cd IML-CP-Proxy
+cp example/proxy_config.json ./
+cp -r example/build ./
+docker-compose up
+```
+
+## Local installation
+
+```
+pip3 install --upgrade pip
+python3 -m pip install --upgrade setuptools
+sudo apt-get install python3-dev
+pip3 install --no-cache-dir --force-reinstall -Iv grpcio==1.65.5
+```
+
+## Structure
+
+```mermaid
+graph TD
+    %% Define the style for the nodes
+    classDef controller fill:#d4edda,stroke:#28a745,stroke-width:2px,color:#155724;
+    classDef proxy fill:#cce5ff,stroke:#004085,stroke-width:2px,color:#004085;
+    classDef database fill:#fff3cd,stroke:#856404,stroke-width:2px,color:#856404,stroke-dasharray: 5 5;
+    classDef switch fill:#f8d7da,stroke:#721c24,stroke-width:2px,color:#721c24;
+
+    %% Controller Node
+    C["P4 Controller<br/>(e.g., ONOS, Python script)"]:::controller
+
+    %% Main Proxy Subgraph
+    subgraph Proxy_Layer [IML-CP-Proxy Layer]
+        direction TB
+        P["Proxy Core<br/>(Translation & Logic)<br/><b>Aggregates S1 & S2 into one Virtual Device</b>"]:::proxy
+        R[("Redis DB<br/>State Storage")]:::database
+        P <-->|Reads/Writes| R
+    end
+
+    %% Switch Nodes
+    subgraph Data_Plane [Data Plane P4 Switches]
+        S1["Switch 1<br/>(Function A)"]:::switch
+        S2["Switch 2<br/>(Function B)"]:::switch
+    end
+
+    %% Connections
+    C -->|"P4Runtime (Virtual View)"| P
+    P -->|"P4Runtime (Physical View)"| S1
+    P -->|"P4Runtime (Physical View)"| S2
+
+    %% Link style
+    linkStyle 0,2,3 stroke:#333,stroke-width:2px,fill:none;
+    linkStyle 1 stroke:#856404,stroke-width:2px,fill:none,stroke-dasharray: 5 5;
+```
 
 ## JSON Usage
 
@@ -153,12 +203,3 @@ To decrease redundancy there are `testcase_common` folder, that files are all co
 
 If you want to only extend or override some fields of the `test_config.json` placed into the test case folder, you can create a `test_case_extend.json`, that does not override fully the base config.
 This feature is for further redundancy decrease.
-
-## Install notes
-
-```
-pip3 install --upgrade pip
-python3 -m pip install --upgrade setuptools
-sudo apt-get install python3-dev
-pip3 install --no-cache-dir  --force-reinstall -Iv grpcio==1.65.5
-```
