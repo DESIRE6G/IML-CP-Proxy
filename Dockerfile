@@ -6,6 +6,6 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 WORKDIR /app
 
-EXPOSE 60051-60054
+EXPOSE 60051-60059
 
 ENTRYPOINT ["python", "proxy.py"]
