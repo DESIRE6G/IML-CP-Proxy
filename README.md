@@ -3,6 +3,7 @@
 
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 [![CI](https://github.com/DESIRE6G/IML-CP-Proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/DESIRE6G/IML-CP-Proxy/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 **IML-CP-Proxy** is a lightweight middleware that sits between a P4 Controller and your data plane. It allows you to **aggregate and disaggregate** P4 programs, merging multiple physical pipelines into a single virtual device (or vice versa). This simplifies control plane logic for complex, multi-switch topologies.
 
@@ -249,3 +250,7 @@ This feature is for further redundancy decrease.
 ##  Contributing
 
 Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+## License
+
+Distributed under the Apache 2.0 License. See [LICENSE](LICENSE) for more information.
