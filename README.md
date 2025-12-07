@@ -102,7 +102,7 @@ sudo apt-get install python3-dev
 pip3 install --no-cache-dir --force-reinstall -Iv grpcio==1.65.5
 ```
 
-## JSON Usage
+## Configuration by config file
 
 The proxy can be configured via a JSON file. 
 In this file, you can specify mutiple mappings that configure the operation of the proxy. 
@@ -114,7 +114,7 @@ The proxy will connect to it and appear as a controller for the data plane.
 In addition to the target, we must specify the mapping sources and the corresponding p4 files, these sources are the functions which we want to combine. 
 In the case of sources, we also specify a prefix that has to be added to the beginning of the entity names in the merged P4 file, so we can avoid name conflicts in the case of the aggregated P4 file.
 
-## Example
+### Aggregation example
 
 One of the most basic example configurations that combines 2 functions onto one target node is shown below. The table name ipv4_lpm in the function1.p4 file should appear as NF1_ipv4_lpm in the aggregated.p4 file.
 
@@ -147,6 +147,52 @@ One of the most basic example configurations that combines 2 functions onto one 
 
 In this case, when the proxy receives from the controller of the function1 program for the ipv4_lpm table a table entry insert, the proxy receives a unique key in the message that identifies the table. This identifier is resolved by the proxy based on the p4info file generated from the function1.p4 file (function1.p4info file). It resolves to MyIngress.ipv4_lpm. This full name will be prefixed by the proxy, as a result of which we will get the name MyIngress.NF1_ipv4_lpm, which will finally be converted into an identifier based on the aggregated.p4info file. We do the same conversion for the actions of the table insert entry and with the new identifiers obtained in this way, we generate the new message, which we can now send to the node running the aggregated P4 program.
 
+### Disaggregation example (l2fwd)
+
+For disaggregation scenarios, use the **targets** key (plural) to define a list of destination devices. 
+Within each target, use the **names** list to specify which P4 entities (tables, digests, counters, etc.) are routed to that specific device.
+
+- Specific dict: Only the listed entities are routed to this target.
+- Omitted: If names is missing, all entities are routed to this target.
+- Empty dict ({}): If names is empty, no entities are routed.
+
+```JSON
+{
+  "redis": "OFF",
+  "mappings": [
+    {
+      "targets": [
+        {
+          "program_name": "l2fwd_smac",
+          "port": 50051,
+          "device_id": 0,
+          "names": {
+            "MyIngress.smac": "MyIngress.smac",
+            "MyIngress.mac_learn": "MyIngress.mac_learn",
+            "mac_learn_digest_t": "mac_learn_digest_t"
+          }
+        },
+        {
+          "program_name": "l2fwd_dmac",
+          "port": 50052,
+          "device_id": 1,
+          "names": {
+            "MyIngress.dmac": "MyIngress.dmac",
+            "MyIngress.forward": "MyIngress.forward"
+          }
+        }
+      ],
+      "source": {
+        "program_name": "l2fwd",
+        "port": 60051
+      }
+    }
+  ]
+}
+```
+
+### Redis modes 
+
 In production the typical mode is used for Redis is `READWRITE`, but for testing purpose there are different modes:
 
 | Key        | Effect                                                              |
@@ -165,14 +211,14 @@ For fully detailed paraméters, you can find `ProxyConfig` Pydantic model in pro
 The proxy can help you to preload entries in the dataplane on startup. 
 For that you can check the `preload` examples in testcases.
 
-## Use as lib
+## Using as a library
 
 The Proxy can be used as a lib as well. 
 You can directly create a Pydantic modell and pass it to the `start_servers_by_proxy_config` function.
 
 If you need more detailed control on the tool, you can initiate the `ProxyServer` classes directly, check the source code for more information.
 
-## Testing enviroment
+## Test enviroment in mininet virtual enviroment
 
 The repository contains an automatic tester that run all the examples that can be generated. 
 The testcase folder contains the main files for a test, but in the subtests we can create new folders that contains another files that can extend or overwrite the files the originates from the test folder.
@@ -222,17 +268,24 @@ Reload redis information for the actually built test folder:
 
 ```python prepare```
 
-## Test config
+### Test config
 
 If you add a `test_config.json` to the test case, you can configure the followings:
 
-| Paramter name         | functionality                                                         | Defatult value      |
-|-----------------------|-----------------------------------------------------------------------|---------------------|
-| run_validator         | Determines if the tester run validator.py after the test case.        | true                |
-| load_redis_json       | Determines if the tester fills up the redis from the redis.json file. | true                |
-| start_controller      | Determines if the tester starts the controller.                       | true                |
-| exact_ping_packet_num | Determines how many ping the tester will send to the h2 node.         | Run until a timeout |
-| file_overrides        | You can give a dict that determines files to use.                     |                     |
+| Paramter name         | functionality                                                                                                                                                                     | Defatult value      |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
+| start_mininet         | If it is true then the tester starts mininet for testing.                                                                                                                         | true                |
+| start_proxy           | Determins if the tester starts the proxy.                                                                                                                                         | true                |
+| start_controller      | Determines if the tester starts the controller.                                                                                                                                   | true                |
+| run_validator         | Determines if the tester run validator.py after the test case.                                                                                                                    | true                |
+| load_redis_json       | Determines if the tester fills up the redis from the redis.json file if it exists in the testcase folder. It helps to create test that assumes a start state of the redis.        | true                |
+| file_overrides        | You can give a dict that determines files to use. More in [Test config subtest override](#test-config-subtest-override).                                                          |                     |
+| ongoing_controller    | If it is set to false then the tester waits the controller to stop. If set the controller have to touch .controller_ready flag file to signal it is ready and the test can start. | false               |
+| exact_ping_packet_num | Determines how many ping the tester will send to the h2 node.                                                                                                                     | Run until a timeout |
+
+The actual PyDantic model can be found at [common/model/tester_config.py](common/model/tester_config.py)
+
+#### Test config subtest override
 
 To decrease redundancy there are `testcase_common` folder, that files are all copied to the test folder and with the `file_overrides` paramter we can use for example the defined topology there if we add the following config to our `test_config.json`.
 
