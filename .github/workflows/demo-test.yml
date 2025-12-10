@@ -1,0 +1,42 @@
+name: Test demo example
+
+on: [push, pull_request]
+
+jobs:
+  demo-integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Prepare Configuration & Artifacts
+        run: |
+          cp example/proxy_config.json ./proxy_config.json
+          mkdir -p build
+          cp -r example/p4_build/* ./build/
+
+      - name: Start Docker Containers
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+
+      - name: Wait for Controller
+        run: |
+          sleep 15
+
+      - name: Assert Flow Rule Installation
+        run: |
+          if docker compose -f docker-compose.yml -f docker-compose.demo.yml logs test-controller | grep -q "Tables filled successfully"; then
+            echo "SUCCESS: 'Tables filled successfully' text found in the output!"
+            exit 0
+          else
+            echo "FAILURE: Success message not found in controller logs."
+            echo "--- Dumping Controller Logs ---"
+            docker compose -f docker-compose.yml -f docker-compose.demo.yml logs dummy-controller
+            echo "--- Dumping Proxy Logs ---"
+            docker compose -f docker-compose.yml -f docker-compose.demo.yml logs p4runtime-proxy
+            exit 1
+          fi
+
+      - name: Stop Containers
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.demo.yml down
