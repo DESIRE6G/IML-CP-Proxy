@@ -115,6 +115,7 @@ After the requirements installed, head to the [configuration guide](docs/configu
 ##  Contributing
 
 Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+To use the test system read the [IML-CP-Proxy Mininet testing enviroment Guide](docs/testing.md).
 
 ## License
 
