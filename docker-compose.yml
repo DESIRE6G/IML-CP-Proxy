@@ -1,7 +1,6 @@
 services:
   redis:
     image: redis:alpine
-    container_name: p4_proxy_redis
     ports:
       - "6379:6379" # for debug purpose
     restart: always
