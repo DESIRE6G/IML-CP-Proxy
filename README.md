@@ -5,7 +5,9 @@
 [![CI](https://github.com/DESIRE6G/IML-CP-Proxy/actions/workflows/ci.yml/badge.svg)](https://github.com/DESIRE6G/IML-CP-Proxy/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**IML-CP-Proxy** is a lightweight middleware that sits between a P4 Controller and your data plane. It allows you to **aggregate and disaggregate** P4 programs, merging multiple physical pipelines into a single virtual device (or vice versa). This simplifies control plane logic for complex, multi-switch topologies.
+**IML-CP-Proxy** is a lightweight middleware that sits between a P4 Controller and your data plane. 
+It allows you to **aggregate and disaggregate** P4 programs, merging multiple physical pipelines into a single virtual device (or vice versa). 
+This simplifies control plane logic for complex, multi-switch or multi network function topologies.
 
 ## Quick Start (Demo)
 
@@ -21,7 +23,7 @@ cd IML-CP-Proxy
 - It automatically backs up any existing proxy_config.json you have.
 
 
-## Production usage
+## Static usage
 
 To use IML-CP-Proxy with your own hardware and controller:
 
@@ -39,6 +41,11 @@ docker-compose up -d
 3) Connect
 - Point your P4 Controller to the correct port configured in proxy_config.json (e.g.: localhost:60051)
 - The Proxy will route and transform requests to the switches defined in your config.
+
+## Dynamic usage 
+
+The Proxy can be used as a lib as well if you want to modify the config of the proxy in runtime. 
+To learn more open the [IML-CP-Proxy as a Python Library Guide](docs/lib_use.md).
 
 ## Architecture
 
@@ -86,22 +93,24 @@ graph TD
 
 ## Manual installation
 
-1. Install dependencies:
-```bash
-pip3 install --upgrade pip
-python3 -m pip install --upgrade setuptools
-sudo apt-get install python3-dev
-pip3 install --no-cache-dir --force-reinstall -Iv grpcio==1.65.5
-```
-
-## Manual installation on Mininet virtual machine
+The system tested on Ubuntu 24.04.2 LTS with python3.8.10, so we suggest to use uv to install the desired python version and the dependencies.
 
 ```bash
-pip3 install --upgrade pip
-python3 -m pip install --upgrade setuptools
-sudo apt-get install python3-dev
-pip3 install --no-cache-dir --force-reinstall -Iv grpcio==1.65.5
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
+
+cd IML-CP-Proxy/
+
+# Create a virtualenv
+uv venv --python 3.8.10
+source .venv/bin/activate
+
+# Install requirements
+uv pip install -r requirements.txt
 ```
+
+After the requirements installed, head to the [configuration guide](docs/configuration.md) and create the `proxy_config.json` to configure the proxy.
 
 ##  Contributing
 

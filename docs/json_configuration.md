@@ -1,4 +1,4 @@
-# IML-CP-Proxy Configuration Guide
+# IML-CP-Proxy JSON Configuration Guide
 
 The proxy can be configured via a JSON file. 
 In this file, you can specify mutiple mappings that configure the operation of the proxy. 
@@ -208,47 +208,6 @@ graph TD
 | `program_name` | String | *Req* | Identifier for this logical source interface. Similarly working as in the target.                                                  |
 | `port`         | Int    | *Req* | The gRPC port the **Proxy will listen on** for Controller connections.                                                             |
 | `prefix`       | String | `""`    | **(Aggregation only)** String prepended to all P4 entity names (e.g., `FW_`) to prevent collisions when merging multiple programs. |
-
-## Python Configuration (Using as a Library)
-
-The Proxy can be used as a lib as well. 
-You can directly create a Pydantic modell and pass it to the `start_servers_by_proxy_config` function.
-
-If you need more detailed control on the tool, you can initiate the `ProxyServer` classes directly, check the source code for more information.
-
-```python
-from proxy import ProxyConfig, ProxyMapping, ProxyTarget, 
-        ProxySource, start_servers_by_proxy_config
-
-# 1. Define your Target (The Physical Switch)
-target_switch = ProxyTarget(
-    program_name="simple_switch",
-    port=50051,
-    device_id=1
-)
-
-# 2. Define your Source (The Virtual Interface for Controller)
-controller_interface = ProxySource(
-    program_name="simple_switch",
-    port=60051,
-    prefix="" # No prefix needed for simple forward proxy
-)
-
-# 3. Create the Config Object
-config = ProxyConfig(
-    redis="OFF", # or "READWRITE"
-    mappings=[
-        ProxyMapping(
-            target=target_switch,
-            source=controller_interface
-        )
-    ]
-)
-
-if __name__ == "__main__":
-    print("Starting Proxy from Code...")
-    start_servers_by_proxy_config(config)
-```
 
 ### Preload
 
