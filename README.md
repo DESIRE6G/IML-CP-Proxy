@@ -32,7 +32,7 @@ To use IML-CP-Proxy with your own hardware and controller:
 cp example/proxy_config.json proxy_config.json
 nano proxy_config.json
 ```
-2) Customize: Change your proxy_config by your needs. Check the [configuration guide](docs/configuration.md) for details.
+2) Customize: Change your proxy_config by your needs. Check the [configuration guide](docs/json_configuration.md) for details.
 3) Run: Start only the Proxy and Redis (without the demo components). 
 ```bash
 docker-compose up -d
@@ -110,7 +110,7 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
-After the requirements installed, head to the [configuration guide](docs/configuration.md) and create the `proxy_config.json` to configure the proxy.
+After the requirements installed, head to the [configuration guide](docs/json_configuration.md) and create the `proxy_config.json` to configure the proxy.
 
 ##  Contributing
 
