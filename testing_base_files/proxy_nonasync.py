@@ -108,7 +108,8 @@ class ProxyP4RuntimeServicer(P4RuntimeServicer):
             P4INFO= f'{redis_prefix}{RedisRecords.P4INFO.postfix}',
             COUNTER_ENTRIES=f'{redis_prefix}{RedisRecords.COUNTER_ENTRIES.postfix}',
             METER_ENTRIES=f'{redis_prefix}{RedisRecords.METER_ENTRIES.postfix}',
-            HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}'
+            HEARTBEAT=f'{redis_prefix}{RedisRecords.HEARTBEAT.postfix}',
+            REMOVED_COUNTER_ENTRIES=f'{redis_prefix}{RedisRecords.REMOVED_COUNTER_ENTRIES.postfix}'
         )
 
         self.from_p4info_helper = P4InfoHelper(from_p4info_path)
@@ -526,4 +527,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         for server in proxy_servers:
             server.stop()
-

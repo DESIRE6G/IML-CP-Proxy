@@ -11,8 +11,8 @@ from common.simulator import Simulator, SimulatorMultipleResult
 from common.tmuxing import tmux, tmux_shell, wait_for_output, close_everything_and_save_logs, create_tmux_window_with_retry
 
 iter_num = 1
-for case in ['sending_rate_changing', 'batch_size_changing', 'sending_rate_changing_multi_sender', 'batch_delay_test', 'unbalanced_flow', 'multi_sender']:
-#for case in ['sending_rate_changing']:
+#for case in ['sending_rate_changing', 'batch_size_changing', 'sending_rate_changing_multi_sender', 'batch_delay_test', 'unbalanced_flow', 'multi_sender']:
+for case in ['async']:
     simulator = Simulator(results_folder='../results', results_filename=case)
     PROXY_CONFIG_FILENAME = 'proxy_config.json'
     BACKUP_PROXY_CONFIG_FILENAME = f'{PROXY_CONFIG_FILENAME}.original'
@@ -33,6 +33,12 @@ for case in ['sending_rate_changing', 'batch_size_changing', 'sending_rate_chang
         simulator.add_parameter('mode', ['without_proxy', 'fake_proxy', 'real_proxy'])
         simulator.add_parameter('target_port', [lambda mode: 50051 if mode == 'without_proxy' else 60051])
         simulator.add_parameter('fake_proxy', [lambda mode: mode == 'fake_proxy'])
+    elif case == 'async':
+        simulator.add_parameter('iteration', list(range(1,iter_num + 1)))
+        simulator.add_parameter('sending_rate', [200 * (i + 1) for i in range(15)])
+        simulator.add_parameter('mode', ['non_async_proxy', 'real_proxy'])
+        simulator.add_parameter('target_port', [60051])
+        simulator.add_parameter('async_proxy', [lambda mode: mode == 'real_proxy'])
     elif case == 'batch_size_changing':
         simulator.add_parameter('iteration', list(range(1,iter_num + 1)))
         simulator.add_parameter('batch_size', [2 ** i  for i in range(18)])
@@ -111,15 +117,16 @@ for case in ['sending_rate_changing', 'batch_size_changing', 'sending_rate_chang
             tmux(f'split-window -P -t {TMUX_WINDOW_NAME}:0.1 -v -p50')
 
             if async_proxy and fake_proxy:
-                tmux_shell('python fake_proxy_async.py', proxy_pane_name)
-            elif not async_proxy and fake_proxy:
                 tmux_shell('python fake_proxy.py', proxy_pane_name)
+            elif not async_proxy and fake_proxy:
+                tmux_shell('python fake_proxy_nonasync.py', proxy_pane_name)
             elif async_proxy and not fake_proxy:
-                tmux_shell('python proxy_async.py', proxy_pane_name)
-            elif not async_proxy and not fake_proxy:
                 tmux_shell('python proxy.py', proxy_pane_name)
+            elif not async_proxy and not fake_proxy:
+                tmux_shell('python proxy_nonasync.py', proxy_pane_name)
             else:
                 raise Exception('NOPE')
+
 
             try:
                 wait_for_output('^Proxy is ready', proxy_pane_name)

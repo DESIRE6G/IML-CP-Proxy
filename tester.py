@@ -530,4 +530,3 @@ else:
     else:
         build_up_p4_cache()
         run_test_cases(process_cmdline_testcase_name(sys.argv[1]))
-
