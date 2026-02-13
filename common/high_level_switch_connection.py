@@ -12,6 +12,8 @@ import common.p4runtime_lib.helper
 
 from threading import Thread, Event, Lock
 
+from common.enviroment import enviroment_settings
+
 
 @dataclass
 class QueueWithInfo:
@@ -44,24 +46,6 @@ class StreamHandlerWorkerThread(Thread):
 
     def stop(self) -> None:
         self.stopped.set()
-
-
-class EnviromentSettings(BaseModel):
-    production_mode: bool = False
-    p4_config_support: bool = False
-
-if socket.gethostname() == 'dpdk-switch':
-    enviroment_settings = EnviromentSettings(
-        production_mode = True,
-        p4_config_support = False
-    )
-elif socket.gethostname() == 'mininet-vm':
-    enviroment_settings = EnviromentSettings(
-        production_mode = False,
-        p4_config_support = True
-    )
-else:
-    enviroment_settings = EnviromentSettings()
 
 class HighLevelSwitchConnection:
     def __init__(self,
