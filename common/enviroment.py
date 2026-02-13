@@ -11,6 +11,11 @@ if socket.gethostname() == 'dpdk-switch':
         production_mode = True,
         p4_config_support = False
     )
+elif socket.gethostname() == 'dpdk-pktgen':
+    enviroment_settings = EnviromentSettings(
+        production_mode = True,
+        p4_config_support = False
+    )
 elif socket.gethostname() == 'mininet-vm':
     enviroment_settings = EnviromentSettings(
         production_mode = False,
